@@ -1,0 +1,189 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useToast } from './use-toast';
+
+type CommandHandler = (command: string) => void;
+
+interface VoiceCommand {
+  command: string;
+  aliases?: string[];
+  handler: () => void;
+  description: string;
+}
+
+interface UseVoiceControlProps {
+  commands: VoiceCommand[];
+  enabled?: boolean;
+}
+
+export function useVoiceControl({ commands, enabled = false }: UseVoiceControlProps) {
+  const [isListening, setIsListening] = useState(false);
+  const [availableCommands, setAvailableCommands] = useState<VoiceCommand[]>([]);
+  const [transcript, setTranscript] = useState('');
+  const [isSupported, setIsSupported] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const { toast } = useToast();
+
+  // Check if browser supports speech recognition
+  useEffect(() => {
+    // Check for browser support
+    const SpeechRecognition = window.SpeechRecognition || window['webkitSpeechRecognition'];
+    
+    if (SpeechRecognition) {
+      setIsSupported(true);
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
+      
+      // Setup recognition event handlers
+      recognitionRef.current.onstart = () => {
+        setIsListening(true);
+      };
+      
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+        if (enabled) {
+          // Restart if enabled is still true
+          try {
+            recognitionRef.current.start();
+          } catch (e) {
+            console.log('Recognition error on restart', e);
+          }
+        }
+      };
+      
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error', event.error);
+        if (event.error === 'not-allowed') {
+          toast({
+            title: "Microphone access denied",
+            description: "Please enable microphone access to use voice commands",
+            variant: "destructive",
+          });
+          setIsListening(false);
+        }
+      };
+      
+      recognitionRef.current.onresult = (event: any) => {
+        const current = event.resultIndex;
+        const result = event.results[current][0].transcript.trim().toLowerCase();
+        setTranscript(result);
+        
+        // Process the command
+        processCommand(result);
+      };
+    } else {
+      setIsSupported(false);
+      toast({
+        title: "Voice control not supported",
+        description: "Your browser doesn't support voice recognition",
+        variant: "destructive",
+      });
+    }
+    
+    // Cleanup
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // Ignore errors when stopping
+        }
+      }
+    };
+  }, []);
+  
+  // Update available commands when commands prop changes
+  useEffect(() => {
+    setAvailableCommands(commands);
+  }, [commands]);
+  
+  // Start/stop recognition based on enabled prop
+  useEffect(() => {
+    if (!recognitionRef.current) return;
+    
+    if (enabled && !isListening) {
+      try {
+        recognitionRef.current.start();
+        toast({
+          title: "Voice control activated",
+          description: "Try saying 'help' to see available commands",
+        });
+      } catch (e) {
+        console.error('Failed to start speech recognition', e);
+      }
+    } else if (!enabled && isListening) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.error('Failed to stop speech recognition', e);
+      }
+    }
+  }, [enabled, isListening]);
+  
+  // Process voice commands
+  const processCommand = useCallback((text: string) => {
+    // Special case for "help" command
+    if (text === 'help' || text === 'what can i say') {
+      const commandList = availableCommands.map(cmd => `"${cmd.command}": ${cmd.description}`).join(', ');
+      toast({
+        title: "Available voice commands",
+        description: commandList,
+      });
+      return;
+    }
+    
+    // Check all commands and their aliases
+    for (const command of availableCommands) {
+      if (
+        text === command.command.toLowerCase() || 
+        (command.aliases && command.aliases.some(alias => text === alias.toLowerCase()))
+      ) {
+        command.handler();
+        toast({
+          title: "Command recognized",
+          description: `Executing: ${command.command}`,
+        });
+        return;
+      }
+    }
+    
+    // If we get here, no command matched
+    if (text.length > 2) { // Only show for meaningful attempts, not background noise
+      toast({
+        title: "Command not recognized",
+        description: `Try saying "help" for available commands`,
+        variant: "destructive",
+      });
+    }
+  }, [availableCommands]);
+  
+  const startListening = useCallback(() => {
+    if (isSupported && !isListening && recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        console.error('Failed to start speech recognition', e);
+      }
+    }
+  }, [isSupported, isListening]);
+  
+  const stopListening = useCallback(() => {
+    if (isSupported && isListening && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.error('Failed to stop speech recognition', e);
+      }
+    }
+  }, [isSupported, isListening]);
+  
+  return {
+    isListening,
+    isSupported,
+    transcript,
+    startListening,
+    stopListening,
+    availableCommands
+  };
+}

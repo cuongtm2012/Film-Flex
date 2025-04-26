@@ -18,8 +18,10 @@ import DriveMovies from "@/pages/DriveMovies";
 import AdminDashboard from "@/pages/AdminDashboard";
 import { AuthProvider } from "@/hooks/use-auth";
 import { LanguageProvider } from "@/hooks/use-language";
+import { AccessibilityProvider } from "@/hooks/use-accessibility";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { initializeDriveAPI } from "@/lib/driveHelper";
+import AccessibilityControls from "@/components/AccessibilityControls";
 
 function Router() {
   return (
@@ -69,15 +71,27 @@ function App() {
       <TooltipProvider>
         <LanguageProvider>
           <AuthProvider>
-            <Toaster />
-            <Router />
-            
-            {/* Show Drive status in development mode */}
-            {import.meta.env.DEV && driveError && (
-              <div className="fixed bottom-4 right-4 bg-red-600 text-white px-4 py-2 rounded shadow-lg z-50">
-                {driveError}
-              </div>
-            )}
+            <AccessibilityProvider>
+              {/* Skip to content link for keyboard users */}
+              <a href="#main-content" className="skip-to-content">
+                Skip to content
+              </a>
+              
+              <Toaster />
+              <main id="main-content">
+                <Router />
+              </main>
+              
+              {/* Accessibility Controls */}
+              <AccessibilityControls />
+              
+              {/* Show Drive status in development mode */}
+              {import.meta.env.DEV && driveError && (
+                <div className="fixed bottom-4 right-4 bg-red-600 text-white px-4 py-2 rounded shadow-lg z-50">
+                  {driveError}
+                </div>
+              )}
+            </AccessibilityProvider>
           </AuthProvider>
         </LanguageProvider>
       </TooltipProvider>
