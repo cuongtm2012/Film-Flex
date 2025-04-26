@@ -170,19 +170,24 @@ const MovieDetails = () => {
                 {movie.description}
               </p>
               
-              <div className="flex flex-wrap gap-6">
+              <div className="flex flex-wrap gap-2 mt-4">
                 {movie.director && (
-                  <div className="min-w-[200px]">
-                    <h3 className="text-white/50 text-sm uppercase tracking-wider">Director</h3>
-                    <p className="font-medium text-white">{movie.director}</p>
-                  </div>
+                  <span className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-full text-white/90 text-sm font-medium cursor-pointer transition-all hover:shadow-md hover:shadow-red-900/20">
+                    #{movie.director.replace(/\s+/g, '')}
+                  </span>
                 )}
                 
                 {movie.cast && movie.cast.length > 0 && (
-                  <div className="flex-1">
-                    <h3 className="text-white/50 text-sm uppercase tracking-wider">Cast</h3>
-                    <p className="font-medium text-white">{movie.cast.join(", ")}</p>
-                  </div>
+                  <>
+                    {movie.cast.map((actor, index) => (
+                      <span 
+                        key={index}
+                        className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-full text-white/90 text-sm font-medium cursor-pointer transition-all hover:shadow-md hover:shadow-red-900/20"
+                      >
+                        #{actor.replace(/\s+/g, '')}
+                      </span>
+                    ))}
+                  </>
                 )}
               </div>
             </div>
