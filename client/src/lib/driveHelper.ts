@@ -92,12 +92,13 @@ export async function getDriveVideoStreamingUrl(fileId: string): Promise<string>
   if (isDevelopmentMode) {
     console.log('Development mode: Providing sample video URL for testing, fileId:', fileId);
     
-    // Map specific fileIds to different sample videos
+    // Map specific fileIds to different sample videos based on the movie database
     if (fileId === '1-irIEcfPe0zgPacX-XcMGv1zoB5hMWwI') {
       console.log('Kung Fu Panda 2 video requested, providing sample video');
-      return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+      return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4";
     } else if (fileId === '136atrovI1bWEMoSgq3X12veiNwh2fzO6') {
-      return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
+      console.log('Kung Fu Panda 1 video requested, providing sample video');
+      return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
     }
     
     // Use a sample video from the web that's publicly accessible
@@ -122,12 +123,13 @@ export async function getDriveVideoStreamingUrl(fileId: string): Promise<string>
       console.log('Switching to development mode after streaming URL error');
       isDevelopmentMode = true;
       
-      // Return different sample videos based on fileId
+      // Return different sample videos based on fileId - make sure it matches first set
       if (fileId === '1-irIEcfPe0zgPacX-XcMGv1zoB5hMWwI') {
         console.log('Kung Fu Panda 2 video requested (fallback mode), providing sample video');
-        return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+        return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4";
       } else if (fileId === '136atrovI1bWEMoSgq3X12veiNwh2fzO6') {
-        return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
+        console.log('Kung Fu Panda 1 video requested (fallback mode), providing sample video');
+        return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
       }
       
       // Default fallback video
