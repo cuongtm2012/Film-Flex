@@ -257,7 +257,8 @@ export class MemStorage implements IStorage {
         genreIds: [1, 7], // Action, Thriller
         director: "Christopher Nolan",
         cast: ["Christian Bale", "Heath Ledger", "Aaron Eckhart"],
-        imdbRating: "9.0"
+        imdbRating: "9.0",
+        viewCount: 1245
       },
       {
         title: "Inception",

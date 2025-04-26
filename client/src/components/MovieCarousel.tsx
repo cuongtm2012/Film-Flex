@@ -10,43 +10,53 @@ interface MovieCarouselProps {
 
 const MovieCarousel = ({ title, movies }: MovieCarouselProps) => {
   const carouselRef = useRef<HTMLDivElement>(null);
+  const [showLeftButton, setShowLeftButton] = useState(false);
   
   const scrollLeft = () => {
     if (carouselRef.current) {
-      carouselRef.current.scrollBy({ left: -800, behavior: "smooth" });
+      carouselRef.current.scrollBy({ left: -600, behavior: "smooth" });
     }
   };
   
   const scrollRight = () => {
     if (carouselRef.current) {
-      carouselRef.current.scrollBy({ left: 800, behavior: "smooth" });
+      carouselRef.current.scrollBy({ left: 600, behavior: "smooth" });
+    }
+  };
+  
+  const handleScroll = () => {
+    if (carouselRef.current) {
+      setShowLeftButton(carouselRef.current.scrollLeft > 20);
     }
   };
 
   return (
-    <section className="py-6 px-4 md:px-8">
-      <h2 className="text-xl md:text-2xl font-bold text-white mb-4">{title}</h2>
+    <section className="py-4 px-4 md:px-8 group">
+      <h2 className="text-lg md:text-xl font-bold text-white mb-3">{title}</h2>
       
       <div className="relative">
         <div
           ref={carouselRef}
-          className="flex overflow-x-auto space-x-4 scrollbar-hide pb-6"
+          className="flex overflow-x-auto space-x-3 scrollbar-hide pb-3 pl-0.5"
+          onScroll={handleScroll}
         >
           {movies.map((movie) => (
             <MovieCard key={movie.id} movie={movie} />
           ))}
         </div>
         
-        <button
-          className="absolute top-1/2 left-0 -translate-y-1/2 bg-black bg-opacity-50 rounded-r-md p-4 hidden md:block"
-          onClick={scrollLeft}
-          aria-label="Scroll left"
-        >
-          <ChevronLeft className="h-6 w-6 text-white" />
-        </button>
+        {showLeftButton && (
+          <button
+            className="absolute top-1/2 left-0 -translate-y-1/2 bg-black/60 rounded-r-md p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            onClick={scrollLeft}
+            aria-label="Scroll left"
+          >
+            <ChevronLeft className="h-6 w-6 text-white" />
+          </button>
+        )}
         
         <button
-          className="absolute top-1/2 right-0 -translate-y-1/2 bg-black bg-opacity-50 rounded-l-md p-4 hidden md:block"
+          className="absolute top-1/2 right-0 -translate-y-1/2 bg-black/60 rounded-l-md p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           onClick={scrollRight}
           aria-label="Scroll right"
         >

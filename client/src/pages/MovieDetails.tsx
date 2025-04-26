@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Play, Download, Plus, Star } from "lucide-react";
+import { ArrowLeft, Play, Download, Plus, Star, Eye } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import MobileNavBar from "@/components/MobileNavBar";
 import { API_BASE_URL, Movie, formatDuration, getGenreNames, getGenresString } from "@/lib/constants";
@@ -49,6 +49,14 @@ const MovieDetails = () => {
       setLocation(`/watch/${movie.id}`);
     }
   };
+
+  // Format view count
+  const formatViewCount = (count?: number) => {
+    if (!count) return "0 views";
+    return count >= 1000 
+      ? `${(count / 1000).toFixed(1)}K views` 
+      : `${count} views`;
+  };
   
   if (isLoading) {
     return (
@@ -82,27 +90,29 @@ const MovieDetails = () => {
 
   return (
     <div className="min-h-screen bg-[#141414]">
-      <div className="h-full overflow-y-auto pb-20">
+      <div className="h-full overflow-y-auto pb-16">
+        {/* Header Navigation */}
+        <div className="sticky top-0 bg-gradient-to-b from-black to-transparent z-50 p-4">
+          <button className="text-white" onClick={handleClose}>
+            <ArrowLeft className="h-6 w-6" />
+          </button>
+        </div>
+        
         {/* Hero Section */}
-        <div className="relative h-[60vh] md:h-[80vh]">
-          <img 
-            src={movie.backdropUrl}
-            alt={`${movie.title} backdrop`}
-            className="w-full h-full object-cover brightness-75"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/70 to-transparent"></div>
-          
-          {/* Header Navigation */}
-          <div className="absolute top-0 left-0 right-0 p-4 z-10">
-            <button className="text-white" onClick={handleClose}>
-              <ArrowLeft className="h-6 w-6" />
-            </button>
+        <div className="relative">
+          <div className="w-full aspect-video md:aspect-[2.1/1]">
+            <img 
+              src={movie.backdropUrl}
+              alt={`${movie.title} backdrop`}
+              className="w-full h-full object-cover brightness-75"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/70 to-transparent"></div>
           </div>
           
           {/* Movie Info Overlay */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8 z-10">
-            <div className="flex flex-col md:flex-row md:items-end gap-6">
-              <div className="hidden md:block w-[220px] h-[330px] flex-shrink-0">
+          <div className="px-4 md:px-8 -mt-32 relative z-10">
+            <div className="flex flex-col md:flex-row gap-6">
+              <div className="hidden md:block w-[200px] h-[300px] flex-shrink-0">
                 <img 
                   src={movie.posterUrl}
                   alt={`${movie.title} poster`}
@@ -110,17 +120,35 @@ const MovieDetails = () => {
                 />
               </div>
               <div className="flex-1">
-                <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">{movie.title}</h1>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4">
-                  {movie.matchPercentage && (
-                    <span className="text-green-500 font-medium">{movie.matchPercentage}% Match</span>
-                  )}
+                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">{movie.title}</h1>
+                
+                {/* Movie stats row */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3">
+                  <div className="flex items-center text-yellow-500">
+                    <Star className="fill-yellow-500 h-4 w-4 mr-1" />
+                    <span className="font-bold">{movie.imdbRating || '0'}</span>
+                  </div>
+                  
+                  <div className="flex items-center text-gray-300">
+                    <Eye className="h-4 w-4 mr-1" />
+                    <span>{formatViewCount(movie.viewCount)}</span>
+                  </div>
+                  
                   <span className="text-gray-300">{movie.releaseYear}</span>
                   <span className="border border-gray-600 px-1 text-xs">{movie.rating}</span>
                   <span className="text-gray-300">{formatDuration(movie.duration)}</span>
-                  <span className="text-gray-300">HD</span>
                 </div>
                 
+                {/* Cast info */}
+                {movie.cast && movie.cast.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-gray-300 font-medium">
+                      {movie.cast.slice(0, 3).join(", ")}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Action buttons */}
                 <div className="flex space-x-3 mb-6">
                   <button 
                     className="flex items-center bg-[#E50914] hover:bg-[#B81D24] rounded px-6 py-2 text-white font-medium transition"
@@ -129,143 +157,71 @@ const MovieDetails = () => {
                     <Play className="mr-2 h-5 w-5" /> Play
                   </button>
                   <button className="flex items-center bg-[#6D6D6D] bg-opacity-60 hover:bg-opacity-80 rounded px-6 py-2 text-white font-medium transition">
-                    <Download className="mr-2 h-5 w-5" /> Download
-                  </button>
-                  <button className="flex items-center justify-center w-10 h-10 rounded-full border border-gray-300 bg-[#222] bg-opacity-60">
-                    <Plus className="h-5 w-5 text-white" />
+                    <Plus className="mr-2 h-5 w-5" /> My List
                   </button>
                 </div>
                 
+                {/* Movie description */}
                 <p className="text-gray-300 max-w-3xl mb-4">
                   {movie.description}
                 </p>
                 
-                <div className="text-gray-300">
-                  {movie.director && (
-                    <p className="mb-1"><span className="text-gray-500">Director:</span> {movie.director}</p>
-                  )}
-                  {movie.cast && movie.cast.length > 0 && (
-                    <p className="mb-1"><span className="text-gray-500">Cast:</span> {movie.cast.join(", ")}</p>
-                  )}
-                  <p><span className="text-gray-500">Genres:</span> {getGenresString(movie.genreIds)}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* More Info Sections */}
-        <div className="px-4 md:px-8 py-6">
-          {similarMovies.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-white mb-4">More Like This</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {similarMovies.map(similarMovie => (
-                  <div 
-                    key={similarMovie.id}
-                    className="movie-card relative cursor-pointer"
-                    onClick={() => setLocation(`/movie/${similarMovie.id}`)}
-                  >
-                    <img 
-                      src={similarMovie.posterUrl}
-                      alt={`${similarMovie.title} poster`}
-                      className="rounded w-full aspect-[2/3] object-cover"
-                    />
-                    <div className="movie-card-overlay opacity-0 md:group-hover:opacity-100 absolute inset-0 bg-black bg-opacity-60 rounded flex flex-col justify-end p-3 transition duration-200">
-                      <h3 className="text-white font-medium text-sm truncate">{similarMovie.title}</h3>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          <div>
-            <h2 className="text-xl font-bold text-white mb-4">About {movie.title}</h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="md:col-span-2">
-                <p className="text-gray-300 mb-4">
-                  {movie.description}
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  {movie.cast && movie.cast.length > 0 && (
-                    <div>
-                      <h3 className="text-white font-medium mb-2">Cast</h3>
-                      <ul className="text-gray-300 space-y-1">
-                        {movie.cast.map((actor, index) => (
-                          <li key={index}>{actor}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="text-white font-medium mb-2">Details</h3>
-                    <ul className="text-gray-300 space-y-1">
-                      {movie.director && (
-                        <li><span className="text-gray-500">Director:</span> {movie.director}</li>
-                      )}
-                      <li><span className="text-gray-500">Release:</span> {movie.releaseYear}</li>
-                      <li><span className="text-gray-500">Runtime:</span> {formatDuration(movie.duration)}</li>
-                      <li><span className="text-gray-500">Rating:</span> {movie.rating}</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                {movie.imdbRating && (
-                  <>
-                    <h3 className="text-white font-medium mb-2">Ratings</h3>
-                    <div className="flex items-center mb-4">
-                      <div className="text-[#E50914] text-4xl font-bold mr-2">{movie.imdbRating}</div>
-                      <div className="text-gray-300">
-                        <div className="flex items-center mb-1">
-                          {[...Array(5)].map((_, i) => {
-                            const ratingValue = parseFloat(movie.imdbRating || "0");
-                            const fullStars = Math.floor(ratingValue / 2);
-                            const hasHalfStar = ratingValue / 2 - fullStars >= 0.5;
-                            
-                            if (i < fullStars) {
-                              return <Star key={i} className="h-4 w-4 text-yellow-500 fill-current mr-1" />;
-                            } else if (i === fullStars && hasHalfStar) {
-                              return (
-                                <svg key={i} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-yellow-500 mr-1">
-                                  <path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z" fill="rgba(234, 179, 8, 0.5)" />
-                                  <path d="M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253" fill="rgba(234, 179, 8, 1)" />
-                                </svg>
-                              );
-                            } else {
-                              return <Star key={i} className="h-4 w-4 text-yellow-500 mr-1" />;
-                            }
-                          })}
-                        </div>
-                        <span className="text-sm">IMDB Rating</span>
-                      </div>
-                    </div>
-                  </>
+                {/* Director info */}
+                {movie.director && (
+                  <p className="text-gray-300 mb-1">
+                    <span className="text-gray-500">Director:</span> {movie.director}
+                  </p>
                 )}
                 
-                <h3 className="text-white font-medium mb-2">Genres</h3>
-                <div className="flex flex-wrap gap-2 mb-4">
+                {/* Genres display */}
+                <div className="flex flex-wrap gap-2 mt-3">
                   {getGenreNames(movie.genreIds).map((genre, index) => (
                     <span key={index} className="px-3 py-1 bg-[#222] rounded-full text-gray-300 text-sm">
                       {genre}
                     </span>
                   ))}
                 </div>
-                
-                <h3 className="text-white font-medium mb-2">Available In</h3>
-                <div className="flex flex-wrap gap-2">
-                  {movie.videoSources.map((source, index) => (
-                    <span key={index} className="px-3 py-1 bg-[#222] rounded-full text-gray-300 text-sm">
-                      {source.quality}
-                    </span>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
         </div>
+        
+        {/* More Like This Section */}
+        {similarMovies.length > 0 && (
+          <div className="px-4 md:px-8 py-6">
+            <h2 className="text-xl font-bold text-white mb-4">More Like This</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {similarMovies.map(similarMovie => (
+                <div 
+                  key={similarMovie.id}
+                  className="cursor-pointer"
+                  onClick={() => setLocation(`/movie/${similarMovie.id}`)}
+                >
+                  <div className="relative group">
+                    <img 
+                      src={similarMovie.posterUrl}
+                      alt={`${similarMovie.title} poster`}
+                      className="rounded-t w-full aspect-[2/3] object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <Play className="h-12 w-12 text-white opacity-80" />
+                    </div>
+                  </div>
+                  <div className="bg-[#181818] rounded-b p-2">
+                    <h3 className="text-white font-medium text-sm truncate">{similarMovie.title}</h3>
+                    <div className="flex justify-between items-center mt-1">
+                      <div className="flex items-center text-yellow-500 text-xs">
+                        <Star className="fill-yellow-500 h-3 w-3 mr-1" />
+                        <span>{similarMovie.imdbRating || '-'}</span>
+                      </div>
+                      <span className="text-gray-400 text-xs">{similarMovie.releaseYear}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       <MobileNavBar />
     </div>
