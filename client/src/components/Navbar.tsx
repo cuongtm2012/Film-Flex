@@ -1,16 +1,31 @@
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Search, LogOut, User } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 const Navbar = () => {
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const { user, logoutMutation } = useAuth();
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       setLocation(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
     }
+  };
+  
+  const handleLogout = () => {
+    logoutMutation.mutate();
   };
   
   const isActive = (path: string) => {
@@ -23,23 +38,22 @@ const Navbar = () => {
         {/* Logo and Nav Links */}
         <div className="flex items-center space-x-6">
           <Link href="/">
-            <a className="text-[#E50914] text-2xl font-bold">FilmFlex</a>
+            <span className="text-[#E50914] text-2xl font-bold cursor-pointer">FilmFlex</span>
           </Link>
           <Link href="/">
-            <a className={isActive("/")}>Home</a>
+            <span className={`${isActive("/")} cursor-pointer`}>Home</span>
           </Link>
           <Link href="/movies">
-            <a className={isActive("/movies")}>Movies</a>
-          </Link>
-          <Link href="/tv-shows">
-            <a className={isActive("/tv-shows")}>TV Shows</a>
+            <span className={`${isActive("/movies")} cursor-pointer`}>Movies</span>
           </Link>
           <Link href="/genres">
-            <a className={isActive("/genres")}>Genres</a>
+            <span className={`${isActive("/genres")} cursor-pointer`}>Genres</span>
           </Link>
-          <Link href="/my-list">
-            <a className={isActive("/my-list")}>My List</a>
-          </Link>
+          {user && (
+            <Link href="/my-list">
+              <span className={`${isActive("/my-list")} cursor-pointer`}>My List</span>
+            </Link>
+          )}
         </div>
         
         {/* Search and User */}
@@ -65,9 +79,33 @@ const Navbar = () => {
             </div>
           </form>
           
-          <div className="h-8 w-8 rounded-full bg-red-600 flex items-center justify-center cursor-pointer">
-            <span className="text-white font-medium">U</span>
-          </div>
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="h-8 w-8 rounded-full bg-red-600 flex items-center justify-center cursor-pointer">
+                  <span className="text-white font-medium">{user.username.charAt(0).toUpperCase()}</span>
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>{user.username}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link href="/auth">
+              <Button variant="outline" size="sm" className="text-white border-red-600 bg-transparent hover:bg-red-600/20">
+                Sign In
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </header>

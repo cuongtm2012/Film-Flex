@@ -147,14 +147,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Favorites routes
-  router.get("/users/:userId/favorites", async (req, res) => {
+  // Favorites routes - Protected routes
+  router.get("/favorites", async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "You must be logged in" });
       }
       
+      const userId = req.user!.id;
       const favorites = await storage.getUserFavorites(userId);
       res.json(favorites);
     } catch (error) {
@@ -164,8 +165,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   router.post("/favorites", async (req, res) => {
     try {
-      const favoriteData = insertFavoriteSchema.parse(req.body);
-      const favorite = await storage.addFavorite(favoriteData);
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "You must be logged in" });
+      }
+      
+      // Add the user ID from the authenticated session
+      const userId = req.user!.id;
+      const movieId = req.body.movieId;
+      
+      if (!movieId) {
+        return res.status(400).json({ message: "Movie ID is required" });
+      }
+      
+      const favorite = await storage.addFavorite({
+        userId,
+        movieId,
+        createdAt: new Date()
+      });
+      
       res.status(201).json(favorite);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -175,11 +193,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.delete("/favorites", async (req, res) => {
+  router.delete("/favorites/:movieId", async (req, res) => {
     try {
-      const { userId, movieId } = req.body;
-      if (!userId || !movieId) {
-        return res.status(400).json({ message: "User ID and movie ID are required" });
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "You must be logged in" });
+      }
+      
+      const userId = req.user!.id;
+      const movieId = parseInt(req.params.movieId);
+      
+      if (isNaN(movieId)) {
+        return res.status(400).json({ message: "Invalid movie ID" });
       }
       
       await storage.removeFavorite(userId, movieId);
@@ -189,14 +214,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // View history routes
-  router.get("/users/:userId/history", async (req, res) => {
+  // View history routes - Protected routes
+  router.get("/history", async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "You must be logged in" });
       }
       
+      const userId = req.user!.id;
       const history = await storage.getUserViewHistory(userId);
       res.json(history);
     } catch (error) {
@@ -206,8 +232,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   router.post("/history", async (req, res) => {
     try {
-      const historyData = insertViewHistorySchema.parse(req.body);
-      const history = await storage.addOrUpdateViewHistory(historyData);
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "You must be logged in" });
+      }
+      
+      const userId = req.user!.id;
+      const { movieId, progress } = req.body;
+      
+      if (!movieId) {
+        return res.status(400).json({ message: "Movie ID is required" });
+      }
+      
+      const history = await storage.addOrUpdateViewHistory({
+        userId,
+        movieId,
+        progress: progress || 0,
+        watchedAt: new Date()
+      });
+      
       res.status(201).json(history);
     } catch (error) {
       if (error instanceof z.ZodError) {

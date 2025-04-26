@@ -10,6 +10,9 @@ import WatchMovie from "@/pages/WatchMovie";
 import Search from "@/pages/Search";
 import GenreMovies from "@/pages/GenreMovies";
 import MyList from "@/pages/MyList";
+import AuthPage from "@/pages/auth-page";
+import { AuthProvider } from "@/hooks/use-auth";
+import { ProtectedRoute } from "@/lib/protected-route";
 
 function Router() {
   return (
@@ -20,7 +23,8 @@ function Router() {
       <Route path="/search" component={Search} />
       <Route path="/genre/:id" component={GenreMovies} />
       <Route path="/genres" component={GenreMovies} />
-      <Route path="/my-list" component={MyList} />
+      <ProtectedRoute path="/my-list" component={MyList} />
+      <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -30,8 +34,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
+        <AuthProvider>
+          <Toaster />
+          <Router />
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
