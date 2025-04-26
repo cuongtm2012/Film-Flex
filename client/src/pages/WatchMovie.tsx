@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, SkipBack, Play, Pause, Volume2, VolumeX, X } from "lucide-react";
+import { Play } from "lucide-react";
+import Navbar from "@/components/Navbar";
 import { API_BASE_URL } from "@/lib/constants";
 
 const WatchMovie = () => {
@@ -9,7 +10,6 @@ const WatchMovie = () => {
   const [match, params] = useRoute("/watch/:id");
   const movieId = match ? parseInt(params.id) : null;
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   
   // Fetch movie details
@@ -19,7 +19,7 @@ const WatchMovie = () => {
     enabled: !!movieId,
   });
   
-  const handleClose = () => {
+  const handleBack = () => {
     setLocation(`/movie/${movieId}`);
   };
   
@@ -31,13 +31,6 @@ const WatchMovie = () => {
         videoRef.current.play();
       }
       setIsPlaying(!isPlaying);
-    }
-  };
-  
-  const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
     }
   };
   
@@ -88,94 +81,80 @@ const WatchMovie = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-black">
-      {/* Video Header */}
-      <div className="absolute top-0 left-0 right-0 p-4 z-30 bg-gradient-to-b from-black to-transparent">
-        <div className="flex items-center justify-between">
-          <button 
-            onClick={handleClose}
-            className="text-white hover:bg-white/10 p-2 rounded-full transition-colors"
-          >
-            <ArrowLeft className="h-6 w-6" />
-          </button>
-          <div className="text-white text-xl font-medium">{movie.title}</div>
-          <button 
-            onClick={handleClose}
-            className="text-white hover:bg-white/10 p-2 rounded-full transition-colors"
-          >
-            <X className="h-6 w-6" />
-          </button>
+    <div className="min-h-screen bg-black text-white">
+      <Navbar />
+      
+      {/* Video title and info */}
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="mb-2 text-2xl font-semibold">{movie.title}</div>
+        <div className="text-gray-400 text-sm mb-4">
+          {movie.description.slice(0, 100)}...
         </div>
       </div>
       
-      {/* Main Video */}
-      <div className="relative h-screen bg-black flex items-center justify-center">
-        <video
-          ref={videoRef}
-          className="w-full h-full object-contain"
-          src={getVideoSource()}
-          poster={movie.backdropUrl}
-          preload="auto"
-          onClick={togglePlay}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-        />
-        
-        {/* Play Overlay */}
-        {!isPlaying && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
-            <button 
+      {/* Main video player */}
+      <div className="relative max-w-7xl mx-auto bg-black mb-4">
+        <div className="aspect-video w-full relative">
+          {/* Video element */}
+          <video
+            ref={videoRef}
+            className="w-full h-full object-contain"
+            src={getVideoSource()}
+            poster={movie.backdropUrl}
+            preload="auto"
+          />
+          
+          {/* Play overlay with big centered play button */}
+          {!isPlaying && (
+            <div 
+              className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer"
               onClick={togglePlay}
-              className="bg-white/20 hover:bg-white/30 rounded-full p-6 transition-colors"
             >
-              <Play className="h-16 w-16 text-white fill-white" />
-            </button>
-          </div>
-        )}
-        
-        {/* Video Controls */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black to-transparent z-20">
-          <div className="max-w-6xl mx-auto">
-            {/* Progress Bar */}
-            <div className="w-full bg-white/30 h-1 mb-4 rounded-full overflow-hidden">
-              <div className="bg-red-600 h-full w-[10%]"></div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <button 
-                  onClick={togglePlay}
-                  className="text-white hover:text-gray-300 transition-colors"
-                >
-                  {isPlaying ? (
-                    <Pause className="h-8 w-8" />
-                  ) : (
-                    <Play className="h-8 w-8" />
-                  )}
-                </button>
-                <button className="text-white hover:text-gray-300 transition-colors">
-                  <SkipBack className="h-6 w-6" />
-                </button>
-                <button 
-                  onClick={toggleMute}
-                  className="text-white hover:text-gray-300 transition-colors"
-                >
-                  {isMuted ? (
-                    <VolumeX className="h-6 w-6" />
-                  ) : (
-                    <Volume2 className="h-6 w-6" />
-                  )}
-                </button>
-                <div className="text-white text-sm">
-                  0:00 / {Math.floor(movie.duration / 60)}:{movie.duration % 60 < 10 ? '0' + movie.duration % 60 : movie.duration % 60}
+              <div className="text-8xl text-white/90 select-none">
+                <div className="flex items-center justify-center w-24 h-24 rounded-full bg-black/30">
+                  <Play className="h-12 w-12 fill-white text-white" />
+                </div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl opacity-40 font-light">
+                  PLAY VIDEO
                 </div>
               </div>
-              
-              <div className="text-white text-sm">
-                {movie.rating}
-              </div>
             </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Video stats */}
+      <div className="max-w-7xl mx-auto px-4 mb-8">
+        <div className="flex gap-2 text-sm">
+          <div className="py-1 px-2 bg-red-600 rounded-sm">#1</div>
+          <div className="py-1 px-2 bg-zinc-800 rounded-sm">#2</div>
+        </div>
+        <div className="flex items-center gap-2 mt-3 text-sm text-gray-400">
+          <div className="flex items-center">
+            <span className="text-white font-medium mr-1">{movie.imdbRating}</span>
+            <span className="text-yellow-500">★</span>
           </div>
+          <div>{movie.duration} min</div>
+          <div>{movie.releaseYear}</div>
+        </div>
+        
+        {/* Movie description */}
+        <div className="mt-6">
+          <p className="text-gray-300">{movie.description}</p>
+        </div>
+        
+        {/* Movie hashtags */}
+        <div className="mt-6 flex flex-wrap gap-2">
+          {movie.director && (
+            <span className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-full text-sm cursor-pointer">
+              {movie.director}
+            </span>
+          )}
+          {movie.cast?.slice(0, 2).map((actor, index) => (
+            <span key={index} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-full text-sm cursor-pointer">
+              {actor}
+            </span>
+          ))}
         </div>
       </div>
     </div>
