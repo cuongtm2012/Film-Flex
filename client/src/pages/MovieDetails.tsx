@@ -161,55 +161,56 @@ const MovieDetails = () => {
       
         {/* About the Movie Section */}
         <div className="mb-10">
-          <div className="flex flex-col md:flex-row gap-8">
+          <article className="flex flex-col md:flex-row gap-8 bg-zinc-900/40 p-6 rounded-lg">
             {/* Movie Poster */}
             <div className="w-full md:w-1/4 flex-shrink-0">
               <img 
                 src={movie.posterUrl}
-                alt={movie.title}
-                className="w-full aspect-[2/3] object-cover rounded-md shadow-lg"
+                alt={`${movie.title} movie poster`}
+                className="w-full aspect-[2/3] object-cover rounded-md shadow-xl hover:shadow-red-900/30 transition-all"
+                loading="lazy"
               />
             </div>
             
             {/* Movie Details */}
             <div className="flex-1">
-              <h2 className="text-2xl font-bold mb-4">About the Movie</h2>
+              <h2 className="text-2xl font-bold mb-4 text-white">About the Movie</h2>
               
-              <p className="text-white/80 mb-6">
+              <p className="text-white/80 mb-6 leading-relaxed text-base">
                 {movie.description}
               </p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 mb-6">
+              <div className="flex flex-wrap gap-6 mb-6">
                 {movie.director && (
-                  <div>
-                    <h3 className="text-white/50 text-sm">Director</h3>
-                    <p className="font-medium">{movie.director}</p>
+                  <div className="min-w-[200px]">
+                    <h3 className="text-white/50 text-sm uppercase tracking-wider">Director</h3>
+                    <p className="font-medium text-white">{movie.director}</p>
                   </div>
                 )}
                 
                 {movie.cast && movie.cast.length > 0 && (
-                  <div>
-                    <h3 className="text-white/50 text-sm">Cast</h3>
-                    <p className="font-medium">{movie.cast.join(", ")}</p>
+                  <div className="flex-1">
+                    <h3 className="text-white/50 text-sm uppercase tracking-wider">Cast</h3>
+                    <p className="font-medium text-white">{movie.cast.join(", ")}</p>
                   </div>
                 )}
               </div>
               
-              <button className="flex items-center bg-red-600 hover:bg-red-700 rounded px-5 py-2 text-white font-medium transition">
+              <button className="flex items-center bg-red-600 hover:bg-red-700 rounded px-5 py-2.5 text-white font-medium transition-colors shadow-lg hover:shadow-red-900/50">
                 <Plus className="mr-2 h-5 w-5" /> Add to My List
               </button>
             </div>
-          </div>
+          </article>
         </div>
         
         {/* Categories/Hashtags */}
         <div className="mb-10">
-          <h2 className="text-xl font-bold mb-3">Categories</h2>
+          <h2 className="text-xl font-bold mb-4">Categories</h2>
           <div className="flex flex-wrap gap-2">
             {getGenreNames(movie.genreIds).map((genre, index) => (
               <span 
                 key={index} 
-                className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-full text-white/80 text-sm cursor-pointer transition-colors"
+                className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-full text-white/90 text-sm font-medium cursor-pointer transition-all hover:shadow-md hover:shadow-red-900/20"
               >
                 #{genre.replace(/\s+/g, '')}
               </span>
@@ -220,34 +221,38 @@ const MovieDetails = () => {
         {/* Recommended Films */}
         {similarMovies.length > 0 && (
           <div className="mb-16">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Recommended Films</h2>
-              <button className="text-white/70 hover:text-white text-sm">
-                See All →
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Recommended Films</h2>
+              <button className="text-white/70 hover:text-white text-sm flex items-center gap-1 hover:gap-2 transition-all duration-300">
+                See All <span className="text-red-500">→</span>
               </button>
             </div>
             
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
               {similarMovies.map(similarMovie => (
                 <div 
                   key={similarMovie.id}
-                  className="cursor-pointer"
+                  className="group cursor-pointer transition-all duration-300"
                   onClick={() => setLocation(`/movie/${similarMovie.id}`)}
                 >
-                  <div className="relative">
+                  <div className="relative overflow-hidden rounded-lg">
                     <img 
                       src={similarMovie.posterUrl}
-                      alt={similarMovie.title}
-                      className="w-full aspect-[2/3] object-cover rounded"
+                      alt={`${similarMovie.title} movie poster`}
+                      className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
                     />
-                    <div className="absolute top-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-xs font-medium flex items-center">
+                    <div className="absolute top-2 left-2 bg-black/70 px-2 py-0.5 rounded text-xs font-medium flex items-center">
                       <span className="text-yellow-500 mr-1">★</span>
                       <span>{similarMovie.imdbRating || '0.0'}</span>
                     </div>
+                    
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                      <h3 className="text-sm font-medium text-white leading-tight">
+                        {similarMovie.title}
+                      </h3>
+                    </div>
                   </div>
-                  <h3 className="mt-1 text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                    {similarMovie.title}
-                  </h3>
                 </div>
               ))}
             </div>
