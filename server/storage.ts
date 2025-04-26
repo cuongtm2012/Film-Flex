@@ -232,6 +232,7 @@ export class MemStorage implements IStorage {
       ...insertMovie, 
       id,
       matchPercentage: insertMovie.matchPercentage || null,
+      videoUrl: insertMovie.videoUrl || null,
       director: insertMovie.director || null,
       cast: insertMovie.cast || null,
       imdbRating: insertMovie.imdbRating || null,

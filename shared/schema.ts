@@ -62,6 +62,7 @@ export const movies = pgTable("movies", {
   rating: text("rating").notNull(), // e.g., "PG-13", "R"
   matchPercentage: integer("match_percentage"), // e.g., 97
   videoSources: jsonb("video_sources").notNull(), // array of URLs or sources
+  videoUrl: text("video_url"), // Google Drive file ID or direct URL
   genreIds: integer("genre_ids").array().notNull(),
   director: text("director"),
   cast: text("cast").array(),
@@ -79,7 +80,15 @@ export const insertMovieSchema = createInsertSchema(movies).pick({
   rating: true,
   matchPercentage: true,
   videoSources: true,
+  videoUrl: true,
   genreIds: true,
+  director: true,
+  cast: true,
+  imdbRating: true,
+  viewCount: true,
+}).partial({
+  videoUrl: true,
+  matchPercentage: true,
   director: true,
   cast: true,
   imdbRating: true,

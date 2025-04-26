@@ -98,15 +98,18 @@ const DriveMovies = () => {
       title,
       description: `Watch "${title}" from Google Drive`,
       releaseYear: new Date(driveMovie.createdTime).getFullYear(),
-      duration: '1h 30m', // Default duration (not available from Drive API)
+      duration: 90, // Default duration (not available from Drive API)
       videoUrl: driveMovie.id, // Store the Drive file ID directly
       posterUrl: getDriveThumbnailUrl(driveMovie.id),
       backdropUrl: getDriveThumbnailUrl(driveMovie.id),
       rating: 'PG-13', // Default rating
-      genreIds: [],
-      director: '',
-      cast: '',
-      imdbRating: 0,
+      genreIds: [], // Empty array for genres
+      videoSources: [{ quality: '1080p', url: driveMovie.id }], // Required field
+      director: null,
+      cast: null,
+      imdbRating: null,
+      matchPercentage: null,
+      viewCount: 0
     };
   };
 
