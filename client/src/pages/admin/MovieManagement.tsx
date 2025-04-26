@@ -342,6 +342,12 @@ export default function MovieManagement() {
     setCopyForm({ ...copyForm, [name]: value });
   };
   
+  // Handle input change for URL form
+  const handleUrlInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setUrlForm({ ...urlForm, [name]: value });
+  };
+  
   // Handle select change
   const handleSelectChange = (name: string, value: string) => {
     if (name === 'status') {
@@ -460,6 +466,27 @@ export default function MovieManagement() {
     });
   };
   
+  // Handle adding movie from URL
+  const handleAddMovieFromUrl = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Create a movie with the video sources from the URL
+    const movie = {
+      ...urlForm,
+      videoSources: [
+        {
+          quality: 'HD',
+          url: urlForm.videoUrl
+        }
+      ]
+    };
+    
+    // Call the create movie mutation
+    createMovieMutation.mutate(movie);
+    
+    // Close the dialog
+    setOpenAddUrlDialog(false);
+  };
+  
   return (
     <div className="space-y-6">
       {/* Tabs */}
@@ -489,7 +516,22 @@ export default function MovieManagement() {
                 <Copy className="mr-2 h-4 w-4" />
                 {t('admin.copyFromDrive')}
               </Button>
-              <Button variant="outline" onClick={() => setOpenCreateDialog(true)}>
+              <Button variant="outline" onClick={() => {
+                // Reset URL form first
+                setUrlForm({
+                  title: '',
+                  description: '',
+                  releaseYear: new Date().getFullYear(),
+                  duration: 120,
+                  posterUrl: '',
+                  backdropUrl: '',
+                  rating: 'PG-13',
+                  videoUrl: '',
+                  genreIds: [],
+                  director: '',
+                });
+                setOpenAddUrlDialog(true);
+              }}>
                 <Link className="mr-2 h-4 w-4" />
                 {t('admin.addFromUrl')}
               </Button>
