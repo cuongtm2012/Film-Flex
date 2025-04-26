@@ -113,7 +113,8 @@ export default function MovieManagement() {
     destinationFolderId: '',
   });
   
-  const [urlForm, setUrlForm] = useState({
+  // Default URL form for adding movies directly from URL
+  const defaultUrlForm = {
     title: '',
     description: '',
     releaseYear: new Date().getFullYear(),
@@ -124,7 +125,9 @@ export default function MovieManagement() {
     videoUrl: '',
     genreIds: [] as number[],
     director: '',
-  });
+  };
+  
+  const [urlForm, setUrlForm] = useState(defaultUrlForm);
   
   // Fetch movies
   const { data: movies = [], isLoading: isLoadingMovies } = useQuery<Movie[]>({
@@ -535,18 +538,7 @@ export default function MovieManagement() {
               </Button>
               <Button variant="outline" onClick={() => {
                 // Reset URL form first
-                setUrlForm({
-                  title: '',
-                  description: '',
-                  releaseYear: new Date().getFullYear(),
-                  duration: 120,
-                  posterUrl: '',
-                  backdropUrl: '',
-                  rating: 'PG-13',
-                  videoUrl: '',
-                  genreIds: [],
-                  director: '',
-                });
+                setUrlForm(defaultUrlForm);
                 setOpenAddUrlDialog(true);
               }}>
                 <Link className="mr-2 h-4 w-4" />
