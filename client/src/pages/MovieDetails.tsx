@@ -102,12 +102,9 @@ const MovieDetails = () => {
     <div className="min-h-screen bg-black text-white">
       <Navbar />
       
-      {/* Movie Title and Information */}
+      {/* Movie Title */}
       <div className="max-w-7xl mx-auto px-4 py-4">
-        <h1 className="text-4xl font-bold mb-2">{movie.title}</h1>
-        <div className="text-gray-400 text-sm mb-4">
-          {movie.description.slice(0, 100)}...
-        </div>
+        <h1 className="text-4xl font-bold mb-4">{movie.title}</h1>
       </div>
       
       {/* Video Player */}
