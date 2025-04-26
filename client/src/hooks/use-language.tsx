@@ -215,6 +215,8 @@ const translations = {
     'admin.transactionProcessFailed': 'Failed to process transaction',
     'admin.userId': 'User ID',
     'admin.general.backToHome': 'Back to Home',
+    'admin.filters': 'Filters',
+    'admin.adminIdPlaceholder': 'Enter admin ID',
   },
   vi: {
     // Navbar
@@ -424,6 +426,8 @@ const translations = {
     'admin.transactionProcessFailed': 'Không thể xử lý giao dịch',
     'admin.userId': 'ID Người Dùng',
     'admin.general.backToHome': 'Quay Lại Trang Chủ',
+    'admin.filters': 'Bộ Lọc',
+    'admin.adminIdPlaceholder': 'Nhập ID quản trị',
   }
 };
 
