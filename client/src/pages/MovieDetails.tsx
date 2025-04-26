@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Play, Download, Plus, Star, Eye } from "lucide-react";
+import { ArrowLeft, Play, Plus, Star, ArrowRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import MobileNavBar from "@/components/MobileNavBar";
-import { API_BASE_URL, Movie, formatDuration, getGenreNames, getGenresString } from "@/lib/constants";
+import { API_BASE_URL, Movie, formatDuration, getGenreNames } from "@/lib/constants";
 
 const MovieDetails = () => {
   const [, setLocation] = useLocation();
@@ -34,13 +33,13 @@ const MovieDetails = () => {
           m.id !== movie.id && // Exclude current movie
           m.genreIds.some(genre => movie.genreIds.includes(genre)) // Must have at least one matching genre
         )
-        .slice(0, 6); // Limit to 6 movies
+        .slice(0, 5); // Limit to 5 movies
       
       setSimilarMovies(filtered);
     }
   }, [movie, allMovies]);
   
-  const handleClose = () => {
+  const handleBack = () => {
     setLocation("/");
   };
   
@@ -50,19 +49,17 @@ const MovieDetails = () => {
     }
   };
 
-  // Format view count
-  const formatViewCount = (count?: number) => {
-    if (!count) return "0 views";
-    return count >= 1000 
-      ? `${(count / 1000).toFixed(1)}K views` 
-      : `${count} views`;
+  // Format rating as string
+  const formatRating = (rating?: string) => {
+    if (!rating) return '0.0';
+    return rating.includes('.') ? rating : rating + '.0';
   };
   
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#141414] flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#E50914] mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
           <p className="text-white">Loading movie details...</p>
         </div>
       </div>
@@ -71,15 +68,15 @@ const MovieDetails = () => {
   
   if (error || !movie) {
     return (
-      <div className="min-h-screen bg-[#141414] flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center max-w-md">
           <h2 className="text-2xl font-bold text-white mb-2">Movie Not Found</h2>
           <p className="text-gray-300">
             We couldn't find the movie you're looking for. Please try another one.
           </p>
           <button 
-            className="mt-4 px-4 py-2 bg-[#E50914] text-white rounded"
-            onClick={() => setLocation("/")}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded"
+            onClick={handleBack}
           >
             Go to Home
           </button>
@@ -89,141 +86,148 @@ const MovieDetails = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#141414]">
-      <div className="h-full overflow-y-auto pb-16">
-        {/* Header Navigation */}
-        <div className="sticky top-0 bg-gradient-to-b from-black to-transparent z-50 p-4">
-          <button className="text-white" onClick={handleClose}>
-            <ArrowLeft className="h-6 w-6" />
-          </button>
-        </div>
-        
-        {/* Hero Section */}
-        <div className="relative">
-          <div className="w-full aspect-video md:aspect-[2.1/1]">
-            <img 
-              src={movie.backdropUrl}
-              alt={`${movie.title} backdrop`}
-              className="w-full h-full object-cover brightness-75"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/70 to-transparent"></div>
-          </div>
+    <div className="min-h-screen bg-black text-white">
+      <Navbar />
+      
+      {/* 1. Header Section */}
+      <header className="relative">
+        <div className="w-full h-[50vh] md:h-[60vh] relative">
+          <img 
+            src={movie.backdropUrl}
+            alt={movie.title}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/20"></div>
           
-          {/* Movie Info Overlay */}
-          <div className="px-4 md:px-8 -mt-32 relative z-10">
-            <div className="flex flex-col md:flex-row gap-6">
-              <div className="hidden md:block w-[200px] h-[300px] flex-shrink-0">
-                <img 
-                  src={movie.posterUrl}
-                  alt={`${movie.title} poster`}
-                  className="w-full h-full object-cover rounded-md shadow-lg"
-                />
+          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
+            <div className="max-w-5xl mx-auto">
+              <h1 className="text-4xl md:text-6xl font-bold mb-2">{movie.title}</h1>
+              <div className="flex items-center space-x-3 text-sm md:text-base mb-4">
+                <div className="flex items-center bg-black/70 px-2 py-1 rounded">
+                  <Star className="text-yellow-500 fill-yellow-500 h-4 w-4 mr-1" />
+                  <span>{formatRating(movie.imdbRating)}</span>
+                </div>
+                <span>{movie.releaseYear}</span>
+                <span>{formatDuration(movie.duration)}</span>
+                <span className="border border-white/30 px-1">{movie.rating}</span>
               </div>
-              <div className="flex-1">
-                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">{movie.title}</h1>
-                
-                {/* Movie stats row */}
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3">
-                  <div className="flex items-center text-yellow-500">
-                    <Star className="fill-yellow-500 h-4 w-4 mr-1" />
-                    <span className="font-bold">{movie.imdbRating || '0'}</span>
-                  </div>
-                  
-                  <div className="flex items-center text-gray-300">
-                    <Eye className="h-4 w-4 mr-1" />
-                    <span>{formatViewCount(movie.viewCount)}</span>
-                  </div>
-                  
-                  <span className="text-gray-300">{movie.releaseYear}</span>
-                  <span className="border border-gray-600 px-1 text-xs">{movie.rating}</span>
-                  <span className="text-gray-300">{formatDuration(movie.duration)}</span>
-                </div>
-                
-                {/* Cast info */}
-                {movie.cast && movie.cast.length > 0 && (
-                  <div className="mb-3">
-                    <p className="text-gray-300 font-medium">
-                      {movie.cast.slice(0, 3).join(", ")}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Action buttons */}
-                <div className="flex space-x-3 mb-6">
-                  <button 
-                    className="flex items-center bg-[#E50914] hover:bg-[#B81D24] rounded px-6 py-2 text-white font-medium transition"
-                    onClick={handlePlay}
-                  >
-                    <Play className="mr-2 h-5 w-5" /> Play
-                  </button>
-                  <button className="flex items-center bg-[#6D6D6D] bg-opacity-60 hover:bg-opacity-80 rounded px-6 py-2 text-white font-medium transition">
-                    <Plus className="mr-2 h-5 w-5" /> My List
-                  </button>
-                </div>
-                
-                {/* Movie description */}
-                <p className="text-gray-300 max-w-3xl mb-4">
-                  {movie.description}
-                </p>
-                
-                {/* Director info */}
+              
+              {/* Play Button */}
+              <button 
+                onClick={handlePlay}
+                className="flex items-center bg-white hover:bg-white/90 text-black rounded px-8 py-3 font-medium transition-colors"
+              >
+                <Play className="mr-2 h-5 w-5 fill-black" /> 
+                Play Movie
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      
+      <main className="max-w-6xl mx-auto px-4 md:px-8 -mt-6 relative z-10">
+        {/* 2. Movie Section */}
+        <div className="bg-zinc-900/70 backdrop-blur-sm rounded-lg p-6 mb-8">
+          <div className="flex flex-col md:flex-row gap-8">
+            {/* Movie Poster */}
+            <div className="w-full md:w-1/4 flex-shrink-0">
+              <img 
+                src={movie.posterUrl}
+                alt={movie.title}
+                className="w-full aspect-[2/3] object-cover rounded-md shadow-lg"
+              />
+            </div>
+            
+            {/* Movie Details */}
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold mb-4">About the Movie</h2>
+              <p className="text-white/80 mb-6 leading-relaxed">
+                {movie.description}
+              </p>
+              
+              <div className="grid grid-cols-2 gap-4 mb-6">
                 {movie.director && (
-                  <p className="text-gray-300 mb-1">
-                    <span className="text-gray-500">Director:</span> {movie.director}
-                  </p>
+                  <div>
+                    <span className="block text-white/50 text-sm">Director</span>
+                    <span className="font-medium">{movie.director}</span>
+                  </div>
                 )}
                 
-                {/* Genres display */}
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {getGenreNames(movie.genreIds).map((genre, index) => (
-                    <span key={index} className="px-3 py-1 bg-[#222] rounded-full text-gray-300 text-sm">
-                      {genre}
-                    </span>
-                  ))}
-                </div>
+                {movie.cast && movie.cast.length > 0 && (
+                  <div>
+                    <span className="block text-white/50 text-sm">Cast</span>
+                    <span className="font-medium">{movie.cast.join(", ")}</span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex space-x-3">
+                <button className="flex items-center bg-red-600 hover:bg-red-700 rounded px-5 py-2 text-white font-medium transition">
+                  <Plus className="mr-2 h-5 w-5" /> Add to My List
+                </button>
               </div>
             </div>
           </div>
         </div>
         
-        {/* More Like This Section */}
+        {/* 3. Hashtags/Genres Section */}
+        <div className="mb-10">
+          <h3 className="text-xl font-semibold mb-3">Categories</h3>
+          <div className="flex flex-wrap gap-2">
+            {getGenreNames(movie.genreIds).map((genre, index) => (
+              <span key={index} className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-full text-white/80 text-sm cursor-pointer transition-colors">
+                #{genre.replace(' ', '')}
+              </span>
+            ))}
+          </div>
+        </div>
+        
+        {/* 4. Recommended Films Section */}
         {similarMovies.length > 0 && (
-          <div className="px-4 md:px-8 py-6">
-            <h2 className="text-xl font-bold text-white mb-4">More Like This</h2>
+          <div className="mb-16">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-2xl font-bold">Recommended Films</h3>
+              <button className="text-white/70 hover:text-white flex items-center">
+                See All <ArrowRight className="ml-1 h-4 w-4" />
+              </button>
+            </div>
+            
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {similarMovies.map(similarMovie => (
                 <div 
                   key={similarMovie.id}
-                  className="cursor-pointer"
+                  className="group cursor-pointer"
                   onClick={() => setLocation(`/movie/${similarMovie.id}`)}
                 >
-                  <div className="relative group">
+                  <div className="relative overflow-hidden rounded-md">
                     <img 
                       src={similarMovie.posterUrl}
-                      alt={`${similarMovie.title} poster`}
-                      className="rounded-t w-full aspect-[2/3] object-cover"
+                      alt={similarMovie.title}
+                      className="w-full aspect-[2/3] object-cover rounded-md group-hover:scale-105 transition-transform duration-300"
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <Play className="h-12 w-12 text-white opacity-80" />
+                    
+                    {/* Rating Badge */}
+                    <div className="absolute top-2 left-2 bg-black/70 px-1.5 py-0.5 rounded text-xs font-medium flex items-center">
+                      <span className="text-yellow-500 mr-1">★</span>
+                      <span>{formatRating(similarMovie.imdbRating)}</span>
                     </div>
-                  </div>
-                  <div className="bg-[#181818] rounded-b p-2">
-                    <h3 className="text-white font-medium text-sm truncate">{similarMovie.title}</h3>
-                    <div className="flex justify-between items-center mt-1">
-                      <div className="flex items-center text-yellow-500 text-xs">
-                        <Star className="fill-yellow-500 h-3 w-3 mr-1" />
-                        <span>{similarMovie.imdbRating || '-'}</span>
+                    
+                    {/* Play Button */}
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <div className="bg-white/80 rounded-full p-3">
+                        <Play className="h-6 w-6 text-black fill-black" />
                       </div>
-                      <span className="text-gray-400 text-xs">{similarMovie.releaseYear}</span>
                     </div>
                   </div>
+                  <h4 className="mt-2 text-sm font-medium">{similarMovie.title}</h4>
+                  <span className="text-xs text-white/60">{similarMovie.releaseYear}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
-      </div>
-      <MobileNavBar />
+      </main>
     </div>
   );
 };
