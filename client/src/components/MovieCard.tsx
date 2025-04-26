@@ -63,7 +63,7 @@ const MovieCard = ({ movie }: MovieCardProps) => {
       </div>
       
       {/* Card info section (always visible) */}
-      <div className="bg-[#181818] rounded-b p-2 text-white">
+      <div className="bg-[#181818] rounded-b p-2 text-white scale-hover">
         <h3 className="font-medium text-sm md:text-base truncate">{movie.title}</h3>
         
         <div className="flex items-center justify-between mt-1 text-xs">

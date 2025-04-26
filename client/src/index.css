@@ -93,7 +93,8 @@
   background: linear-gradient(to top, rgba(20, 20, 20, 1) 0%, rgba(20, 20, 20, 0.7) 50%, rgba(20, 20, 20, 0.4) 100%);
 }
 
-.group:hover .movie-card .bg-[#181818] {
+/* Movie card hover effect */
+.group:hover .scale-hover {
   background-color: #282828;
 }
 

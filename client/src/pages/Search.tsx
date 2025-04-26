@@ -68,7 +68,7 @@ const Search = () => {
             <h2 className="text-xl font-bold text-white mb-4">
               {searchQuery ? `Results for "${searchQuery}"` : "All Movies"}
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <div className="movie-grid">
               {movies.map((movie: Movie) => (
                 <div key={movie.id} className="movie-card">
                   <MovieCard movie={movie} />
