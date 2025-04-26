@@ -213,7 +213,7 @@ export default function ActivityLogs() {
               logs.map((log) => (
                 <TableRow key={log.id}>
                   <TableCell className="font-mono">{log.id}</TableCell>
-                  <TableCell className="whitespace-nowrap">{formatDateTime(log.timestamp)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{formatDateTime(log.createdAt)}</TableCell>
                   <TableCell>
                     <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
                       ID: {log.adminId}
@@ -233,14 +233,14 @@ export default function ActivityLogs() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    {log.targetId && (
+                    {log.entityId && (
                       <span className="font-mono text-xs">
-                        {log.targetType && `${log.targetType} `}ID: {log.targetId}
+                        {log.entityType && `${log.entityType} `}ID: {log.entityId}
                       </span>
                     )}
                   </TableCell>
                   <TableCell className="max-w-xs truncate">
-                    {log.details || '-'}
+                    {log.details ? JSON.stringify(log.details) : '-'}
                   </TableCell>
                 </TableRow>
               ))
