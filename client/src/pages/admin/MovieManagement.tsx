@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '@/hooks/use-language';
 import { apiRequest } from '@/lib/queryClient';
@@ -59,6 +59,8 @@ import {
   Copy,
   Link,
   Info,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 
@@ -134,6 +136,9 @@ export default function MovieManagement() {
   const [sortField, setSortField] = useState<string>('id');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   
+  // State for manual display order
+  const [manualOrder, setManualOrder] = useState<number[]>([]);
+  
   // Fetch movies
   const { data: movies = [], isLoading: isLoadingMovies } = useQuery<Movie[]>({
     queryKey: ['/api/admin/movies'],
@@ -143,10 +148,59 @@ export default function MovieManagement() {
     },
   });
   
-  // Sort movies based on current sort settings
+  // Initialize manual order when movies change
+  useEffect(() => {
+    if (movies.length && manualOrder.length === 0) {
+      setManualOrder(movies.map(movie => movie.id));
+    }
+  }, [movies, manualOrder.length]);
+  
+  // Functions to move movies up or down in display order
+  const moveMovieUp = (movieId: number) => {
+    const currentIndex = manualOrder.indexOf(movieId);
+    if (currentIndex > 0) {
+      const newOrder = [...manualOrder];
+      // Swap with the item above
+      [newOrder[currentIndex - 1], newOrder[currentIndex]] = 
+      [newOrder[currentIndex], newOrder[currentIndex - 1]];
+      setManualOrder(newOrder);
+      
+      // Reset sort field to indicate we're using manual order
+      setSortField('manual');
+    }
+  };
+  
+  const moveMovieDown = (movieId: number) => {
+    const currentIndex = manualOrder.indexOf(movieId);
+    if (currentIndex >= 0 && currentIndex < manualOrder.length - 1) {
+      const newOrder = [...manualOrder];
+      // Swap with the item below
+      [newOrder[currentIndex], newOrder[currentIndex + 1]] = 
+      [newOrder[currentIndex + 1], newOrder[currentIndex]];
+      setManualOrder(newOrder);
+      
+      // Reset sort field to indicate we're using manual order
+      setSortField('manual');
+    }
+  };
+  
+  // Sort movies based on current sort settings or manual order
   const sortedMovies = useMemo(() => {
     if (!movies.length) return [];
     
+    // If we're using manual order
+    if (sortField === 'manual' && manualOrder.length > 0) {
+      // Create a map for O(1) lookups
+      const indexMap = new Map(manualOrder.map((id, index) => [id, index]));
+      
+      return [...movies].sort((a, b) => {
+        const aIndex = indexMap.get(a.id) ?? 9999;
+        const bIndex = indexMap.get(b.id) ?? 9999;
+        return aIndex - bIndex;
+      });
+    }
+    
+    // Otherwise use standard sorting
     return [...movies].sort((a, b) => {
       const aValue = a[sortField as keyof Movie];
       const bValue = b[sortField as keyof Movie];
@@ -175,7 +229,7 @@ export default function MovieManagement() {
       // Default comparison for other types
       return 0;
     });
-  }, [movies, sortField, sortOrder]);
+  }, [movies, sortField, sortOrder, manualOrder]);
   
   // Handle sorting
   const handleSort = (field: string) => {
@@ -710,6 +764,22 @@ export default function MovieManagement() {
                       <TableCell>{movie.viewCount || 0}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => moveMovieUp(movie.id)}
+                            disabled={manualOrder.indexOf(movie.id) <= 0}
+                          >
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => moveMovieDown(movie.id)}
+                            disabled={manualOrder.indexOf(movie.id) >= manualOrder.length - 1}
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="sm" 
