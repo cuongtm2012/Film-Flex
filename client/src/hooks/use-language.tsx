@@ -271,6 +271,7 @@ const translations = {
     'admin.creating': 'Creating...',
     'admin.movieCreated': 'Movie Created',
     'admin.movieCreatedSuccess': 'Movie has been created successfully',
+    'admin.manualOrderActive': 'Manual order active',
   },
   vi: {
     // Navbar
@@ -499,6 +500,7 @@ const translations = {
     'admin.addFromUrl': 'Thêm từ URL',
     'admin.copyFromDriveDescription': 'Sao chép phim từ thư mục Google Drive vào trang web',
     'admin.sourceFolderId': 'ID Thư mục nguồn',
+    'admin.manualOrderActive': 'Thứ tự thủ công đang hoạt động',
     'admin.sourceFolderIdHint': 'ID của thư mục Google Drive công khai chứa phim',
     'admin.destinationFolderId': 'ID Thư mục đích',
     'admin.destinationFolderIdHint': 'ID của thư mục Google Drive nơi phim sẽ được sao chép đến',

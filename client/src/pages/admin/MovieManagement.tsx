@@ -642,7 +642,15 @@ export default function MovieManagement() {
         {/* Movies Tab Content */}
         <TabsContent value="movies" className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">{t('admin.movieManagement')}</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold">{t('admin.movieManagement')}</h2>
+              {sortField === 'manual' && (
+                <div className="px-2 py-1 rounded-md text-xs bg-amber-100 text-amber-800 flex items-center">
+                  <Info className="h-3 w-3 mr-1" />
+                  {t('admin.manualOrderActive') || 'Manual order active'}
+                </div>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setOpenCopyDialog(true)}>
                 <Copy className="mr-2 h-4 w-4" />
