@@ -93,6 +93,7 @@ export default function MovieManagement() {
     duration: 120,
     posterUrl: '',
     backdropUrl: '',
+    videoUrl: '',
     rating: 'PG-13',
     genreIds: [] as number[],
     director: '',
@@ -425,6 +426,7 @@ export default function MovieManagement() {
       duration: 120,
       posterUrl: '',
       backdropUrl: '',
+      videoUrl: '',
       rating: 'PG-13',
       genreIds: [],
       director: '',
@@ -515,6 +517,7 @@ export default function MovieManagement() {
       duration: movie.duration,
       posterUrl: movie.posterUrl,
       backdropUrl: movie.backdropUrl,
+      videoUrl: movie.videoUrl || '',
       rating: movie.rating,
       genreIds: movie.genreIds,
       director: movie.director || '',
@@ -1188,6 +1191,20 @@ export default function MovieManagement() {
                     onChange={handleMovieInputChange}
                   />
                 </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-videoUrl">{t('admin.videoUrl')}</Label>
+                <Input
+                  id="edit-videoUrl"
+                  name="videoUrl"
+                  value={movieForm.videoUrl}
+                  onChange={handleMovieInputChange}
+                  placeholder="https://drive.google.com/file/d/FILE_ID/view"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Google Drive link, direct video URL, or Drive file ID
+                </p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
