@@ -3,7 +3,8 @@ import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Play } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import { API_BASE_URL } from "@/lib/constants";
+import { API_BASE_URL, Movie } from "@/lib/constants";
+import { convertToGoogleDriveStreamingUrl } from "@/lib/driveHelper";
 
 const WatchMovie = () => {
   const [, setLocation] = useLocation();
@@ -13,7 +14,7 @@ const WatchMovie = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   
   // Fetch movie details
-  const { data: movie, isLoading, error } = useQuery({
+  const { data: movie, isLoading, error } = useQuery<Movie>({
     queryKey: [`${API_BASE_URL}/movies/${movieId}`],
     staleTime: 60 * 1000, // 1 minute
     enabled: !!movieId,
@@ -72,12 +73,14 @@ const WatchMovie = () => {
     
     // Sort by quality (assuming higher numbers = better quality)
     const sortedSources = [...movie.videoSources].sort((a, b) => {
-      const qualityA = parseInt(a.quality.replace('p', ''));
-      const qualityB = parseInt(b.quality.replace('p', ''));
+      const qualityA = parseInt(a.quality.replace('p', '')) || 0;
+      const qualityB = parseInt(b.quality.replace('p', '')) || 0;
       return qualityB - qualityA;
     });
     
-    return sortedSources[0].url;
+    // Convert Google Drive URLs to streaming URLs
+    const sourceUrl = sortedSources[0].url;
+    return convertToGoogleDriveStreamingUrl(sourceUrl);
   };
 
   return (
@@ -150,7 +153,7 @@ const WatchMovie = () => {
               {movie.director}
             </span>
           )}
-          {movie.cast?.slice(0, 2).map((actor, index) => (
+          {movie.cast?.slice(0, 2).map((actor: string, index: number) => (
             <span key={index} className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-full text-sm cursor-pointer">
               {actor}
             </span>
