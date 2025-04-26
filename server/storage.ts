@@ -975,7 +975,8 @@ export class MemStorage implements IStorage {
         genreIds: [1, 2, 3], // Action, Adventure, Comedy
         director: "Shawn Levy",
         cast: ["Ryan Reynolds", "Jodie Comer", "Taika Waititi"],
-        imdbRating: "7.1"
+        imdbRating: "7.1",
+        viewCount: 915
       }
     ];
     

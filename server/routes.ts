@@ -398,6 +398,252 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==== ADMIN ROUTES ====
+  
+  // Middleware to check if user is admin
+  function isAdmin(req: Request, res: Response, next: NextFunction) {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    const user = req.user as any;
+    if (user.role !== "admin" && user.role !== "sub-admin") {
+      return res.status(403).json({ error: "Forbidden - Admin access required" });
+    }
+    
+    next();
+  }
+  
+  // Admin User Management Routes
+  const adminRouter = express.Router();
+  
+  adminRouter.get('/users', isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+  
+  adminRouter.get('/users/role/:role', isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getUsersByRole(req.params.role);
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users by role" });
+    }
+  });
+  
+  adminRouter.post('/users', isAdmin, async (req, res) => {
+    try {
+      const user = await storage.createAdminUser(req.body);
+      res.status(201).json(user);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create admin user" });
+    }
+  });
+  
+  adminRouter.patch('/users/:id/role', isAdmin, async (req, res) => {
+    try {
+      const adminUser = req.user as any;
+      const userId = parseInt(req.params.id);
+      const { role } = req.body;
+      
+      const user = await storage.updateUserRole(userId, role, adminUser.id);
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update user role" });
+    }
+  });
+  
+  adminRouter.patch('/users/:id/deactivate', isAdmin, async (req, res) => {
+    try {
+      const adminUser = req.user as any;
+      const userId = parseInt(req.params.id);
+      
+      const user = await storage.deactivateUser(userId, adminUser.id);
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to deactivate user" });
+    }
+  });
+  
+  adminRouter.patch('/users/:id/reactivate', isAdmin, async (req, res) => {
+    try {
+      const adminUser = req.user as any;
+      const userId = parseInt(req.params.id);
+      
+      const user = await storage.reactivateUser(userId, adminUser.id);
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reactivate user" });
+    }
+  });
+  
+  // Admin Movie Management Routes
+  adminRouter.get('/movie-uploads', isAdmin, async (req, res) => {
+    try {
+      const uploads = await storage.getPendingMovieUploads();
+      res.json(uploads);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch pending movie uploads" });
+    }
+  });
+  
+  adminRouter.get('/movie-uploads/:id', isAdmin, async (req, res) => {
+    try {
+      const uploadId = parseInt(req.params.id);
+      const upload = await storage.getMovieUpload(uploadId);
+      
+      if (!upload) {
+        return res.status(404).json({ error: "Movie upload not found" });
+      }
+      
+      res.json(upload);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch movie upload" });
+    }
+  });
+  
+  adminRouter.post('/movie-uploads', isAdmin, async (req, res) => {
+    try {
+      const movieUpload = await storage.createMovieUpload(req.body);
+      res.status(201).json(movieUpload);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create movie upload" });
+    }
+  });
+  
+  adminRouter.patch('/movie-uploads/:id/status', isAdmin, async (req, res) => {
+    try {
+      const adminUser = req.user as any;
+      const uploadId = parseInt(req.params.id);
+      const { status, notes } = req.body;
+      
+      const updatedUpload = await storage.updateMovieUploadStatus(
+        uploadId, 
+        status, 
+        adminUser.id, 
+        notes
+      );
+      
+      res.json(updatedUpload);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update movie upload status" });
+    }
+  });
+  
+  adminRouter.post('/movies', isAdmin, async (req, res) => {
+    try {
+      const movie = await storage.createMovie(req.body);
+      res.status(201).json(movie);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create movie" });
+    }
+  });
+  
+  adminRouter.patch('/movies/:id', isAdmin, async (req, res) => {
+    try {
+      const movieId = parseInt(req.params.id);
+      const updatedMovie = await storage.updateMovie(movieId, req.body);
+      res.json(updatedMovie);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update movie" });
+    }
+  });
+  
+  adminRouter.delete('/movies/:id', isAdmin, async (req, res) => {
+    try {
+      const movieId = parseInt(req.params.id);
+      await storage.deleteMovie(movieId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete movie" });
+    }
+  });
+  
+  // Admin Financial Routes
+  adminRouter.get('/transactions', isAdmin, async (req, res) => {
+    try {
+      const { limit, offset } = req.query;
+      const limitNum = limit ? parseInt(limit as string) : undefined;
+      const offsetNum = offset ? parseInt(offset as string) : undefined;
+      
+      const transactions = await storage.getAllTransactions(limitNum, offsetNum);
+      res.json(transactions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch transactions" });
+    }
+  });
+  
+  adminRouter.get('/transactions/pending', isAdmin, async (req, res) => {
+    try {
+      const transactions = await storage.getPendingTransactions();
+      res.json(transactions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch pending transactions" });
+    }
+  });
+  
+  adminRouter.patch('/transactions/:id/process', isAdmin, async (req, res) => {
+    try {
+      const adminUser = req.user as any;
+      const transactionId = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      const transaction = await storage.processTransaction(
+        transactionId,
+        status,
+        adminUser.id
+      );
+      
+      res.json(transaction);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to process transaction" });
+    }
+  });
+  
+  adminRouter.get('/income-statistics', isAdmin, async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      let startDateObj: Date | undefined;
+      let endDateObj: Date | undefined;
+      
+      if (startDate) {
+        startDateObj = new Date(startDate as string);
+      }
+      
+      if (endDate) {
+        endDateObj = new Date(endDate as string);
+      }
+      
+      const stats = await storage.getIncomeStatistics(startDateObj, endDateObj);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch income statistics" });
+    }
+  });
+  
+  // Admin Activity Logs
+  adminRouter.get('/activity-logs', isAdmin, async (req, res) => {
+    try {
+      const { adminId, limit, offset } = req.query;
+      const adminIdNum = adminId ? parseInt(adminId as string) : undefined;
+      const limitNum = limit ? parseInt(limit as string) : undefined;
+      const offsetNum = offset ? parseInt(offset as string) : undefined;
+      
+      const logs = await storage.getAdminLogs(adminIdNum, limitNum, offsetNum);
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch admin activity logs" });
+    }
+  });
+  
+  // Mount admin routes
+  app.use("/api/admin", adminRouter);
+  
+  // Mount regular API routes
   app.use("/api", router);
 
   const httpServer = createServer(app);
