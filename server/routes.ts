@@ -428,12 +428,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const successCount = copyResults.filter(result => result.success).length;
       
       // Log copy results
-      await storage.logAdminActivity({
-        adminId: req.user.id,
-        action: 'COPY_MOVIE_COMPLETED',
-        target: 'DRIVE',
-        details: `Copied ${successCount}/${videoFiles.length} videos from ${sourceFolderId} to ${destinationFolderId}`
-      });
+      if (req.user) {
+        await storage.logAdminActivity({
+          adminId: req.user.id,
+          action: 'COPY_MOVIE_COMPLETED',
+          entityType: 'DRIVE',
+          details: `Copied ${successCount}/${videoFiles.length} videos from ${sourceFolderId} to ${destinationFolderId}`
+        });
+      }
       
       res.json({ 
         success: true,
