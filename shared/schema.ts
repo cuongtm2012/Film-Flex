@@ -7,14 +7,14 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  email: text("email").notNull().unique(),
+  email: text("email"),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
   email: true,
-});
+}).partial({ email: true });
 
 // Genre model
 export const genres = pgTable("genres", {
