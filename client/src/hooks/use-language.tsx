@@ -11,12 +11,17 @@ const translations = {
     // Navbar
     'nav.home': 'Home',
     'nav.movies': 'Movies',
+    'nav.genres': 'Genres',
     'nav.myList': 'My List',
     'nav.trending': 'Trending',
     'nav.search': 'Search',
     'nav.profile': 'Profile',
     'nav.login': 'Login',
     'nav.logout': 'Logout',
+    'profile.myAccount': 'My Account',
+    'profile.myProfile': 'My Profile',
+    'search.placeholder': 'Search...',
+    'search.button': 'Go',
     
     // Home page
     'home.featured': 'Featured',
@@ -100,12 +105,17 @@ const translations = {
     // Navbar
     'nav.home': 'Trang chủ',
     'nav.movies': 'Phim',
+    'nav.genres': 'Thể loại',
     'nav.myList': 'Danh sách của tôi',
     'nav.trending': 'Xu hướng',
     'nav.search': 'Tìm kiếm',
     'nav.profile': 'Hồ sơ',
     'nav.login': 'Đăng nhập',
     'nav.logout': 'Đăng xuất',
+    'profile.myAccount': 'Tài khoản của tôi',
+    'profile.myProfile': 'Hồ sơ của tôi',
+    'search.placeholder': 'Tìm kiếm...',
+    'search.button': 'Đi',
     
     // Home page
     'home.featured': 'Nổi bật',
