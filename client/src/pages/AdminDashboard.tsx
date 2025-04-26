@@ -97,7 +97,16 @@ export default function AdminDashboard() {
   return (
     <div className="container mx-auto p-4 py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">{t('admin.dashboard')}</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold">{t('admin.dashboard')}</h1>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => window.location.href = '/'}
+          >
+            {t('admin.general.backToHome')}
+          </Button>
+        </div>
         <div className="flex items-center gap-2">
           <span className="text-sm">{t('admin.loggedInAs')}: </span>
           <span className="font-medium">{user.username}</span>
