@@ -3,7 +3,10 @@ import {
   genres, type Genre, type InsertGenre,
   movies, type Movie, type InsertMovie,
   favorites, type Favorite, type InsertFavorite,
-  viewHistory, type ViewHistory, type InsertViewHistory
+  viewHistory, type ViewHistory, type InsertViewHistory,
+  transactions, type Transaction, type InsertTransaction,
+  adminLogs, type AdminLog, type InsertAdminLog,
+  movieUploads, type MovieUpload, type InsertMovieUpload
 } from "@shared/schema";
 import memorystore from 'memorystore';
 import session from 'express-session';
@@ -32,6 +35,8 @@ export interface IStorage {
   getNewReleases(): Promise<Movie[]>;
   getTrendingMovies(): Promise<Movie[]>; // For premium users
   createMovie(movie: InsertMovie): Promise<Movie>;
+  updateMovie(id: number, updates: Partial<Omit<Movie, 'id'>>): Promise<Movie>;
+  deleteMovie(id: number): Promise<void>;
   
   // Favorites methods
   getUserFavorites(userId: number): Promise<Movie[]>;
@@ -44,6 +49,41 @@ export interface IStorage {
   
   // Session store for authentication
   sessionStore: any;
+  
+  // ========== ADMIN METHODS ==========
+  
+  // Admin User Management
+  getAllUsers(): Promise<User[]>;
+  getUsersByRole(role: string): Promise<User[]>;
+  createAdminUser(user: InsertUser): Promise<User>;
+  updateUserRole(userId: number, role: string, adminId: number): Promise<User>;
+  deactivateUser(userId: number, adminId: number): Promise<User>;
+  reactivateUser(userId: number, adminId: number): Promise<User>;
+  
+  // Admin Movie Management
+  createMovieUpload(movieUpload: InsertMovieUpload): Promise<MovieUpload>;
+  getMovieUpload(id: number): Promise<MovieUpload | undefined>;
+  getPendingMovieUploads(): Promise<MovieUpload[]>;
+  updateMovieUploadStatus(id: number, status: string, adminId: number, notes?: string): Promise<MovieUpload>;
+  getMoviesByUploader(uploaderId: number): Promise<Movie[]>;
+  
+  // Financial Management
+  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  getTransaction(id: number): Promise<Transaction | undefined>;
+  getUserTransactions(userId: number): Promise<Transaction[]>;
+  getAllTransactions(limit?: number, offset?: number): Promise<Transaction[]>;
+  getPendingTransactions(): Promise<Transaction[]>;
+  processTransaction(id: number, status: string, adminId: number): Promise<Transaction>;
+  getIncomeStatistics(startDate?: Date, endDate?: Date): Promise<{
+    totalIncome: number;
+    subscriptions: number;
+    deposits: number;
+    refunds: number;
+  }>;
+  
+  // Admin Activity Logging
+  logAdminActivity(log: InsertAdminLog): Promise<AdminLog>;
+  getAdminLogs(adminId?: number, limit?: number, offset?: number): Promise<AdminLog[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -52,12 +92,18 @@ export class MemStorage implements IStorage {
   private movies: Map<number, Movie>;
   private favorites: Map<number, Favorite>;
   private viewHistory: Map<number, ViewHistory>;
+  private transactions: Map<number, Transaction>;
+  private adminLogs: Map<number, AdminLog>;
+  private movieUploads: Map<number, MovieUpload>;
   
   currentUserId: number;
   currentGenreId: number;
   currentMovieId: number;
   currentFavoriteId: number;
   currentViewHistoryId: number;
+  currentTransactionId: number;
+  currentAdminLogId: number;
+  currentMovieUploadId: number;
   
   // Session store for authentication
   sessionStore: any;
@@ -68,12 +114,18 @@ export class MemStorage implements IStorage {
     this.movies = new Map();
     this.favorites = new Map();
     this.viewHistory = new Map();
+    this.transactions = new Map();
+    this.adminLogs = new Map();
+    this.movieUploads = new Map();
     
     this.currentUserId = 1;
     this.currentGenreId = 1;
     this.currentMovieId = 1;
     this.currentFavoriteId = 1;
     this.currentViewHistoryId = 1;
+    this.currentTransactionId = 1;
+    this.currentAdminLogId = 1;
+    this.currentMovieUploadId = 1;
     
     // Initialize session store
     this.sessionStore = new MemoryStore({
@@ -85,6 +137,9 @@ export class MemStorage implements IStorage {
     
     // Add some initial movies
     this.initializeMovies();
+    
+    // Add admin user
+    this.initializeAdminUser();
   }
 
   // User methods
@@ -109,7 +164,11 @@ export class MemStorage implements IStorage {
       userType: insertUser.userType || "normal",
       walletBalance: insertUser.walletBalance || 0,
       walletAddress: insertUser.walletAddress || null,
-      premiumExpiresAt: insertUser.premiumExpiresAt || null
+      premiumExpiresAt: insertUser.premiumExpiresAt || null,
+      role: insertUser.role || "user",
+      isActive: insertUser.isActive !== undefined ? insertUser.isActive : true,
+      lastLogin: null,
+      createdBy: insertUser.createdBy || null
     };
     
     this.users.set(id, user);
@@ -169,7 +228,15 @@ export class MemStorage implements IStorage {
   
   async createMovie(insertMovie: InsertMovie): Promise<Movie> {
     const id = this.currentMovieId++;
-    const movie: Movie = { ...insertMovie, id };
+    const movie: Movie = { 
+      ...insertMovie, 
+      id,
+      matchPercentage: insertMovie.matchPercentage || null,
+      director: insertMovie.director || null,
+      cast: insertMovie.cast || null,
+      imdbRating: insertMovie.imdbRating || null,
+      viewCount: insertMovie.viewCount || 0
+    };
     this.movies.set(id, movie);
     return movie;
   }
@@ -179,6 +246,39 @@ export class MemStorage implements IStorage {
     return Array.from(this.movies.values())
       .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
       .slice(0, 5);
+  }
+  
+  async updateMovie(id: number, updates: Partial<Omit<Movie, 'id'>>): Promise<Movie> {
+    const movie = this.movies.get(id);
+    
+    if (!movie) {
+      throw new Error(`Movie with ID ${id} not found`);
+    }
+    
+    const updatedMovie = {
+      ...movie,
+      ...updates
+    };
+    
+    this.movies.set(id, updatedMovie);
+    return updatedMovie;
+  }
+  
+  async deleteMovie(id: number): Promise<void> {
+    if (!this.movies.has(id)) {
+      throw new Error(`Movie with ID ${id} not found`);
+    }
+    
+    this.movies.delete(id);
+    
+    // Also delete related data (favorites, view history)
+    Array.from(this.favorites.values())
+      .filter(fav => fav.movieId === id)
+      .forEach(fav => this.favorites.delete(fav.id));
+      
+    Array.from(this.viewHistory.values())
+      .filter(history => history.movieId === id)
+      .forEach(history => this.viewHistory.delete(history.id));
   }
   
   async updateUser(
@@ -298,6 +398,394 @@ export class MemStorage implements IStorage {
     });
   }
   
+  // ========== ADMIN USER MANAGEMENT ==========
+  
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+  
+  async getUsersByRole(role: string): Promise<User[]> {
+    return Array.from(this.users.values())
+      .filter(user => user.role === role);
+  }
+  
+  async createAdminUser(user: InsertUser): Promise<User> {
+    // Same as createUser but with role set to admin or sub-admin
+    const adminUser = { ...user, role: user.role || "admin" };
+    return this.createUser(adminUser);
+  }
+  
+  async updateUserRole(userId: number, role: string, adminId: number): Promise<User> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+    
+    // Log the admin action
+    await this.logAdminActivity({
+      adminId,
+      action: "update_user_role",
+      entityId: userId,
+      entityType: "user",
+      details: { oldRole: user.role, newRole: role }
+    });
+    
+    return this.updateUser(userId, { role: role as "user" | "admin" | "sub-admin" });
+  }
+  
+  async deactivateUser(userId: number, adminId: number): Promise<User> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+    
+    // Log the admin action
+    await this.logAdminActivity({
+      adminId,
+      action: "deactivate_user",
+      entityId: userId,
+      entityType: "user",
+      details: { reason: "Admin deactivation" }
+    });
+    
+    return this.updateUser(userId, { isActive: false });
+  }
+  
+  async reactivateUser(userId: number, adminId: number): Promise<User> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+    
+    // Log the admin action
+    await this.logAdminActivity({
+      adminId,
+      action: "reactivate_user",
+      entityId: userId,
+      entityType: "user",
+      details: { reason: "Admin reactivation" }
+    });
+    
+    return this.updateUser(userId, { isActive: true });
+  }
+  
+  // ========== ADMIN MOVIE MANAGEMENT ==========
+  
+  async createMovieUpload(movieUpload: InsertMovieUpload): Promise<MovieUpload> {
+    const id = this.currentMovieUploadId++;
+    
+    const upload: MovieUpload = {
+      ...movieUpload,
+      id,
+      status: movieUpload.status || "draft",
+      uploadedAt: new Date(),
+      publishedAt: movieUpload.publishedAt || null,
+      approvedBy: movieUpload.approvedBy || null,
+      reviewNotes: movieUpload.reviewNotes || null
+    };
+    
+    this.movieUploads.set(id, upload);
+    return upload;
+  }
+  
+  async getMovieUpload(id: number): Promise<MovieUpload | undefined> {
+    return this.movieUploads.get(id);
+  }
+  
+  async getPendingMovieUploads(): Promise<MovieUpload[]> {
+    return Array.from(this.movieUploads.values())
+      .filter(upload => upload.status === "pending_review");
+  }
+  
+  async updateMovieUploadStatus(
+    id: number, 
+    status: string, 
+    adminId: number, 
+    notes?: string
+  ): Promise<MovieUpload> {
+    const upload = this.movieUploads.get(id);
+    
+    if (!upload) {
+      throw new Error(`Movie upload with ID ${id} not found`);
+    }
+    
+    const updatedUpload: MovieUpload = {
+      ...upload,
+      status: status as "draft" | "published" | "pending_review" | "rejected",
+      approvedBy: status === "published" ? adminId : upload.approvedBy,
+      publishedAt: status === "published" ? new Date() : upload.publishedAt,
+      reviewNotes: notes || upload.reviewNotes
+    };
+    
+    this.movieUploads.set(id, updatedUpload);
+    
+    // Log the admin action
+    await this.logAdminActivity({
+      adminId,
+      action: "update_movie_status",
+      entityId: id,
+      entityType: "movie_upload",
+      details: { 
+        oldStatus: upload.status, 
+        newStatus: status,
+        movieId: upload.movieId
+      }
+    });
+    
+    return updatedUpload;
+  }
+  
+  async getMoviesByUploader(uploaderId: number): Promise<Movie[]> {
+    const uploaderMovieIds = Array.from(this.movieUploads.values())
+      .filter(upload => upload.uploadedBy === uploaderId)
+      .map(upload => upload.movieId);
+    
+    return Array.from(this.movies.values())
+      .filter(movie => uploaderMovieIds.includes(movie.id));
+  }
+  
+  // ========== FINANCIAL MANAGEMENT ==========
+  
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    const id = this.currentTransactionId++;
+    
+    const newTransaction: Transaction = {
+      ...transaction,
+      id,
+      status: transaction.status || "pending",
+      createdAt: transaction.createdAt || new Date(),
+      processedAt: transaction.processedAt || null,
+      processedBy: transaction.processedBy || null,
+      description: transaction.description || null,
+      txHash: transaction.txHash || null
+    };
+    
+    this.transactions.set(id, newTransaction);
+    return newTransaction;
+  }
+  
+  async getTransaction(id: number): Promise<Transaction | undefined> {
+    return this.transactions.get(id);
+  }
+  
+  async getUserTransactions(userId: number): Promise<Transaction[]> {
+    return Array.from(this.transactions.values())
+      .filter(tx => tx.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+  
+  async getAllTransactions(limit?: number, offset?: number): Promise<Transaction[]> {
+    let transactions = Array.from(this.transactions.values())
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    
+    if (offset) {
+      transactions = transactions.slice(offset);
+    }
+    
+    if (limit) {
+      transactions = transactions.slice(0, limit);
+    }
+    
+    return transactions;
+  }
+  
+  async getPendingTransactions(): Promise<Transaction[]> {
+    return Array.from(this.transactions.values())
+      .filter(tx => tx.status === "pending")
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+  
+  async processTransaction(
+    id: number, 
+    status: string, 
+    adminId: number
+  ): Promise<Transaction> {
+    const transaction = this.transactions.get(id);
+    
+    if (!transaction) {
+      throw new Error(`Transaction with ID ${id} not found`);
+    }
+    
+    const updatedTransaction: Transaction = {
+      ...transaction,
+      status: status as "pending" | "completed" | "failed" | "refunded",
+      processedAt: new Date(),
+      processedBy: adminId
+    };
+    
+    this.transactions.set(id, updatedTransaction);
+    
+    // If the transaction is completed and it's a deposit or subscription
+    // Update the user's wallet balance
+    if (status === "completed" && 
+        (transaction.type === "deposit" || transaction.type === "subscription")) {
+      const user = await this.getUser(transaction.userId);
+      if (user) {
+        await this.updateUser(user.id, { 
+          walletBalance: user.walletBalance + transaction.amount 
+        });
+        
+        // If it's a subscription, also update the premium status
+        if (transaction.type === "subscription") {
+          const premiumExpiresAt = new Date();
+          premiumExpiresAt.setMonth(premiumExpiresAt.getMonth() + 1); // 1 month subscription
+          
+          await this.updateUser(user.id, {
+            userType: "premium",
+            premiumExpiresAt
+          });
+        }
+      }
+    }
+    
+    // Log the admin action
+    await this.logAdminActivity({
+      adminId,
+      action: "process_transaction",
+      entityId: id,
+      entityType: "transaction",
+      details: { 
+        oldStatus: transaction.status, 
+        newStatus: status,
+        amount: transaction.amount,
+        userId: transaction.userId
+      }
+    });
+    
+    return updatedTransaction;
+  }
+  
+  async getIncomeStatistics(
+    startDate?: Date, 
+    endDate?: Date
+  ): Promise<{
+    totalIncome: number;
+    subscriptions: number;
+    deposits: number;
+    refunds: number;
+  }> {
+    const completedTransactions = Array.from(this.transactions.values())
+      .filter(tx => tx.status === "completed")
+      .filter(tx => {
+        if (!startDate && !endDate) return true;
+        
+        const txDate = tx.processedAt || tx.createdAt;
+        
+        if (startDate && endDate) {
+          return txDate >= startDate && txDate <= endDate;
+        }
+        
+        if (startDate) {
+          return txDate >= startDate;
+        }
+        
+        if (endDate) {
+          return txDate <= endDate;
+        }
+        
+        return true;
+      });
+    
+    const refunds = Array.from(this.transactions.values())
+      .filter(tx => tx.status === "refunded")
+      .filter(tx => {
+        if (!startDate && !endDate) return true;
+        
+        const txDate = tx.processedAt || tx.createdAt;
+        
+        if (startDate && endDate) {
+          return txDate >= startDate && txDate <= endDate;
+        }
+        
+        if (startDate) {
+          return txDate >= startDate;
+        }
+        
+        if (endDate) {
+          return txDate <= endDate;
+        }
+        
+        return true;
+      });
+    
+    const subscriptions = completedTransactions
+      .filter(tx => tx.type === "subscription")
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    
+    const deposits = completedTransactions
+      .filter(tx => tx.type === "deposit")
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    
+    const refundAmount = refunds
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    
+    return {
+      totalIncome: subscriptions + deposits - refundAmount,
+      subscriptions,
+      deposits,
+      refunds: refundAmount
+    };
+  }
+  
+  // ========== ADMIN ACTIVITY LOGGING ==========
+  
+  async logAdminActivity(log: InsertAdminLog): Promise<AdminLog> {
+    const id = this.currentAdminLogId++;
+    
+    const adminLog: AdminLog = {
+      ...log,
+      id,
+      createdAt: log.createdAt || new Date(),
+      details: log.details || {},
+      entityId: log.entityId || null,
+      entityType: log.entityType || null,
+      ipAddress: log.ipAddress || null
+    };
+    
+    this.adminLogs.set(id, adminLog);
+    return adminLog;
+  }
+  
+  async getAdminLogs(
+    adminId?: number, 
+    limit?: number, 
+    offset?: number
+  ): Promise<AdminLog[]> {
+    let logs = Array.from(this.adminLogs.values())
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    
+    if (adminId) {
+      logs = logs.filter(log => log.adminId === adminId);
+    }
+    
+    if (offset) {
+      logs = logs.slice(offset);
+    }
+    
+    if (limit) {
+      logs = logs.slice(0, limit);
+    }
+    
+    return logs;
+  }
+  
+  // Helper function to create an admin user
+  private initializeAdminUser() {
+    // Create an admin user if none exists
+    const existingAdmin = Array.from(this.users.values())
+      .find(user => user.role === "admin");
+    
+    if (!existingAdmin) {
+      this.createUser({
+        username: "admin",
+        password: "admin123", // In a real app, this should be hashed
+        email: "admin@filmflex.com",
+        role: "admin",
+        isActive: true
+      });
+    }
+  }
+  
   private initializeMovies() {
     const sampleMovies: Omit<Movie, 'id'>[] = [
       {
@@ -411,7 +899,8 @@ export class MemStorage implements IStorage {
         genreIds: [2, 6], // Adventure, Sci-Fi
         director: "Denis Villeneuve",
         cast: ["Timothée Chalamet", "Rebecca Ferguson", "Zendaya"],
-        imdbRating: "8.0"
+        imdbRating: "8.0",
+        viewCount: 780
       },
       {
         title: "Tenet",
@@ -429,7 +918,8 @@ export class MemStorage implements IStorage {
         genreIds: [1, 6, 7], // Action, Sci-Fi, Thriller
         director: "Christopher Nolan",
         cast: ["John David Washington", "Robert Pattinson", "Elizabeth Debicki"],
-        imdbRating: "7.4"
+        imdbRating: "7.4",
+        viewCount: 720
       },
       {
         title: "The Tomorrow War",
@@ -447,7 +937,8 @@ export class MemStorage implements IStorage {
         genreIds: [1, 2, 6], // Action, Adventure, Sci-Fi
         director: "Chris McKay",
         cast: ["Chris Pratt", "Yvonne Strahovski", "J.K. Simmons"],
-        imdbRating: "6.6"
+        imdbRating: "6.6",
+        viewCount: 680
       },
       {
         title: "No Time to Die",
@@ -465,7 +956,8 @@ export class MemStorage implements IStorage {
         genreIds: [1, 2, 7], // Action, Adventure, Thriller
         director: "Cary Joji Fukunaga",
         cast: ["Daniel Craig", "Ana de Armas", "Rami Malek"],
-        imdbRating: "7.3"
+        imdbRating: "7.3",
+        viewCount: 820
       },
       {
         title: "Free Guy",

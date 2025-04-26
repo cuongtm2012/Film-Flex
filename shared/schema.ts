@@ -12,6 +12,10 @@ export const users = pgTable("users", {
   walletBalance: integer("wallet_balance").default(0).notNull(), // Balance in cents (for USDT)
   walletAddress: text("wallet_address"), // User's USDT wallet address
   premiumExpiresAt: timestamp("premium_expires_at"), // When premium subscription ends
+  role: text("role", { enum: ["user", "admin", "sub-admin"] }).default("user").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  lastLogin: timestamp("last_login"),
+  createdBy: integer("created_by"), // ID of admin who created this user
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -22,12 +26,18 @@ export const insertUserSchema = createInsertSchema(users).pick({
   walletBalance: true,
   walletAddress: true,
   premiumExpiresAt: true,
+  role: true,
+  isActive: true,
+  createdBy: true,
 }).partial({ 
   email: true,
   userType: true,
   walletBalance: true,
   walletAddress: true,
   premiumExpiresAt: true,
+  role: true,
+  isActive: true,
+  createdBy: true,
 });
 
 // Genre model
@@ -111,6 +121,95 @@ export const insertViewHistorySchema = createInsertSchema(viewHistory).pick({
   watchedAt: true,
 });
 
+// Transaction model to track income
+export const transactions = pgTable("transactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  amount: integer("amount").notNull(), // in cents for precision
+  type: text("type", { enum: ["deposit", "subscription", "refund"] }).notNull(),
+  status: text("status", { enum: ["pending", "completed", "failed", "refunded"] }).default("pending").notNull(),
+  txHash: text("tx_hash"), // blockchain transaction hash
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+  processedBy: integer("processed_by"), // admin who processed the transaction
+});
+
+export const insertTransactionSchema = createInsertSchema(transactions).pick({
+  userId: true,
+  amount: true,
+  type: true,
+  status: true,
+  txHash: true,
+  description: true,
+  createdAt: true,
+  processedAt: true,
+  processedBy: true,
+}).partial({
+  status: true,
+  txHash: true,
+  description: true,
+  createdAt: true,
+  processedAt: true,
+  processedBy: true,
+});
+
+// Admin activity logs to track actions
+export const adminLogs = pgTable("admin_logs", {
+  id: serial("id").primaryKey(),
+  adminId: integer("admin_id").notNull(),
+  action: text("action").notNull(), // e.g., "created_user", "processed_transaction", "updated_movie"
+  entityId: integer("entity_id"), // ID of the affected entity (user, movie, etc.)
+  entityType: text("entity_type"), // e.g., "user", "movie", "transaction"
+  details: jsonb("details"), // additional details about the action
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  ipAddress: text("ip_address"),
+});
+
+export const insertAdminLogSchema = createInsertSchema(adminLogs).pick({
+  adminId: true,
+  action: true,
+  entityId: true,
+  entityType: true,
+  details: true,
+  createdAt: true,
+  ipAddress: true,
+}).partial({
+  entityId: true,
+  entityType: true,
+  details: true,
+  createdAt: true,
+  ipAddress: true,
+});
+
+// Movie uploads model to track who uploaded which movies
+export const movieUploads = pgTable("movie_uploads", {
+  id: serial("id").primaryKey(),
+  movieId: integer("movie_id").notNull(),
+  uploadedBy: integer("uploaded_by").notNull(), // admin or sub-admin ID
+  status: text("status", { enum: ["draft", "published", "pending_review", "rejected"] }).default("draft").notNull(),
+  approvedBy: integer("approved_by"), // admin who approved the upload
+  reviewNotes: text("review_notes"), // notes from the admin review
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+  publishedAt: timestamp("published_at"),
+});
+
+export const insertMovieUploadSchema = createInsertSchema(movieUploads).pick({
+  movieId: true,
+  uploadedBy: true,
+  status: true,
+  approvedBy: true,
+  reviewNotes: true,
+  uploadedAt: true,
+  publishedAt: true,
+}).partial({
+  status: true,
+  approvedBy: true,
+  reviewNotes: true,
+  uploadedAt: true,
+  publishedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -126,3 +225,12 @@ export type InsertFavorite = z.infer<typeof insertFavoriteSchema>;
 
 export type ViewHistory = typeof viewHistory.$inferSelect;
 export type InsertViewHistory = z.infer<typeof insertViewHistorySchema>;
+
+export type Transaction = typeof transactions.$inferSelect;
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+
+export type AdminLog = typeof adminLogs.$inferSelect;
+export type InsertAdminLog = z.infer<typeof insertAdminLogSchema>;
+
+export type MovieUpload = typeof movieUploads.$inferSelect;
+export type InsertMovieUpload = z.infer<typeof insertMovieUploadSchema>;
