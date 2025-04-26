@@ -10,7 +10,7 @@ import { getDriveFolderContent, DriveFile, convertDriveFileToMovie } from '@/lib
 import { Movie } from '@/lib/constants';
 
 // Google Drive folder ID - from shared URL
-const GOOGLE_DRIVE_FOLDER_ID = '1K9yzITGEGc9sbXWV0NT9Nj8sIdTcO5hN';
+const GOOGLE_DRIVE_FOLDER_ID = '10e9ynLaJdenTOQzuq3E9eoBM6JL5LDEF';
 
 export default function DriveMovies() {
   const { t } = useLanguage();

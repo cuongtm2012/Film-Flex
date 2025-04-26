@@ -28,13 +28,13 @@ export interface DriveFolder {
 export async function getDriveFolderContent(folderId: string): Promise<DriveFolder | null> {
   try {
     const response = await axios.get(
-      `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=${import.meta.env.VITE_GOOGLE_API_KEY}&fields=files(id,name,mimeType,webViewLink,thumbnailLink,videoMediaMetadata,fileExtension,size,createdTime)&orderBy=name`
+      `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=${import.meta.env.GOOGLE_API_KEY}&fields=files(id,name,mimeType,webViewLink,thumbnailLink,videoMediaMetadata,fileExtension,size,createdTime)&orderBy=name`
     );
 
     if (response.data && response.data.files) {
       // Get the folder name
       const folderResponse = await axios.get(
-        `https://www.googleapis.com/drive/v3/files/${folderId}?key=${import.meta.env.VITE_GOOGLE_API_KEY}&fields=name`
+        `https://www.googleapis.com/drive/v3/files/${folderId}?key=${import.meta.env.GOOGLE_API_KEY}&fields=name`
       );
       
       return {
@@ -56,7 +56,7 @@ export async function getDriveFolderContent(folderId: string): Promise<DriveFold
 
 // Helper function to get direct streaming URL for a file
 export function getStreamUrl(fileId: string): string {
-  return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${import.meta.env.VITE_GOOGLE_API_KEY}`;
+  return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${import.meta.env.GOOGLE_API_KEY}`;
 }
 
 // Function to parse movie information from filename 

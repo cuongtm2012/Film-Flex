@@ -456,6 +456,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       try {
+        // Log environment variable presence without revealing the key
+        console.log(`GOOGLE_API_KEY exists: ${!!process.env.GOOGLE_API_KEY}`);
+        
         // Fetch files from the folder
         const filesResponse = await axios.get(
           `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=${process.env.GOOGLE_API_KEY}&fields=files(id,name,mimeType,videoMediaMetadata,fileExtension,size,createdTime,thumbnailLink)&orderBy=name`
@@ -479,10 +482,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       } catch (error) {
         console.error("Error fetching Google Drive content:", error);
-        res.status(500).json({ error: "Failed to fetch Google Drive content" });
+        res.status(500).json({ 
+          error: "Failed to fetch Google Drive content", 
+          details: error.message,
+          apiKeyExists: !!process.env.GOOGLE_API_KEY 
+        });
       }
     } catch (error) {
       res.status(500).json({ message: "Failed to process Google Drive request" });
+    }
+  });
+  
+  // Debug route to check API key status
+  router.get("/drive/status", (req, res) => {
+    try {
+      const apiKeyExists = !!process.env.GOOGLE_API_KEY;
+      res.json({
+        status: "ok",
+        googleApiKeyExists: apiKeyExists,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Error checking status" });
     }
   });
   
