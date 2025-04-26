@@ -5,6 +5,11 @@ import {
   favorites, type Favorite, type InsertFavorite,
   viewHistory, type ViewHistory, type InsertViewHistory
 } from "@shared/schema";
+import memorystore from 'memorystore';
+import session from 'express-session';
+
+// Create memory store for sessions
+const MemoryStore = memorystore(session);
 
 export interface IStorage {
   // User methods
@@ -34,6 +39,9 @@ export interface IStorage {
   // View history methods
   getUserViewHistory(userId: number): Promise<ViewHistory[]>;
   addOrUpdateViewHistory(history: InsertViewHistory): Promise<ViewHistory>;
+  
+  // Session store for authentication
+  sessionStore: any;
 }
 
 export class MemStorage implements IStorage {
@@ -48,6 +56,9 @@ export class MemStorage implements IStorage {
   currentMovieId: number;
   currentFavoriteId: number;
   currentViewHistoryId: number;
+  
+  // Session store for authentication
+  sessionStore: any;
 
   constructor() {
     this.users = new Map();
@@ -61,6 +72,11 @@ export class MemStorage implements IStorage {
     this.currentMovieId = 1;
     this.currentFavoriteId = 1;
     this.currentViewHistoryId = 1;
+    
+    // Initialize session store
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
     
     // Add some initial genres
     this.initializeGenres();
