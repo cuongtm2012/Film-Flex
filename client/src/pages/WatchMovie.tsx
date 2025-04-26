@@ -85,7 +85,7 @@ const WatchMovie = () => {
   const progressRef = useRef<HTMLDivElement>(null);
   
   // Fetch movie details
-  const { data: movie, isLoading, error } = useQuery<Movie>({
+  const { data: movie, isLoading, error, isError } = useQuery<Movie>({
     queryKey: [`${API_BASE_URL}/movie/${movieId}`], // Fixed incorrect endpoint
     staleTime: 60 * 1000, // 1 minute
     enabled: !!movieId,
@@ -364,20 +364,30 @@ const WatchMovie = () => {
     );
   }
   
-  if (error || !movie) {
+  if (error || isError || !movie) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <h2 className="text-2xl font-bold text-white mb-2">Video Not Found</h2>
-          <p className="text-gray-300">
-            We couldn't load the video you're looking for. Please try again later.
+        <div className="text-center max-w-md px-6 py-8 bg-zinc-900 rounded-lg shadow-lg">
+          <h2 className="text-2xl font-bold text-white mb-4">Movie Not Found</h2>
+          <p className="text-gray-300 mb-6">
+            {movieId && movieId > 10 
+              ? "This movie is no longer available or might have been removed from our catalog." 
+              : "We couldn't load the movie you're looking for. Please try again later."}
           </p>
-          <button 
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded"
-            onClick={() => setLocation("/")}
-          >
-            Go to Home
-          </button>
+          <div className="flex gap-4 justify-center">
+            <button 
+              className="px-4 py-2 bg-zinc-700 text-white rounded hover:bg-zinc-600"
+              onClick={() => setLocation("/movie/" + movieId)}
+            >
+              Back to Details
+            </button>
+            <button 
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              onClick={() => setLocation("/")}
+            >
+              Go to Home
+            </button>
+          </div>
         </div>
       </div>
     );
