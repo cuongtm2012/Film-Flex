@@ -14,6 +14,7 @@ import AuthPage from "@/pages/auth-page";
 import Profile from "@/pages/Profile";
 import TrendingMovies from "@/pages/TrendingMovies";
 import DriveMovies from "@/pages/DriveMovies";
+import AdminDashboard from "@/pages/AdminDashboard";
 import { AuthProvider } from "@/hooks/use-auth";
 import { LanguageProvider } from "@/hooks/use-language";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -31,6 +32,7 @@ function Router() {
       <ProtectedRoute path="/my-list" component={MyList} />
       <ProtectedRoute path="/profile" component={Profile} />
       <ProtectedRoute path="/trending" component={TrendingMovies} />
+      <ProtectedRoute path="/admin" component={AdminDashboard} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>

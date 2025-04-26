@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
-import { Search, LogOut, User, Wallet, Bookmark } from "lucide-react";
+import { Search, LogOut, User, Wallet, Bookmark, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import LanguageSwitcher from "@/components/LanguageSwitcher";

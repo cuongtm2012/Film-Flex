@@ -194,7 +194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId, 
         movieId, 
         progress,
-        timestamp: new Date() 
+        watchedAt: new Date() 
       });
       res.status(201).json(history);
     } catch (error) {

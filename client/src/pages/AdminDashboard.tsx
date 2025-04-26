@@ -10,11 +10,12 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { User, Movie, Transaction, AdminLog } from '@shared/schema';
 
-// Tab components
-import UserManagement from './admin/UserManagement';
-import MovieManagement from './admin/MovieManagement';
-import FinancialManagement from './admin/FinancialManagement';
-import ActivityLogs from './admin/ActivityLogs';
+// Import tab components for lazy loading
+import { lazy, Suspense } from 'react';
+const UserManagement = lazy(() => import('@/pages/admin/UserManagement'));
+const MovieManagement = lazy(() => import('@/pages/admin/MovieManagement'));
+const FinancialManagement = lazy(() => import('@/pages/admin/FinancialManagement'));
+const ActivityLogs = lazy(() => import('@/pages/admin/ActivityLogs'));
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
@@ -171,19 +172,27 @@ export default function AdminDashboard() {
         </TabsList>
         
         <TabsContent value="users" className="space-y-4">
-          <UserManagement />
+          <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <UserManagement />
+          </Suspense>
         </TabsContent>
         
         <TabsContent value="movies" className="space-y-4">
-          <MovieManagement />
+          <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <MovieManagement />
+          </Suspense>
         </TabsContent>
         
         <TabsContent value="financial" className="space-y-4">
-          <FinancialManagement />
+          <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <FinancialManagement />
+          </Suspense>
         </TabsContent>
         
         <TabsContent value="activity" className="space-y-4">
-          <ActivityLogs />
+          <Suspense fallback={<div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <ActivityLogs />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>
