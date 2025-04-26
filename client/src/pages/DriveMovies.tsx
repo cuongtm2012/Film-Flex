@@ -53,15 +53,34 @@ export default function DriveMovies() {
   if (error) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center max-w-md">
+        <div className="text-center max-w-md mx-auto px-4">
           <h2 className="text-2xl font-bold text-white mb-2">{t('error.title')}</h2>
-          <p className="text-gray-300">
+          <p className="text-gray-300 mb-4">
             {t('error.googleDrive')}
           </p>
-          <div className="mt-4">
-            <Button onClick={() => window.location.reload()} className="bg-red-600 hover:bg-red-700">
+          <div className="bg-gray-900 p-4 rounded-md text-sm text-left text-gray-400 mb-4 overflow-auto max-h-40">
+            <p className="font-mono">
+              {error instanceof Error ? error.message : String(error)}
+            </p>
+            <p className="mt-2 text-yellow-500">
+              {t('drive.needAccess')}
+            </p>
+          </div>
+          <div className="flex flex-col md:flex-row gap-3 justify-center">
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="bg-red-600 hover:bg-red-700"
+            >
               {t('actions.retry')}
             </Button>
+            <Link href="/">
+              <Button 
+                variant="outline"
+                className="border-gray-600 text-gray-300"
+              >
+                {t('actions.backHome')}
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

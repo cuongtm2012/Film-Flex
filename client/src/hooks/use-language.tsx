@@ -106,8 +106,10 @@ const translations = {
     'drive.description': 'Watch movies shared through Google Drive directly on FilmFlex',
     'drive.noMovies': 'No movies found',
     'drive.checkLink': 'Check that the Google Drive folder contains video files and is publicly accessible',
+    'drive.needAccess': 'The folder might not be shared publicly. Try another folder ID or contact support.',
     'error.googleDrive': 'There was an error accessing the Google Drive folder. Make sure the folder is publicly shared and contains video files.',
     'actions.retry': 'Retry',
+    'actions.backHome': 'Back to Home',
     'nav.driveMovies': 'Drive Movies',
   },
   vi: {
@@ -209,8 +211,10 @@ const translations = {
     'drive.description': 'Xem phim được chia sẻ qua Google Drive trực tiếp trên FilmFlex',
     'drive.noMovies': 'Không tìm thấy phim',
     'drive.checkLink': 'Kiểm tra xem thư mục Google Drive có chứa tệp video và có thể truy cập công khai',
+    'drive.needAccess': 'Thư mục có thể không được chia sẻ công khai. Hãy thử một ID thư mục khác hoặc liên hệ hỗ trợ.',
     'error.googleDrive': 'Đã xảy ra lỗi khi truy cập thư mục Google Drive. Đảm bảo thư mục được chia sẻ công khai và chứa các tệp video.',
     'actions.retry': 'Thử lại',
+    'actions.backHome': 'Quay lại trang chủ',
     'nav.driveMovies': 'Phim Drive',
   }
 };
