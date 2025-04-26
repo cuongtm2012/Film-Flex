@@ -92,17 +92,20 @@ export async function getDriveVideoStreamingUrl(fileId: string): Promise<string>
   if (isDevelopmentMode) {
     console.log('Development mode: Providing sample video URL for testing, fileId:', fileId);
     
-    // Map specific fileIds to different sample videos based on the movie database
-    if (fileId === '1-irIEcfPe0zgPacX-XcMGv1zoB5hMWwI') {
-      console.log('Kung Fu Panda 2 video requested, providing sample video');
-      return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4";
-    } else if (fileId === '136atrovI1bWEMoSgq3X12veiNwh2fzO6') {
-      console.log('Kung Fu Panda 1 video requested, providing sample video');
-      return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-    }
+    // We're no longer hard-coding file IDs to specific sample videos
+    // Instead, we'll provide sample videos based on the fileId hash to ensure consistency
+    const fileIdHash = fileId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     
-    // Use a sample video from the web that's publicly accessible
-    return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+    // Use the hash to select one of several sample videos
+    const sampleVideos = [
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
+    ];
+    
+    const selectedVideo = sampleVideos[fileIdHash % sampleVideos.length];
+    console.log(`Using sample video: ${selectedVideo} for fileId: ${fileId}`);
+    return selectedVideo;
   }
 
   try {
@@ -123,17 +126,19 @@ export async function getDriveVideoStreamingUrl(fileId: string): Promise<string>
       console.log('Switching to development mode after streaming URL error');
       isDevelopmentMode = true;
       
-      // Return different sample videos based on fileId - make sure it matches first set
-      if (fileId === '1-irIEcfPe0zgPacX-XcMGv1zoB5hMWwI') {
-        console.log('Kung Fu Panda 2 video requested (fallback mode), providing sample video');
-        return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4";
-      } else if (fileId === '136atrovI1bWEMoSgq3X12veiNwh2fzO6') {
-        console.log('Kung Fu Panda 1 video requested (fallback mode), providing sample video');
-        return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-      }
+      // We'll use the same hash-based selection for consistency in fallback mode
+      const fileIdHash = fileId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
       
-      // Default fallback video
-      return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+      // Same sample videos as in the development mode
+      const sampleVideos = [
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
+      ];
+      
+      const selectedVideo = sampleVideos[fileIdHash % sampleVideos.length];
+      console.log(`Using sample video (fallback mode): ${selectedVideo} for fileId: ${fileId}`);
+      return selectedVideo;
     }
     
     throw error;
