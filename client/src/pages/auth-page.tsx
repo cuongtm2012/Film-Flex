@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { insertUserSchema } from "@shared/schema";
-import { Separator } from "@/components/ui/separator";
 import { auth, googleProvider } from "@/lib/firebase";
 import { signInWithPopup } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -27,10 +26,48 @@ const registerSchema = insertUserSchema.extend({
   path: ["passwordConfirm"],
 });
 
+// Create a custom hook for Google sign in to avoid hooks ordering issues
+function useGoogleSignIn() {
+  const { loginMutation, registerMutation } = useAuth();
+  const { toast } = useToast();
+  
+  const handleGoogleSignIn = useCallback(async (isRegistration: boolean) => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      // Register/login with our API using the Google user info
+      if (user.email) {
+        if (isRegistration) {
+          registerMutation.mutate({
+            username: user.email.split('@')[0],
+            password: user.uid, // Use the Firebase UID as password
+            email: user.email
+          });
+        } else {
+          loginMutation.mutate({
+            username: user.email.split('@')[0],
+            password: user.uid // Use the Firebase UID as password
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error("Google sign-in error:", error);
+      toast({
+        title: "Google sign-in failed",
+        description: error.message || "Failed to sign in with Google",
+        variant: "destructive",
+      });
+    }
+  }, [loginMutation, registerMutation, toast]);
+  
+  return handleGoogleSignIn;
+}
+
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("login");
   const { toast } = useToast();
+  const handleGoogleSignIn = useGoogleSignIn();
   
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -137,21 +174,7 @@ export default function AuthPage() {
                   <Button 
                     type="button" 
                     className="w-full flex items-center justify-center bg-white hover:bg-gray-100 text-black"
-                    onClick={async () => {
-                      try {
-                        const result = await signInWithPopup(auth, googleProvider);
-                        const user = result.user;
-                        // Register/login with our API using the Google user info
-                        if (user.email) {
-                          loginMutation.mutate({
-                            username: user.email.split('@')[0],
-                            password: user.uid // Use the Firebase UID as password
-                          });
-                        }
-                      } catch (error) {
-                        console.error("Google sign-in error:", error);
-                      }
-                    }}
+                    onClick={() => handleGoogleSignIn(false)}
                   >
                     <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
                       <path
@@ -262,29 +285,7 @@ export default function AuthPage() {
                   <Button 
                     type="button" 
                     className="w-full flex items-center justify-center bg-white hover:bg-gray-100 text-black"
-                    onClick={async () => {
-                      try {
-                        const result = await signInWithPopup(auth, googleProvider);
-                        const user = result.user;
-                        // Register/login with our API using the Google user info
-                        if (user.email) {
-                          if (activeTab === "login") {
-                            loginMutation.mutate({
-                              username: user.email.split('@')[0],
-                              password: user.uid // Use the Firebase UID as password
-                            });
-                          } else {
-                            registerMutation.mutate({
-                              username: user.email.split('@')[0],
-                              password: user.uid, // Use the Firebase UID as password
-                              email: user.email
-                            });
-                          }
-                        }
-                      } catch (error) {
-                        console.error("Google sign-in error:", error);
-                      }
-                    }}
+                    onClick={() => handleGoogleSignIn(true)}
                   >
                     <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
                       <path
