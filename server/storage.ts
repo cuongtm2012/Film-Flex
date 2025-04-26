@@ -189,6 +189,17 @@ export class MemStorage implements IStorage {
       history => history.userId === insertHistory.userId && history.movieId === insertHistory.movieId
     );
     
+    // Increment movie view count
+    const movie = this.movies.get(insertHistory.movieId);
+    if (movie && (!existingHistory || existingHistory.progress < 10)) {
+      // Only count as a new view if it's a new history entry or previous progress was minimal
+      const updatedMovie = { 
+        ...movie, 
+        viewCount: (movie.viewCount || 0) + 1 
+      };
+      this.movies.set(movie.id, updatedMovie);
+    }
+    
     if (existingHistory) {
       // Update the existing entry
       const updatedHistory: ViewHistory = {

@@ -42,6 +42,7 @@ export const movies = pgTable("movies", {
   director: text("director"),
   cast: text("cast").array(),
   imdbRating: text("imdb_rating"),
+  viewCount: integer("view_count").default(0),
 });
 
 export const insertMovieSchema = createInsertSchema(movies).pick({
@@ -58,6 +59,7 @@ export const insertMovieSchema = createInsertSchema(movies).pick({
   director: true,
   cast: true,
   imdbRating: true,
+  viewCount: true,
 });
 
 // Favorites/watchlist model

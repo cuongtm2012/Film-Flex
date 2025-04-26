@@ -32,6 +32,7 @@ export interface Movie {
   director?: string;
   cast?: string[];
   imdbRating?: string;
+  viewCount?: number;
 }
 
 export function formatDuration(minutes: number): string {
