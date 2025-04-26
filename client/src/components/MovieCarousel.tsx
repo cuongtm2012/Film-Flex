@@ -40,7 +40,7 @@ const MovieCarousel = ({ title, movies }: MovieCarouselProps) => {
           className="flex overflow-x-auto space-x-3 scrollbar-hide pb-3 pl-0.5"
           onScroll={handleScroll}
         >
-          {movies.map((movie) => (
+          {movies.filter(movie => movie.id && movie.id > 0 && movie.id <= 10).map((movie) => (
             <MovieCard key={movie.id} movie={movie} />
           ))}
         </div>
