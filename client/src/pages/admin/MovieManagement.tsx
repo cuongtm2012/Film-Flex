@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '@/hooks/use-language';
 import { apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
 import { Movie, MovieUpload } from '@shared/schema';
 
 import { 
@@ -16,13 +15,19 @@ import {
 } from "@/components/ui/table";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -30,28 +35,51 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Plus, Eye, Pencil, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  Loader2, 
+  Film, 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Eye, 
+  FileVideo, 
+  Clock,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+import { useToast } from '@/hooks/use-toast';
 
 export default function MovieManagement() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // State for tabs
   const [activeTab, setActiveTab] = useState('movies');
-  const [openNewMovieDialog, setOpenNewMovieDialog] = useState(false);
-  const [openEditMovieDialog, setOpenEditMovieDialog] = useState(false);
-  const [openDeleteConfirmDialog, setOpenDeleteConfirmDialog] = useState(false);
+  
+  // State for dialogs
+  const [openCreateDialog, setOpenCreateDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openUploadDialog, setOpenUploadDialog] = useState(false);
   const [openReviewDialog, setOpenReviewDialog] = useState(false);
+  
+  // Selected items
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [selectedUpload, setSelectedUpload] = useState<MovieUpload | null>(null);
   
-  // Form state for new/edit movie
-  const [movieData, setMovieData] = useState({
+  // Form state
+  const [movieForm, setMovieForm] = useState({
     title: '',
     description: '',
     releaseYear: new Date().getFullYear(),
@@ -59,30 +87,34 @@ export default function MovieManagement() {
     posterUrl: '',
     backdropUrl: '',
     rating: 'PG-13',
-    genreIds: [1], // Default to Action
+    genreIds: [] as number[],
     director: '',
     cast: [] as string[],
-    imdbRating: '',
-    videoSources: [] as { quality: string, url: string }[]
   });
   
-  // Form state for movie upload review
-  const [reviewData, setReviewData] = useState({
-    status: 'pending_review',
-    notes: ''
+  const [uploadForm, setUploadForm] = useState({
+    title: '',
+    description: '',
+    videoUrl: '',
+    submissionNotes: '',
+  });
+  
+  const [reviewForm, setReviewForm] = useState({
+    status: 'approved',
+    notes: '',
   });
   
   // Fetch movies
-  const { data: movies = [], isLoading: isMoviesLoading } = useQuery<Movie[]>({
-    queryKey: ['/api/movies'],
+  const { data: movies = [], isLoading: isLoadingMovies } = useQuery<Movie[]>({
+    queryKey: ['/api/admin/movies'],
     queryFn: async () => {
       const res = await apiRequest('GET', '/api/movies');
       return res.json();
     },
   });
   
-  // Fetch pending uploads
-  const { data: pendingUploads = [], isLoading: isUploadsLoading } = useQuery<MovieUpload[]>({
+  // Fetch pending movie uploads
+  const { data: pendingUploads = [], isLoading: isLoadingUploads } = useQuery<MovieUpload[]>({
     queryKey: ['/api/admin/movie-uploads'],
     queryFn: async () => {
       const res = await apiRequest('GET', '/api/admin/movie-uploads');
@@ -90,10 +122,10 @@ export default function MovieManagement() {
     },
   });
   
-  // Create new movie
+  // Create movie mutation
   const createMovieMutation = useMutation({
-    mutationFn: async (movieData: any) => {
-      const res = await apiRequest('POST', '/api/admin/movies', movieData);
+    mutationFn: async (movie: any) => {
+      const res = await apiRequest('POST', '/api/movies', movie);
       return res.json();
     },
     onSuccess: () => {
@@ -101,8 +133,9 @@ export default function MovieManagement() {
         title: t('admin.movieCreated'),
         description: t('admin.movieCreatedSuccess'),
       });
-      setOpenNewMovieDialog(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/movies'] });
+      setOpenCreateDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/movies'] });
+      resetMovieForm();
     },
     onError: (error: any) => {
       toast({
@@ -110,13 +143,13 @@ export default function MovieManagement() {
         description: error.message || t('admin.movieCreateFailed'),
         variant: 'destructive',
       });
-    },
+    }
   });
   
-  // Update movie
+  // Update movie mutation
   const updateMovieMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number, data: any }) => {
-      const res = await apiRequest('PATCH', `/api/admin/movies/${id}`, data);
+    mutationFn: async ({ id, movie }: { id: number, movie: any }) => {
+      const res = await apiRequest('PATCH', `/api/movies/${id}`, movie);
       return res.json();
     },
     onSuccess: () => {
@@ -124,9 +157,8 @@ export default function MovieManagement() {
         title: t('admin.movieUpdated'),
         description: t('admin.movieUpdatedSuccess'),
       });
-      setOpenEditMovieDialog(false);
-      setSelectedMovie(null);
-      queryClient.invalidateQueries({ queryKey: ['/api/movies'] });
+      setOpenEditDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/movies'] });
     },
     onError: (error: any) => {
       toast({
@@ -134,22 +166,21 @@ export default function MovieManagement() {
         description: error.message || t('admin.movieUpdateFailed'),
         variant: 'destructive',
       });
-    },
+    }
   });
   
-  // Delete movie
+  // Delete movie mutation
   const deleteMovieMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest('DELETE', `/api/admin/movies/${id}`);
+      await apiRequest('DELETE', `/api/movies/${id}`);
     },
     onSuccess: () => {
       toast({
         title: t('admin.movieDeleted'),
         description: t('admin.movieDeletedSuccess'),
       });
-      setOpenDeleteConfirmDialog(false);
-      setSelectedMovie(null);
-      queryClient.invalidateQueries({ queryKey: ['/api/movies'] });
+      setOpenDeleteDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/movies'] });
     },
     onError: (error: any) => {
       toast({
@@ -157,54 +188,142 @@ export default function MovieManagement() {
         description: error.message || t('admin.movieDeleteFailed'),
         variant: 'destructive',
       });
-    },
+    }
   });
   
-  // Update upload status
-  const updateUploadStatusMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number, data: any }) => {
-      const res = await apiRequest('PATCH', `/api/admin/movie-uploads/${id}/status`, data);
+  // Create upload submission mutation
+  const createUploadMutation = useMutation({
+    mutationFn: async (upload: any) => {
+      const res = await apiRequest('POST', '/api/admin/movie-uploads', upload);
       return res.json();
     },
     onSuccess: () => {
       toast({
-        title: t('admin.uploadStatusUpdated'),
-        description: t('admin.uploadStatusUpdatedSuccess'),
+        title: t('admin.uploadSubmitted'),
+        description: t('admin.uploadSubmittedSuccess'),
+      });
+      setOpenUploadDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/movie-uploads'] });
+      resetUploadForm();
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('admin.error'),
+        description: error.message || t('admin.uploadSubmitFailed'),
+        variant: 'destructive',
+      });
+    }
+  });
+  
+  // Update upload status mutation
+  const updateUploadStatusMutation = useMutation({
+    mutationFn: async ({ id, status, notes }: { id: number, status: string, notes: string }) => {
+      const res = await apiRequest('PATCH', `/api/admin/movie-uploads/${id}/status`, { status, notes });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('admin.uploadReviewed'),
+        description: t('admin.uploadReviewedSuccess'),
       });
       setOpenReviewDialog(false);
-      setSelectedUpload(null);
       queryClient.invalidateQueries({ queryKey: ['/api/admin/movie-uploads'] });
     },
     onError: (error: any) => {
       toast({
         title: t('admin.error'),
-        description: error.message || t('admin.uploadStatusUpdateFailed'),
+        description: error.message || t('admin.uploadReviewFailed'),
         variant: 'destructive',
       });
-    },
+    }
   });
   
-  // Handle movie form input changes
+  // Format date
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+  
+  // Reset movie form
+  const resetMovieForm = () => {
+    setMovieForm({
+      title: '',
+      description: '',
+      releaseYear: new Date().getFullYear(),
+      duration: 120,
+      posterUrl: '',
+      backdropUrl: '',
+      rating: 'PG-13',
+      genreIds: [],
+      director: '',
+      cast: [],
+    });
+  };
+  
+  // Reset upload form
+  const resetUploadForm = () => {
+    setUploadForm({
+      title: '',
+      description: '',
+      videoUrl: '',
+      submissionNotes: '',
+    });
+  };
+  
+  // Handle input change for movie form
   const handleMovieInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setMovieData(prev => ({ ...prev, [name]: value }));
+    setMovieForm({ ...movieForm, [name]: value });
   };
   
-  // Handle number input changes
-  const handleNumberInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle input change for upload form
+  const handleUploadInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setMovieData(prev => ({ ...prev, [name]: parseInt(value) || 0 }));
+    setUploadForm({ ...uploadForm, [name]: value });
   };
   
-  // Handle select changes
-  const handleSelectChange = (name: string, value: string | string[]) => {
-    setMovieData(prev => ({ ...prev, [name]: value }));
+  // Handle input change for review form
+  const handleReviewInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setReviewForm({ ...reviewForm, [name]: value });
   };
   
-  // Open edit dialog and initialize with movie data
-  const openEditMovie = (movie: Movie) => {
+  // Handle select change
+  const handleSelectChange = (name: string, value: string) => {
+    if (name === 'status') {
+      setReviewForm({ ...reviewForm, [name]: value });
+    } else {
+      setMovieForm({ ...movieForm, [name]: value });
+    }
+  };
+  
+  // Handle genre selection (multi-select)
+  const handleGenreChange = (genreId: string) => {
+    const id = parseInt(genreId);
+    const currentGenres = [...movieForm.genreIds];
+    
+    if (currentGenres.includes(id)) {
+      setMovieForm({ 
+        ...movieForm, 
+        genreIds: currentGenres.filter(g => g !== id) 
+      });
+    } else {
+      setMovieForm({ 
+        ...movieForm, 
+        genreIds: [...currentGenres, id] 
+      });
+    }
+  };
+  
+  // Handle cast input (comma-separated string)
+  const handleCastChange = (value: string) => {
+    const castArray = value.split(',').map(item => item.trim()).filter(Boolean);
+    setMovieForm({ ...movieForm, cast: castArray });
+  };
+  
+  // Open edit dialog with movie data
+  const openMovieEdit = (movie: Movie) => {
     setSelectedMovie(movie);
-    setMovieData({
+    setMovieForm({
       title: movie.title,
       description: movie.description,
       releaseYear: movie.releaseYear,
@@ -215,39 +334,40 @@ export default function MovieManagement() {
       genreIds: movie.genreIds,
       director: movie.director || '',
       cast: movie.cast || [],
-      imdbRating: movie.imdbRating || '',
-      videoSources: movie.videoSources as any || []
     });
-    setOpenEditMovieDialog(true);
+    setOpenEditDialog(true);
   };
   
   // Open delete confirmation dialog
-  const openDeleteConfirm = (movie: Movie) => {
+  const openMovieDelete = (movie: Movie) => {
     setSelectedMovie(movie);
-    setOpenDeleteConfirmDialog(true);
+    setOpenDeleteDialog(true);
   };
   
-  // Open review dialog for upload
-  const openReviewUpload = (upload: MovieUpload) => {
+  // Open review upload dialog
+  const openUploadReview = (upload: MovieUpload) => {
     setSelectedUpload(upload);
-    setReviewData({
-      status: upload.status,
-      notes: upload.reviewNotes || ''
+    setReviewForm({
+      status: 'approved',
+      notes: '',
     });
     setOpenReviewDialog(true);
   };
   
-  // Handle create movie form submission
+  // Handle create movie form submit
   const handleCreateMovie = (e: React.FormEvent) => {
     e.preventDefault();
-    createMovieMutation.mutate(movieData);
+    createMovieMutation.mutate(movieForm);
   };
   
-  // Handle update movie form submission
+  // Handle edit movie form submit
   const handleUpdateMovie = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedMovie) {
-      updateMovieMutation.mutate({ id: selectedMovie.id, data: movieData });
+      updateMovieMutation.mutate({ 
+        id: selectedMovie.id, 
+        movie: movieForm 
+      });
     }
   };
   
@@ -258,256 +378,62 @@ export default function MovieManagement() {
     }
   };
   
-  // Handle review upload submission
-  const handleReviewUpload = () => {
+  // Handle upload submission
+  const handleSubmitUpload = (e: React.FormEvent) => {
+    e.preventDefault();
+    createUploadMutation.mutate(uploadForm);
+  };
+  
+  // Handle upload review submission
+  const handleReviewUpload = (e: React.FormEvent) => {
+    e.preventDefault();
     if (selectedUpload) {
       updateUploadStatusMutation.mutate({
         id: selectedUpload.id,
-        data: reviewData
+        status: reviewForm.status,
+        notes: reviewForm.notes,
       });
     }
   };
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="movies">{t('admin.allMovies')}</TabsTrigger>
-          <TabsTrigger value="uploads">{t('admin.pendingUploads')}</TabsTrigger>
+          <TabsTrigger value="movies">
+            <Film className="h-4 w-4 mr-2" />
+            {t('admin.movies')}
+          </TabsTrigger>
+          <TabsTrigger value="uploads">
+            <FileVideo className="h-4 w-4 mr-2" />
+            {t('admin.movieUploads')}
+            {pendingUploads.length > 0 && (
+              <span className="ml-2 rounded-full bg-red-100 text-red-800 px-2 py-0.5 text-xs">
+                {pendingUploads.length}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
         
+        {/* Movies Tab Content */}
         <TabsContent value="movies" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">{t('admin.movieManagement')}</h2>
-            
-            {/* New Movie Dialog */}
-            <Dialog open={openNewMovieDialog} onOpenChange={setOpenNewMovieDialog}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t('admin.addMovie')}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{t('admin.createNewMovie')}</DialogTitle>
-                  <DialogDescription>
-                    {t('admin.createMovieDescription')}
-                  </DialogDescription>
-                </DialogHeader>
-                
-                <form onSubmit={handleCreateMovie} className="space-y-4 py-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="title">{t('admin.movieTitle')}</Label>
-                      <Input
-                        id="title"
-                        name="title"
-                        value={movieData.title}
-                        onChange={handleMovieInputChange}
-                        placeholder={t('admin.movieTitlePlaceholder')}
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="releaseYear">{t('admin.releaseYear')}</Label>
-                      <Input
-                        id="releaseYear"
-                        name="releaseYear"
-                        type="number"
-                        value={movieData.releaseYear}
-                        onChange={handleNumberInputChange}
-                        min={1900}
-                        max={new Date().getFullYear() + 5}
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="description">{t('admin.description')}</Label>
-                      <Textarea
-                        id="description"
-                        name="description"
-                        value={movieData.description}
-                        onChange={handleMovieInputChange}
-                        placeholder={t('admin.descriptionPlaceholder')}
-                        rows={3}
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="duration">{t('admin.duration')}</Label>
-                      <Input
-                        id="duration"
-                        name="duration"
-                        type="number"
-                        value={movieData.duration}
-                        onChange={handleNumberInputChange}
-                        min={1}
-                        placeholder={t('admin.durationPlaceholder')}
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="rating">{t('admin.rating')}</Label>
-                      <Select 
-                        value={movieData.rating} 
-                        onValueChange={(value) => handleSelectChange('rating', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('admin.selectRating')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="G">G</SelectItem>
-                          <SelectItem value="PG">PG</SelectItem>
-                          <SelectItem value="PG-13">PG-13</SelectItem>
-                          <SelectItem value="R">R</SelectItem>
-                          <SelectItem value="NC-17">NC-17</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="posterUrl">{t('admin.posterUrl')}</Label>
-                      <Input
-                        id="posterUrl"
-                        name="posterUrl"
-                        value={movieData.posterUrl}
-                        onChange={handleMovieInputChange}
-                        placeholder={t('admin.posterUrlPlaceholder')}
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="backdropUrl">{t('admin.backdropUrl')}</Label>
-                      <Input
-                        id="backdropUrl"
-                        name="backdropUrl"
-                        value={movieData.backdropUrl}
-                        onChange={handleMovieInputChange}
-                        placeholder={t('admin.backdropUrlPlaceholder')}
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="director">{t('admin.director')}</Label>
-                      <Input
-                        id="director"
-                        name="director"
-                        value={movieData.director}
-                        onChange={handleMovieInputChange}
-                        placeholder={t('admin.directorPlaceholder')}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="imdbRating">{t('admin.imdbRating')}</Label>
-                      <Input
-                        id="imdbRating"
-                        name="imdbRating"
-                        value={movieData.imdbRating}
-                        onChange={handleMovieInputChange}
-                        placeholder={t('admin.imdbRatingPlaceholder')}
-                      />
-                    </div>
-                  </div>
-                  
-                  <DialogFooter>
-                    <Button variant="outline" type="button" onClick={() => setOpenNewMovieDialog(false)}>
-                      {t('general.cancel')}
-                    </Button>
-                    <Button type="submit" disabled={createMovieMutation.isPending}>
-                      {createMovieMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {t('admin.createMovie')}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-            
-            {/* Edit Movie Dialog - Similar to create but with update functionality */}
-            <Dialog open={openEditMovieDialog} onOpenChange={setOpenEditMovieDialog}>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{t('admin.editMovie')}</DialogTitle>
-                  <DialogDescription>
-                    {t('admin.editMovieDescription')}
-                  </DialogDescription>
-                </DialogHeader>
-                
-                <form onSubmit={handleUpdateMovie} className="space-y-4 py-4">
-                  {/* Same form fields as create, but pre-filled with selected movie data */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-title">{t('admin.movieTitle')}</Label>
-                      <Input
-                        id="edit-title"
-                        name="title"
-                        value={movieData.title}
-                        onChange={handleMovieInputChange}
-                        placeholder={t('admin.movieTitlePlaceholder')}
-                        required
-                      />
-                    </div>
-                    
-                    {/* Other fields similar to create form */}
-                    {/* ... */}
-                  </div>
-                  
-                  <DialogFooter>
-                    <Button variant="outline" type="button" onClick={() => setOpenEditMovieDialog(false)}>
-                      {t('general.cancel')}
-                    </Button>
-                    <Button type="submit" disabled={updateMovieMutation.isPending}>
-                      {updateMovieMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {t('admin.updateMovie')}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-            
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={openDeleteConfirmDialog} onOpenChange={setOpenDeleteConfirmDialog}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{t('admin.confirmDelete')}</DialogTitle>
-                  <DialogDescription>
-                    {t('admin.deleteMovieWarning')}
-                  </DialogDescription>
-                </DialogHeader>
-                
-                <div className="py-4">
-                  <p className="font-medium">{selectedMovie?.title}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{t('admin.thisActionCannot')}</p>
-                </div>
-                
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setOpenDeleteConfirmDialog(false)}>
-                    {t('general.cancel')}
-                  </Button>
-                  <Button variant="destructive" onClick={handleDeleteMovie} disabled={deleteMovieMutation.isPending}>
-                    {deleteMovieMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {t('admin.deleteMovie')}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={() => setOpenCreateDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t('admin.addMovie')}
+            </Button>
           </div>
           
           {/* Movies Table */}
           <div className="rounded-md border">
             <Table>
-              <TableCaption>{t('admin.movieListCaption')}</TableCaption>
+              <TableCaption>{t('admin.moviesListCaption')}</TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t('admin.movieId')}</TableHead>
-                  <TableHead>{t('admin.movieTitle')}</TableHead>
+                  <TableHead>{t('admin.id')}</TableHead>
+                  <TableHead>{t('admin.title')}</TableHead>
                   <TableHead>{t('admin.releaseYear')}</TableHead>
                   <TableHead>{t('admin.duration')}</TableHead>
                   <TableHead>{t('admin.rating')}</TableHead>
@@ -516,7 +442,7 @@ export default function MovieManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isMoviesLoading ? (
+                {isLoadingMovies ? (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center">
                       <Loader2 className="mx-auto h-6 w-6 animate-spin" />
@@ -532,7 +458,15 @@ export default function MovieManagement() {
                   movies.map((movie) => (
                     <TableRow key={movie.id}>
                       <TableCell>{movie.id}</TableCell>
-                      <TableCell>{movie.title}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center">
+                          <div 
+                            className="h-10 w-16 rounded mr-2 bg-cover bg-center"
+                            style={{ backgroundImage: `url(${movie.posterUrl})` }}
+                          />
+                          {movie.title}
+                        </div>
+                      </TableCell>
                       <TableCell>{movie.releaseYear}</TableCell>
                       <TableCell>{movie.duration} min</TableCell>
                       <TableCell>{movie.rating}</TableCell>
@@ -540,25 +474,23 @@ export default function MovieManagement() {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button 
-                            variant="outline" 
+                            variant="ghost" 
                             size="sm" 
                             onClick={() => window.open(`/movie/${movie.id}`, '_blank')}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          
                           <Button 
-                            variant="outline" 
+                            variant="ghost" 
                             size="sm" 
-                            onClick={() => openEditMovie(movie)}
+                            onClick={() => openMovieEdit(movie)}
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Edit className="h-4 w-4" />
                           </Button>
-                          
                           <Button 
-                            variant="destructive" 
+                            variant="ghost" 
                             size="sm" 
-                            onClick={() => openDeleteConfirm(movie)}
+                            onClick={() => openMovieDelete(movie)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -572,28 +504,89 @@ export default function MovieManagement() {
           </div>
         </TabsContent>
         
+        {/* Uploads Tab Content */}
         <TabsContent value="uploads" className="space-y-4">
-          {/* Content for pending uploads tab */}
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">{t('admin.pendingUploads')}</h2>
+            <h2 className="text-2xl font-bold">{t('admin.movieUploads')}</h2>
+            <Button onClick={() => setOpenUploadDialog(true)}>
+              <FileVideo className="mr-2 h-4 w-4" />
+              {t('admin.submitUpload')}
+            </Button>
           </div>
           
-          {/* Pending Uploads Table */}
+          {/* Status Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-medium flex items-center">
+                  <Clock className="mr-2 h-4 w-4 text-amber-500" />
+                  {t('admin.pendingUploads')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {isLoadingUploads ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    pendingUploads.filter(upload => upload.status === 'pending').length
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-medium flex items-center">
+                  <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
+                  {t('admin.approvedUploads')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {isLoadingUploads ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    pendingUploads.filter(upload => upload.status === 'approved').length
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-medium flex items-center">
+                  <XCircle className="mr-2 h-4 w-4 text-red-500" />
+                  {t('admin.rejectedUploads')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {isLoadingUploads ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    pendingUploads.filter(upload => upload.status === 'rejected').length
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Uploads Table */}
           <div className="rounded-md border">
             <Table>
-              <TableCaption>{t('admin.pendingUploadsCaption')}</TableCaption>
+              <TableCaption>{t('admin.uploadsListCaption')}</TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t('admin.uploadId')}</TableHead>
-                  <TableHead>{t('admin.movieId')}</TableHead>
-                  <TableHead>{t('admin.uploader')}</TableHead>
-                  <TableHead>{t('admin.uploadDate')}</TableHead>
+                  <TableHead>{t('admin.id')}</TableHead>
+                  <TableHead>{t('admin.title')}</TableHead>
+                  <TableHead>{t('admin.uploaderId')}</TableHead>
+                  <TableHead>{t('admin.submittedAt')}</TableHead>
                   <TableHead>{t('admin.status')}</TableHead>
                   <TableHead className="text-right">{t('admin.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isUploadsLoading ? (
+                {isLoadingUploads ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center">
                       <Loader2 className="mx-auto h-6 w-6 animate-spin" />
@@ -609,37 +602,37 @@ export default function MovieManagement() {
                   pendingUploads.map((upload) => (
                     <TableRow key={upload.id}>
                       <TableCell>{upload.id}</TableCell>
-                      <TableCell>{upload.movieId}</TableCell>
-                      <TableCell>{upload.uploadedBy}</TableCell>
-                      <TableCell>{new Date(upload.uploadedAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="font-medium">{upload.title}</TableCell>
+                      <TableCell>{upload.uploaderId}</TableCell>
+                      <TableCell>{formatDate(upload.createdAt)}</TableCell>
                       <TableCell>
                         <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                          upload.status === 'published' 
-                            ? 'bg-green-100 text-green-800'
+                          upload.status === 'approved' 
+                            ? 'bg-green-100 text-green-800' 
                             : upload.status === 'rejected'
                             ? 'bg-red-100 text-red-800'
-                            : upload.status === 'pending_review'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-gray-100 text-gray-800'
+                            : 'bg-amber-100 text-amber-800'
                         }`}>
-                          {upload.status === 'published' 
-                            ? t('admin.published') 
-                            : upload.status === 'rejected'
-                            ? t('admin.rejected')
-                            : upload.status === 'pending_review'
-                            ? t('admin.pendingReview')
-                            : t('admin.draft')
-                          }
+                          {upload.status}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end">
                           <Button 
-                            variant="default" 
+                            variant="ghost" 
                             size="sm" 
-                            onClick={() => openReviewUpload(upload)}
+                            onClick={() => openUploadReview(upload)}
+                            disabled={upload.status !== 'pending'}
                           >
-                            {t('admin.review')}
+                            {upload.status === 'pending' ? (
+                              <Eye className="h-4 w-4" />
+                            ) : (
+                              upload.status === 'approved' ? (
+                                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-red-500" />
+                              )
+                            )}
                           </Button>
                         </div>
                       </TableCell>
@@ -649,40 +642,466 @@ export default function MovieManagement() {
               </TableBody>
             </Table>
           </div>
-          
-          {/* Review Upload Dialog */}
-          <Dialog open={openReviewDialog} onOpenChange={setOpenReviewDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{t('admin.reviewUpload')}</DialogTitle>
-                <DialogDescription>
-                  {t('admin.reviewUploadDescription')}
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="space-y-4 py-4">
+        </TabsContent>
+      </Tabs>
+      
+      {/* Create Movie Dialog */}
+      <Dialog open={openCreateDialog} onOpenChange={setOpenCreateDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t('admin.addNewMovie')}</DialogTitle>
+            <DialogDescription>
+              {t('admin.addMovieDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateMovie}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="upload-id">{t('admin.uploadId')}</Label>
+                  <Label htmlFor="title">{t('admin.title')} *</Label>
                   <Input
-                    id="upload-id"
-                    value={selectedUpload?.id || ''}
-                    readOnly
-                    disabled
+                    id="title"
+                    name="title"
+                    value={movieForm.title}
+                    onChange={handleMovieInputChange}
+                    required
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="releaseYear">{t('admin.releaseYear')}</Label>
+                    <Input
+                      id="releaseYear"
+                      name="releaseYear"
+                      type="number"
+                      value={movieForm.releaseYear}
+                      onChange={handleMovieInputChange}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="duration">{t('admin.duration')} (min)</Label>
+                    <Input
+                      id="duration"
+                      name="duration"
+                      type="number"
+                      value={movieForm.duration}
+                      onChange={handleMovieInputChange}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="description">{t('admin.description')}</Label>
+                <Textarea
+                  id="description"
+                  name="description"
+                  rows={3}
+                  value={movieForm.description}
+                  onChange={handleMovieInputChange}
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="posterUrl">{t('admin.posterUrl')}</Label>
+                  <Input
+                    id="posterUrl"
+                    name="posterUrl"
+                    value={movieForm.posterUrl}
+                    onChange={handleMovieInputChange}
+                    placeholder="https://example.com/poster.jpg"
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="upload-status">{t('admin.status')}</Label>
+                  <Label htmlFor="backdropUrl">{t('admin.backdropUrl')}</Label>
+                  <Input
+                    id="backdropUrl"
+                    name="backdropUrl"
+                    value={movieForm.backdropUrl}
+                    onChange={handleMovieInputChange}
+                    placeholder="https://example.com/backdrop.jpg"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="rating">{t('admin.rating')}</Label>
                   <Select 
-                    value={reviewData.status} 
-                    onValueChange={(value) => setReviewData(prev => ({ ...prev, status: value }))}
+                    value={movieForm.rating} 
+                    onValueChange={(value) => handleSelectChange('rating', value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="rating">
+                      <SelectValue placeholder={t('admin.selectRating')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="G">G</SelectItem>
+                      <SelectItem value="PG">PG</SelectItem>
+                      <SelectItem value="PG-13">PG-13</SelectItem>
+                      <SelectItem value="R">R</SelectItem>
+                      <SelectItem value="NC-17">NC-17</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="director">{t('admin.director')}</Label>
+                  <Input
+                    id="director"
+                    name="director"
+                    value={movieForm.director}
+                    onChange={handleMovieInputChange}
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="cast">{t('admin.cast')} ({t('admin.commaSeparated')})</Label>
+                <Input
+                  id="cast"
+                  name="cast"
+                  value={movieForm.cast.join(', ')}
+                  onChange={(e) => handleCastChange(e.target.value)}
+                  placeholder="Actor 1, Actor 2, Actor 3"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={resetMovieForm}
+                >
+                  {t('admin.cancel')}
+                </Button>
+              </DialogClose>
+              <Button 
+                type="submit"
+                disabled={createMovieMutation.isPending}
+              >
+                {createMovieMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {t('admin.createMovie')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Movie Dialog */}
+      <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t('admin.editMovie')}</DialogTitle>
+            <DialogDescription>
+              {t('admin.editMovieDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateMovie}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-title">{t('admin.title')} *</Label>
+                  <Input
+                    id="edit-title"
+                    name="title"
+                    value={movieForm.title}
+                    onChange={handleMovieInputChange}
+                    required
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-releaseYear">{t('admin.releaseYear')}</Label>
+                    <Input
+                      id="edit-releaseYear"
+                      name="releaseYear"
+                      type="number"
+                      value={movieForm.releaseYear}
+                      onChange={handleMovieInputChange}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-duration">{t('admin.duration')} (min)</Label>
+                    <Input
+                      id="edit-duration"
+                      name="duration"
+                      type="number"
+                      value={movieForm.duration}
+                      onChange={handleMovieInputChange}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">{t('admin.description')}</Label>
+                <Textarea
+                  id="edit-description"
+                  name="description"
+                  rows={3}
+                  value={movieForm.description}
+                  onChange={handleMovieInputChange}
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-posterUrl">{t('admin.posterUrl')}</Label>
+                  <Input
+                    id="edit-posterUrl"
+                    name="posterUrl"
+                    value={movieForm.posterUrl}
+                    onChange={handleMovieInputChange}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit-backdropUrl">{t('admin.backdropUrl')}</Label>
+                  <Input
+                    id="edit-backdropUrl"
+                    name="backdropUrl"
+                    value={movieForm.backdropUrl}
+                    onChange={handleMovieInputChange}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-rating">{t('admin.rating')}</Label>
+                  <Select 
+                    value={movieForm.rating} 
+                    onValueChange={(value) => handleSelectChange('rating', value)}
+                  >
+                    <SelectTrigger id="edit-rating">
+                      <SelectValue placeholder={t('admin.selectRating')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="G">G</SelectItem>
+                      <SelectItem value="PG">PG</SelectItem>
+                      <SelectItem value="PG-13">PG-13</SelectItem>
+                      <SelectItem value="R">R</SelectItem>
+                      <SelectItem value="NC-17">NC-17</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit-director">{t('admin.director')}</Label>
+                  <Input
+                    id="edit-director"
+                    name="director"
+                    value={movieForm.director}
+                    onChange={handleMovieInputChange}
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-cast">{t('admin.cast')} ({t('admin.commaSeparated')})</Label>
+                <Input
+                  id="edit-cast"
+                  name="cast"
+                  value={movieForm.cast.join(', ')}
+                  onChange={(e) => handleCastChange(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button 
+                  type="button" 
+                  variant="outline"
+                >
+                  {t('admin.cancel')}
+                </Button>
+              </DialogClose>
+              <Button 
+                type="submit"
+                disabled={updateMovieMutation.isPending}
+              >
+                {updateMovieMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {t('admin.updateMovie')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Movie Dialog */}
+      <Dialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('admin.deleteMovie')}</DialogTitle>
+            <DialogDescription>
+              {t('admin.deleteMovieConfirmation')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {selectedMovie && (
+              <p className="font-medium">
+                {selectedMovie.title} ({selectedMovie.releaseYear})
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button 
+                type="button" 
+                variant="outline"
+              >
+                {t('admin.cancel')}
+              </Button>
+            </DialogClose>
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteMovie}
+              disabled={deleteMovieMutation.isPending}
+            >
+              {deleteMovieMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {t('admin.confirmDelete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Upload Movie Dialog */}
+      <Dialog open={openUploadDialog} onOpenChange={setOpenUploadDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('admin.submitMovieUpload')}</DialogTitle>
+            <DialogDescription>
+              {t('admin.submitUploadDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmitUpload}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="upload-title">{t('admin.title')} *</Label>
+                <Input
+                  id="upload-title"
+                  name="title"
+                  value={uploadForm.title}
+                  onChange={handleUploadInputChange}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="upload-description">{t('admin.description')}</Label>
+                <Textarea
+                  id="upload-description"
+                  name="description"
+                  rows={3}
+                  value={uploadForm.description}
+                  onChange={handleUploadInputChange}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="upload-videoUrl">{t('admin.videoUrl')} *</Label>
+                <Input
+                  id="upload-videoUrl"
+                  name="videoUrl"
+                  value={uploadForm.videoUrl}
+                  onChange={handleUploadInputChange}
+                  placeholder="https://example.com/video.mp4"
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="upload-notes">{t('admin.submissionNotes')}</Label>
+                <Textarea
+                  id="upload-notes"
+                  name="submissionNotes"
+                  rows={2}
+                  value={uploadForm.submissionNotes}
+                  onChange={handleUploadInputChange}
+                  placeholder={t('admin.notesPlaceholder')}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={resetUploadForm}
+                >
+                  {t('admin.cancel')}
+                </Button>
+              </DialogClose>
+              <Button 
+                type="submit"
+                disabled={createUploadMutation.isPending}
+              >
+                {createUploadMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {t('admin.submitUpload')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Review Upload Dialog */}
+      <Dialog open={openReviewDialog} onOpenChange={setOpenReviewDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('admin.reviewUpload')}</DialogTitle>
+            <DialogDescription>
+              {t('admin.reviewUploadDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUpload && (
+            <form onSubmit={handleReviewUpload}>
+              <div className="space-y-4 py-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">{t('admin.title')}</Label>
+                  <p>{selectedUpload.title}</p>
+                </div>
+                
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">{t('admin.description')}</Label>
+                  <p className="text-sm">{selectedUpload.description || t('admin.noDescription')}</p>
+                </div>
+                
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">{t('admin.videoUrl')}</Label>
+                  <p className="text-sm break-all">{selectedUpload.videoUrl}</p>
+                </div>
+                
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">{t('admin.submissionNotes')}</Label>
+                  <p className="text-sm">{selectedUpload.submissionNotes || t('admin.noNotes')}</p>
+                </div>
+                
+                <div className="space-y-2 pt-2 border-t">
+                  <Label htmlFor="review-status">{t('admin.reviewDecision')} *</Label>
+                  <Select 
+                    value={reviewForm.status} 
+                    onValueChange={(value) => handleSelectChange('status', value)}
+                  >
+                    <SelectTrigger id="review-status">
                       <SelectValue placeholder={t('admin.selectStatus')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pending_review">{t('admin.pendingReview')}</SelectItem>
-                      <SelectItem value="published">{t('admin.publish')}</SelectItem>
+                      <SelectItem value="approved">{t('admin.approve')}</SelectItem>
                       <SelectItem value="rejected">{t('admin.reject')}</SelectItem>
                     </SelectContent>
                   </Select>
@@ -692,27 +1111,40 @@ export default function MovieManagement() {
                   <Label htmlFor="review-notes">{t('admin.reviewNotes')}</Label>
                   <Textarea
                     id="review-notes"
-                    value={reviewData.notes}
-                    onChange={(e) => setReviewData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder={t('admin.reviewNotesPlaceholder')}
+                    name="notes"
                     rows={3}
+                    value={reviewForm.notes}
+                    onChange={handleReviewInputChange}
+                    placeholder={t('admin.reviewNotesPlaceholder')}
                   />
                 </div>
-                
-                <DialogFooter>
-                  <Button variant="outline" type="button" onClick={() => setOpenReviewDialog(false)}>
-                    {t('general.cancel')}
-                  </Button>
-                  <Button onClick={handleReviewUpload} disabled={updateUploadStatusMutation.isPending}>
-                    {updateUploadStatusMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {t('admin.updateStatus')}
-                  </Button>
-                </DialogFooter>
               </div>
-            </DialogContent>
-          </Dialog>
-        </TabsContent>
-      </Tabs>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                  >
+                    {t('admin.cancel')}
+                  </Button>
+                </DialogClose>
+                <Button 
+                  type="submit"
+                  disabled={updateUploadStatusMutation.isPending}
+                  variant={reviewForm.status === 'approved' ? 'default' : 'destructive'}
+                >
+                  {updateUploadStatusMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {reviewForm.status === 'approved' 
+                    ? t('admin.approveUpload') 
+                    : t('admin.rejectUpload')}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

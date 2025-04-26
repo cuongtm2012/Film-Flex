@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '@/hooks/use-language';
-import { useAuth } from '@/hooks/use-auth';
 import { apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
 import { User } from '@shared/schema';
 
 import { 
@@ -17,12 +15,12 @@ import {
 } from "@/components/ui/table";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -31,30 +29,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Loader2, UserPlus, Check, X, UserCog } from "lucide-react";
+import { Loader2, UserPlus, Edit, UserMinus, UserCheck, Filter } from "lucide-react";
+import { useToast } from '@/hooks/use-toast';
 
 export default function UserManagement() {
   const { t } = useLanguage();
-  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [openNewUserDialog, setOpenNewUserDialog] = useState(false);
-  const [openRoleDialog, setOpenRoleDialog] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   
-  // Form state for new user
+  // State for dialogs
+  const [openCreateDialog, setOpenCreateDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  
+  // State for create form
   const [newUser, setNewUser] = useState({
     username: '',
     password: '',
     email: '',
     role: 'user',
+    userType: 'normal',
   });
-  
-  // Form state for role update
-  const [newRole, setNewRole] = useState('user');
   
   // Fetch users
   const { data: users = [], isLoading } = useQuery<User[]>({
@@ -65,10 +73,10 @@ export default function UserManagement() {
     },
   });
   
-  // Create new admin user
+  // Create user mutation
   const createUserMutation = useMutation({
-    mutationFn: async (userData: typeof newUser) => {
-      const res = await apiRequest('POST', '/api/admin/users', userData);
+    mutationFn: async (user: any) => {
+      const res = await apiRequest('POST', '/api/admin/users', user);
       return res.json();
     },
     onSuccess: () => {
@@ -76,9 +84,9 @@ export default function UserManagement() {
         title: t('admin.userCreated'),
         description: t('admin.userCreatedSuccess'),
       });
-      setOpenNewUserDialog(false);
-      setNewUser({ username: '', password: '', email: '', role: 'user' });
+      setOpenCreateDialog(false);
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      resetNewUserForm();
     },
     onError: (error: any) => {
       toast({
@@ -86,10 +94,10 @@ export default function UserManagement() {
         description: error.message || t('admin.userCreateFailed'),
         variant: 'destructive',
       });
-    },
+    }
   });
   
-  // Update user role
+  // Update user role mutation
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: number, role: string }) => {
       const res = await apiRequest('PATCH', `/api/admin/users/${userId}/role`, { role });
@@ -97,26 +105,25 @@ export default function UserManagement() {
     },
     onSuccess: () => {
       toast({
-        title: t('admin.roleUpdated'),
-        description: t('admin.roleUpdatedSuccess'),
+        title: t('admin.userUpdated'),
+        description: t('admin.userRoleUpdated'),
       });
-      setOpenRoleDialog(false);
-      setSelectedUser(null);
+      setOpenEditDialog(false);
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
     },
     onError: (error: any) => {
       toast({
         title: t('admin.error'),
-        description: error.message || t('admin.roleUpdateFailed'),
+        description: error.message || t('admin.userUpdateFailed'),
         variant: 'destructive',
       });
-    },
+    }
   });
   
-  // Deactivate user
+  // Deactivate user mutation
   const deactivateUserMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const res = await apiRequest('PATCH', `/api/admin/users/${userId}/deactivate`, {});
+      const res = await apiRequest('PATCH', `/api/admin/users/${userId}/deactivate`);
       return res.json();
     },
     onSuccess: () => {
@@ -132,13 +139,13 @@ export default function UserManagement() {
         description: error.message || t('admin.userDeactivateFailed'),
         variant: 'destructive',
       });
-    },
+    }
   });
   
-  // Reactivate user
+  // Reactivate user mutation
   const reactivateUserMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const res = await apiRequest('PATCH', `/api/admin/users/${userId}/reactivate`, {});
+      const res = await apiRequest('PATCH', `/api/admin/users/${userId}/reactivate`);
       return res.json();
     },
     onSuccess: () => {
@@ -154,177 +161,149 @@ export default function UserManagement() {
         description: error.message || t('admin.userReactivateFailed'),
         variant: 'destructive',
       });
-    },
+    }
   });
   
-  // Handle form input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setNewUser(prev => ({ ...prev, [name]: value }));
+  // Filter users based on criteria
+  const filteredUsers = users.filter(user => {
+    let matchesRole = true;
+    let matchesStatus = true;
+    
+    if (roleFilter) {
+      matchesRole = user.role === roleFilter;
+    }
+    
+    if (statusFilter) {
+      matchesStatus = statusFilter === 'active' ? user.isActive : !user.isActive;
+    }
+    
+    return matchesRole && matchesStatus;
+  });
+  
+  // Format date
+  const formatDate = (dateString: string | Date | null) => {
+    if (!dateString) return 'N/A';
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+    return date.toLocaleDateString();
   };
   
-  // Handle form submission
+  // Reset new user form
+  const resetNewUserForm = () => {
+    setNewUser({
+      username: '',
+      password: '',
+      email: '',
+      role: 'user',
+      userType: 'normal',
+    });
+  };
+  
+  // Open edit dialog with user data
+  const openUserEdit = (user: User) => {
+    setSelectedUser(user);
+    setOpenEditDialog(true);
+  };
+  
+  // Handle role change in edit dialog
+  const handleRoleChange = (role: string) => {
+    if (selectedUser) {
+      updateRoleMutation.mutate({ userId: selectedUser.id, role });
+    }
+  };
+  
+  // Handle user active status toggle
+  const toggleUserStatus = (user: User) => {
+    if (user.isActive) {
+      deactivateUserMutation.mutate(user.id);
+    } else {
+      reactivateUserMutation.mutate(user.id);
+    }
+  };
+  
+  // Handle create form input change
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewUser({ ...newUser, [name]: value });
+  };
+  
+  // Handle select change in create form
+  const handleSelectChange = (name: string, value: string) => {
+    setNewUser({ ...newUser, [name]: value });
+  };
+  
+  // Handle create user submit
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
     createUserMutation.mutate(newUser);
   };
   
-  // Handle role update
-  const handleRoleUpdate = () => {
-    if (selectedUser) {
-      updateRoleMutation.mutate({ userId: selectedUser.id, role: newRole });
-    }
-  };
-  
-  // Open role dialog with selected user
-  const openUserRoleDialog = (user: User) => {
-    setSelectedUser(user);
-    setNewRole(user.role || 'user');
-    setOpenRoleDialog(true);
-  };
-  
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center mb-4">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">{t('admin.userManagement')}</h2>
-        
-        {/* New User Dialog */}
-        <Dialog open={openNewUserDialog} onOpenChange={setOpenNewUserDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="mr-2 h-4 w-4" />
-              {t('admin.addUser')}
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t('admin.createNewUser')}</DialogTitle>
-              <DialogDescription>
-                {t('admin.createUserDescription')}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={handleCreateUser} className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">{t('auth.username')}</Label>
-                <Input
-                  id="username"
-                  name="username"
-                  value={newUser.username}
-                  onChange={handleInputChange}
-                  placeholder={t('auth.usernamePlaceholder')}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">{t('auth.password')}</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={newUser.password}
-                  onChange={handleInputChange}
-                  placeholder={t('auth.passwordPlaceholder')}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">{t('auth.email')}</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={newUser.email}
-                  onChange={handleInputChange}
-                  placeholder={t('auth.emailPlaceholder')}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="role">{t('admin.role')}</Label>
-                <Select 
-                  value={newUser.role} 
-                  onValueChange={(value) => setNewUser(prev => ({ ...prev, role: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('admin.selectRole')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">{t('admin.userRole')}</SelectItem>
-                    <SelectItem value="sub-admin">{t('admin.subAdminRole')}</SelectItem>
-                    {user?.role === 'admin' && (
-                      <SelectItem value="admin">{t('admin.adminRole')}</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <DialogFooter>
-                <Button variant="outline" type="button" onClick={() => setOpenNewUserDialog(false)}>
-                  {t('general.cancel')}
-                </Button>
-                <Button type="submit" disabled={createUserMutation.isPending}>
-                  {createUserMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {t('admin.createUser')}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Change Role Dialog */}
-        <Dialog open={openRoleDialog} onOpenChange={setOpenRoleDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t('admin.changeUserRole')}</DialogTitle>
-              <DialogDescription>
-                {t('admin.changeRoleDescription')}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="current-username">{t('auth.username')}</Label>
-                <Input
-                  id="current-username"
-                  value={selectedUser?.username || ''}
-                  readOnly
-                  disabled
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="new-role">{t('admin.newRole')}</Label>
-                <Select value={newRole} onValueChange={setNewRole}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('admin.selectRole')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">{t('admin.userRole')}</SelectItem>
-                    <SelectItem value="sub-admin">{t('admin.subAdminRole')}</SelectItem>
-                    {user?.role === 'admin' && (
-                      <SelectItem value="admin">{t('admin.adminRole')}</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <DialogFooter>
-                <Button variant="outline" type="button" onClick={() => setOpenRoleDialog(false)}>
-                  {t('general.cancel')}
-                </Button>
-                <Button onClick={handleRoleUpdate} disabled={updateRoleMutation.isPending}>
-                  {updateRoleMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {t('admin.updateRole')}
-                </Button>
-              </DialogFooter>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setOpenCreateDialog(true)}>
+          <UserPlus className="mr-2 h-4 w-4" />
+          {t('admin.addUser')}
+        </Button>
       </div>
+      
+      {/* Filters */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-medium flex items-center">
+            <Filter className="mr-2 h-4 w-4" />
+            {t('admin.filters')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-4">
+            <div className="space-y-1 flex-1 min-w-[200px]">
+              <Label htmlFor="role-filter">{t('admin.role')}</Label>
+              <Select 
+                value={roleFilter || ''} 
+                onValueChange={(value) => setRoleFilter(value || null)}
+              >
+                <SelectTrigger id="role-filter">
+                  <SelectValue placeholder={t('admin.allRoles')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">{t('admin.allRoles')}</SelectItem>
+                  <SelectItem value="admin">{t('admin.adminRole')}</SelectItem>
+                  <SelectItem value="sub-admin">{t('admin.subAdminRole')}</SelectItem>
+                  <SelectItem value="user">{t('admin.userRole')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1 flex-1 min-w-[200px]">
+              <Label htmlFor="status-filter">{t('admin.status')}</Label>
+              <Select 
+                value={statusFilter || ''} 
+                onValueChange={(value) => setStatusFilter(value || null)}
+              >
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder={t('admin.allStatuses')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">{t('admin.allStatuses')}</SelectItem>
+                  <SelectItem value="active">{t('admin.activeUsers')}</SelectItem>
+                  <SelectItem value="inactive">{t('admin.inactiveUsers')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setRoleFilter(null);
+                  setStatusFilter(null);
+                }}
+              >
+                {t('admin.clearFilters')}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       
       {/* Users Table */}
       <div className="rounded-md border">
@@ -332,11 +311,12 @@ export default function UserManagement() {
           <TableCaption>{t('admin.userListCaption')}</TableCaption>
           <TableHeader>
             <TableRow>
-              <TableHead>{t('admin.userId')}</TableHead>
-              <TableHead>{t('auth.username')}</TableHead>
-              <TableHead>{t('auth.email')}</TableHead>
+              <TableHead>{t('admin.id')}</TableHead>
+              <TableHead>{t('admin.username')}</TableHead>
+              <TableHead>{t('admin.email')}</TableHead>
               <TableHead>{t('admin.role')}</TableHead>
-              <TableHead>{t('admin.userType')}</TableHead>
+              <TableHead>{t('admin.type')}</TableHead>
+              <TableHead>{t('admin.createdAt')}</TableHead>
               <TableHead>{t('admin.status')}</TableHead>
               <TableHead className="text-right">{t('admin.actions')}</TableHead>
             </TableRow>
@@ -344,91 +324,72 @@ export default function UserManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                 </TableCell>
               </TableRow>
-            ) : users.length === 0 ? (
+            ) : filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   {t('admin.noUsersFound')}
                 </TableCell>
               </TableRow>
             ) : (
-              users.map((user) => (
-                <TableRow key={user.id}>
+              filteredUsers.map((user) => (
+                <TableRow key={user.id} className={!user.isActive ? "opacity-60" : ""}>
                   <TableCell>{user.id}</TableCell>
-                  <TableCell>{user.username}</TableCell>
-                  <TableCell>{user.email || '-'}</TableCell>
+                  <TableCell className="font-medium">{user.username}</TableCell>
+                  <TableCell>{user.email}</TableCell>
                   <TableCell>
                     <span className={`inline-block px-2 py-1 text-xs rounded-full ${
                       user.role === 'admin' 
                         ? 'bg-red-100 text-red-800' 
-                        : user.role === 'sub-admin' 
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-blue-100 text-blue-800'
+                        : user.role === 'sub-admin'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {user.role === 'admin' 
-                        ? t('admin.adminRole') 
-                        : user.role === 'sub-admin' 
-                        ? t('admin.subAdminRole')
-                        : t('admin.userRole')
-                      }
+                      {user.role}
                     </span>
                   </TableCell>
                   <TableCell>
                     <span className={`inline-block px-2 py-1 text-xs rounded-full ${
                       user.userType === 'premium' 
-                        ? 'bg-purple-100 text-purple-800'
+                        ? 'bg-yellow-100 text-yellow-800' 
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {user.userType === 'premium' 
-                        ? t('admin.premiumUser')
-                        : t('admin.normalUser')
-                      }
+                      {user.userType}
                     </span>
                   </TableCell>
+                  <TableCell>{user.lastLogin ? formatDate(user.lastLogin) : 'N/A'}</TableCell>
                   <TableCell>
                     <span className={`inline-block px-2 py-1 text-xs rounded-full ${
                       user.isActive 
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
                     }`}>
-                      {user.isActive 
-                        ? t('admin.active')
-                        : t('admin.inactive')
-                      }
+                      {user.isActive ? t('admin.active') : t('admin.inactive')}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button 
-                        variant="outline" 
+                        variant="ghost" 
                         size="sm" 
-                        onClick={() => openUserRoleDialog(user)}
+                        onClick={() => openUserEdit(user)}
                       >
-                        <UserCog className="h-4 w-4" />
+                        <Edit className="h-4 w-4" />
                       </Button>
-                      
-                      {user.isActive ? (
-                        <Button 
-                          variant="destructive" 
-                          size="sm" 
-                          onClick={() => deactivateUserMutation.mutate(user.id)}
-                          disabled={deactivateUserMutation.isPending}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <Button 
-                          variant="default" 
-                          size="sm" 
-                          onClick={() => reactivateUserMutation.mutate(user.id)}
-                          disabled={reactivateUserMutation.isPending}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button 
+                        variant={user.isActive ? "ghost" : "outline"} 
+                        size="sm" 
+                        onClick={() => toggleUserStatus(user)}
+                      >
+                        {user.isActive ? (
+                          <UserMinus className="h-4 w-4" />
+                        ) : (
+                          <UserCheck className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -437,6 +398,175 @@ export default function UserManagement() {
           </TableBody>
         </Table>
       </div>
+      
+      {/* Create User Dialog */}
+      <Dialog open={openCreateDialog} onOpenChange={setOpenCreateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('admin.createNewUser')}</DialogTitle>
+            <DialogDescription>
+              {t('admin.createUserDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateUser}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">{t('admin.username')} *</Label>
+                <Input
+                  id="username"
+                  name="username"
+                  value={newUser.username}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">{t('admin.email')} *</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={newUser.email}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">{t('admin.password')} *</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={newUser.password}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="role">{t('admin.role')}</Label>
+                  <Select 
+                    value={newUser.role} 
+                    onValueChange={(value) => handleSelectChange('role', value)}
+                  >
+                    <SelectTrigger id="role">
+                      <SelectValue placeholder={t('admin.selectRole')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">{t('admin.userRole')}</SelectItem>
+                      <SelectItem value="sub-admin">{t('admin.subAdminRole')}</SelectItem>
+                      <SelectItem value="admin">{t('admin.adminRole')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="userType">{t('admin.userType')}</Label>
+                  <Select 
+                    value={newUser.userType} 
+                    onValueChange={(value) => handleSelectChange('userType', value)}
+                  >
+                    <SelectTrigger id="userType">
+                      <SelectValue placeholder={t('admin.selectUserType')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="normal">{t('admin.normalUser')}</SelectItem>
+                      <SelectItem value="premium">{t('admin.premiumUser')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={resetNewUserForm}
+                >
+                  {t('admin.cancel')}
+                </Button>
+              </DialogClose>
+              <Button 
+                type="submit"
+                disabled={createUserMutation.isPending}
+              >
+                {createUserMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {t('admin.createUser')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit User Dialog */}
+      <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('admin.editUser')}</DialogTitle>
+            <DialogDescription>
+              {t('admin.editUserDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>{t('admin.username')}</Label>
+                <p className="text-sm font-medium">{selectedUser.username}</p>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('admin.email')}</Label>
+                <p className="text-sm">{selectedUser.email}</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-role">{t('admin.role')}</Label>
+                <Select 
+                  value={selectedUser.role} 
+                  onValueChange={handleRoleChange}
+                  disabled={updateRoleMutation.isPending}
+                >
+                  <SelectTrigger id="edit-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">{t('admin.userRole')}</SelectItem>
+                    <SelectItem value="sub-admin">{t('admin.subAdminRole')}</SelectItem>
+                    <SelectItem value="admin">{t('admin.adminRole')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between pt-4">
+                <p className="text-sm text-muted-foreground">
+                  {t('admin.userStatus')}: 
+                  <span className={`ml-2 font-medium ${selectedUser.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                    {selectedUser.isActive ? t('admin.active') : t('admin.inactive')}
+                  </span>
+                </p>
+                <Button 
+                  onClick={() => toggleUserStatus(selectedUser)}
+                  variant={selectedUser.isActive ? "outline" : "default"}
+                  size="sm"
+                  disabled={deactivateUserMutation.isPending || reactivateUserMutation.isPending}
+                >
+                  {(deactivateUserMutation.isPending || reactivateUserMutation.isPending) && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {selectedUser.isActive ? t('admin.deactivateUser') : t('admin.activateUser')}
+                </Button>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setOpenEditDialog(false)}
+            >
+              {t('admin.close')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

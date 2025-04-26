@@ -122,6 +122,14 @@ const Navbar = () => {
                     <span>{t('nav.myList')}</span>
                   </DropdownMenuItem>
                 </Link>
+                {(user.role === 'admin' || user.role === 'sub-admin') && (
+                  <Link href="/admin" className="w-full">
+                    <DropdownMenuItem>
+                      <ShieldAlert className="mr-2 h-4 w-4" />
+                      <span>{t('admin.dashboard')}</span>
+                    </DropdownMenuItem>
+                  </Link>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
