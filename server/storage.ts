@@ -1,18 +1,15 @@
-import {
-  users, type User, type InsertUser,
-  genres, type Genre, type InsertGenre,
-  movies, type Movie, type InsertMovie,
-  favorites, type Favorite, type InsertFavorite,
-  viewHistory, type ViewHistory, type InsertViewHistory,
-  transactions, type Transaction, type InsertTransaction,
-  adminLogs, type AdminLog, type InsertAdminLog,
-  movieUploads, type MovieUpload, type InsertMovieUpload
+import { 
+  users, movies, genres, favorites, viewHistory, transactions, adminLogs, movieUploads,
+  type User, type InsertUser, type Movie, type InsertMovie, type Genre, type InsertGenre,
+  type Favorite, type InsertFavorite, type ViewHistory, type InsertViewHistory,
+  type Transaction, type InsertTransaction, type AdminLog, type InsertAdminLog,
+  type MovieUpload, type InsertMovieUpload
 } from "@shared/schema";
-import memorystore from 'memorystore';
-import session from 'express-session';
-
-// Create memory store for sessions
-const MemoryStore = memorystore(session);
+import { db } from "./db";
+import { eq, and, desc, asc, or, like, gte, lte, isNull, isNotNull } from "drizzle-orm";
+import connectPg from "connect-pg-simple";
+import session from "express-session";
+import { pool } from "./db";
 
 export interface IStorage {
   // User methods
@@ -48,7 +45,7 @@ export interface IStorage {
   addOrUpdateViewHistory(history: InsertViewHistory): Promise<ViewHistory>;
   
   // Session store for authentication
-  sessionStore: any;
+  sessionStore: session.SessionStore;
   
   // ========== ADMIN METHODS ==========
   
@@ -86,576 +83,437 @@ export interface IStorage {
   getAdminLogs(adminId?: number, limit?: number, offset?: number): Promise<AdminLog[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private genres: Map<number, Genre>;
-  private movies: Map<number, Movie>;
-  private favorites: Map<number, Favorite>;
-  private viewHistory: Map<number, ViewHistory>;
-  private transactions: Map<number, Transaction>;
-  private adminLogs: Map<number, AdminLog>;
-  private movieUploads: Map<number, MovieUpload>;
-  
-  currentUserId: number;
-  currentGenreId: number;
-  currentMovieId: number;
-  currentFavoriteId: number;
-  currentViewHistoryId: number;
-  currentTransactionId: number;
-  currentAdminLogId: number;
-  currentMovieUploadId: number;
-  
-  // Session store for authentication
-  sessionStore: any;
+// Set up Postgres store for session
+const PostgresSessionStore = connectPg(session);
+
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.SessionStore;
 
   constructor() {
-    this.users = new Map();
-    this.genres = new Map();
-    this.movies = new Map();
-    this.favorites = new Map();
-    this.viewHistory = new Map();
-    this.transactions = new Map();
-    this.adminLogs = new Map();
-    this.movieUploads = new Map();
-    
-    this.currentUserId = 1;
-    this.currentGenreId = 1;
-    this.currentMovieId = 1;
-    this.currentFavoriteId = 1;
-    this.currentViewHistoryId = 1;
-    this.currentTransactionId = 1;
-    this.currentAdminLogId = 1;
-    this.currentMovieUploadId = 1;
-    
-    // Initialize session store
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000 // prune expired entries every 24h
+    this.sessionStore = new PostgresSessionStore({ 
+      pool,
+      createTableIfMissing: true 
     });
-    
-    // Add some initial genres
-    this.initializeGenres();
-    
-    // Add some initial movies
-    this.initializeMovies();
-    
-    // Add admin user
-    this.initializeAdminUser();
   }
 
-  // User methods
+  // ========== USER METHODS ==========
+
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const result = await db.select().from(users).where(eq(users.username, username));
+    return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    
-    // Ensure all optional fields have proper default values
-    const user: User = { 
-      ...insertUser, 
-      id, 
-      email: insertUser.email || null,
-      userType: insertUser.userType || "normal",
-      walletBalance: insertUser.walletBalance || 0,
-      walletAddress: insertUser.walletAddress || null,
-      premiumExpiresAt: insertUser.premiumExpiresAt || null,
-      role: insertUser.role || "user",
-      isActive: insertUser.isActive !== undefined ? insertUser.isActive : true,
-      lastLogin: null,
-      createdBy: insertUser.createdBy || null
-    };
-    
-    this.users.set(id, user);
-    return user;
+    const result = await db.insert(users).values(insertUser).returning();
+    return result[0];
   }
-  
-  // Genre methods
-  async getAllGenres(): Promise<Genre[]> {
-    return Array.from(this.genres.values());
-  }
-  
-  async getGenre(id: number): Promise<Genre | undefined> {
-    return this.genres.get(id);
-  }
-  
-  async createGenre(insertGenre: InsertGenre): Promise<Genre> {
-    const id = this.currentGenreId++;
-    const genre: Genre = { ...insertGenre, id };
-    this.genres.set(id, genre);
-    return genre;
-  }
-  
-  // Movie methods
-  async getAllMovies(): Promise<Movie[]> {
-    return Array.from(this.movies.values());
-  }
-  
-  async getMovie(id: number): Promise<Movie | undefined> {
-    return this.movies.get(id);
-  }
-  
-  async getMoviesByGenre(genreId: number): Promise<Movie[]> {
-    return Array.from(this.movies.values()).filter(movie => 
-      movie.genreIds.includes(genreId)
-    );
-  }
-  
-  async searchMovies(query: string): Promise<Movie[]> {
-    const lowerQuery = query.toLowerCase();
-    return Array.from(this.movies.values()).filter(movie => 
-      movie.title.toLowerCase().includes(lowerQuery) || 
-      movie.description.toLowerCase().includes(lowerQuery)
-    );
-  }
-  
-  async getFeaturedMovies(): Promise<Movie[]> {
-    // For this demo, we'll return the first 5 movies as featured
-    return Array.from(this.movies.values()).slice(0, 5);
-  }
-  
-  async getNewReleases(): Promise<Movie[]> {
-    // For this demo, we'll sort by releaseYear and return the most recent ones
-    return Array.from(this.movies.values())
-      .sort((a, b) => b.releaseYear - a.releaseYear)
-      .slice(0, 5);
-  }
-  
-  async createMovie(insertMovie: InsertMovie): Promise<Movie> {
-    const id = this.currentMovieId++;
-    const movie: Movie = { 
-      ...insertMovie, 
-      id,
-      matchPercentage: insertMovie.matchPercentage || null,
-      videoUrl: insertMovie.videoUrl || null,
-      director: insertMovie.director || null,
-      cast: insertMovie.cast || null,
-      imdbRating: insertMovie.imdbRating || null,
-      viewCount: insertMovie.viewCount || 0
-    };
-    this.movies.set(id, movie);
-    return movie;
-  }
-  
-  async getTrendingMovies(): Promise<Movie[]> {
-    // Return movies sorted by view count (most viewed first)
-    return Array.from(this.movies.values())
-      .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
-      .slice(0, 5);
-  }
-  
-  async updateMovie(id: number, updates: Partial<Omit<Movie, 'id'>>): Promise<Movie> {
-    const movie = this.movies.get(id);
-    
-    if (!movie) {
-      throw new Error(`Movie with ID ${id} not found`);
-    }
-    
-    const updatedMovie = {
-      ...movie,
-      ...updates
-    };
-    
-    this.movies.set(id, updatedMovie);
-    return updatedMovie;
-  }
-  
-  async deleteMovie(id: number): Promise<void> {
-    if (!this.movies.has(id)) {
-      throw new Error(`Movie with ID ${id} not found`);
-    }
-    
-    this.movies.delete(id);
-    
-    // Also delete related data (favorites, view history)
-    Array.from(this.favorites.values())
-      .filter(fav => fav.movieId === id)
-      .forEach(fav => this.favorites.delete(fav.id));
-      
-    Array.from(this.viewHistory.values())
-      .filter(history => history.movieId === id)
-      .forEach(history => this.viewHistory.delete(history.id));
-  }
-  
+
   async updateUser(
     id: number, 
     updates: Partial<Omit<User, 'id' | 'username' | 'password'>>
   ): Promise<User> {
-    const user = this.users.get(id);
-    
-    if (!user) {
-      throw new Error(`User with ID ${id} not found`);
-    }
-    
-    const updatedUser = {
-      ...user,
-      ...updates
-    };
-    
-    this.users.set(id, updatedUser);
-    return updatedUser;
+    const result = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
   }
-  
-  // Favorites methods
+
+  // ========== GENRE METHODS ==========
+
+  async getAllGenres(): Promise<Genre[]> {
+    return db.select().from(genres);
+  }
+
+  async getGenre(id: number): Promise<Genre | undefined> {
+    const result = await db.select().from(genres).where(eq(genres.id, id));
+    return result[0];
+  }
+
+  async createGenre(insertGenre: InsertGenre): Promise<Genre> {
+    const result = await db.insert(genres).values(insertGenre).returning();
+    return result[0];
+  }
+
+  // ========== MOVIE METHODS ==========
+
+  async getAllMovies(): Promise<Movie[]> {
+    return db.select().from(movies);
+  }
+
+  async getMovie(id: number): Promise<Movie | undefined> {
+    const result = await db.select().from(movies).where(eq(movies.id, id));
+    return result[0];
+  }
+
+  async getMoviesByGenre(genreId: number): Promise<Movie[]> {
+    return db
+      .select()
+      .from(movies)
+      .where(
+        // Using the array contains operator to match genre IDs
+        // This is a simplified approach - in a real app we'd use a junction table
+        eq(movies.genreIds, [genreId])
+      );
+  }
+
+  async searchMovies(query: string): Promise<Movie[]> {
+    return db
+      .select()
+      .from(movies)
+      .where(
+        or(
+          like(movies.title, `%${query}%`),
+          like(movies.description, `%${query}%`)
+        )
+      );
+  }
+
+  async getFeaturedMovies(): Promise<Movie[]> {
+    // Return the first 5 movies ordered by match percentage
+    return db
+      .select()
+      .from(movies)
+      .orderBy(desc(movies.matchPercentage))
+      .limit(5);
+  }
+
+  async getNewReleases(): Promise<Movie[]> {
+    // Return the first 5 movies ordered by release year
+    return db
+      .select()
+      .from(movies)
+      .orderBy(desc(movies.releaseYear))
+      .limit(5);
+  }
+
+  async getTrendingMovies(): Promise<Movie[]> {
+    // Return the first 5 movies ordered by view count
+    return db
+      .select()
+      .from(movies)
+      .orderBy(desc(movies.viewCount))
+      .limit(5);
+  }
+
+  async createMovie(insertMovie: InsertMovie): Promise<Movie> {
+    const result = await db.insert(movies).values(insertMovie).returning();
+    return result[0];
+  }
+
+  async updateMovie(id: number, updates: Partial<Omit<Movie, 'id'>>): Promise<Movie> {
+    const result = await db
+      .update(movies)
+      .set(updates)
+      .where(eq(movies.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteMovie(id: number): Promise<void> {
+    await db.delete(movies).where(eq(movies.id, id));
+  }
+
+  // ========== FAVORITES METHODS ==========
+
   async getUserFavorites(userId: number): Promise<Movie[]> {
-    const userFavorites = Array.from(this.favorites.values())
-      .filter(favorite => favorite.userId === userId);
+    // Get the user's favorites
+    const userFavorites = await db
+      .select()
+      .from(favorites)
+      .where(eq(favorites.userId, userId));
     
-    return userFavorites.map(favorite => 
-      this.movies.get(favorite.movieId)!
-    ).filter(Boolean);
+    // Get the movies
+    const favoriteMovies = await Promise.all(
+      userFavorites.map(fav => this.getMovie(fav.movieId))
+    );
+    
+    // Filter out undefined movies
+    return favoriteMovies.filter(Boolean) as Movie[];
   }
-  
+
   async addFavorite(insertFavorite: InsertFavorite): Promise<Favorite> {
-    const id = this.currentFavoriteId++;
-    const favorite: Favorite = { 
-      ...insertFavorite, 
-      id, 
-      createdAt: new Date() 
-    };
-    this.favorites.set(id, favorite);
-    return favorite;
+    const result = await db
+      .insert(favorites)
+      .values(insertFavorite)
+      .returning();
+    return result[0];
   }
-  
+
   async removeFavorite(userId: number, movieId: number): Promise<void> {
-    const favoriteToRemove = Array.from(this.favorites.values()).find(
-      favorite => favorite.userId === userId && favorite.movieId === movieId
-    );
-    
-    if (favoriteToRemove) {
-      this.favorites.delete(favoriteToRemove.id);
-    }
+    await db
+      .delete(favorites)
+      .where(
+        and(
+          eq(favorites.userId, userId),
+          eq(favorites.movieId, movieId)
+        )
+      );
   }
-  
-  // View history methods
+
+  // ========== VIEW HISTORY METHODS ==========
+
   async getUserViewHistory(userId: number): Promise<ViewHistory[]> {
-    return Array.from(this.viewHistory.values())
-      .filter(history => history.userId === userId)
-      .sort((a, b) => {
-        const aTime = a.watchedAt?.getTime() || 0;
-        const bTime = b.watchedAt?.getTime() || 0;
-        return bTime - aTime;
-      });
+    return db
+      .select()
+      .from(viewHistory)
+      .where(eq(viewHistory.userId, userId))
+      .orderBy(desc(viewHistory.watchedAt));
   }
-  
+
   async addOrUpdateViewHistory(insertHistory: InsertViewHistory): Promise<ViewHistory> {
-    // Check if there's already an entry for this user and movie
-    const existingHistory = Array.from(this.viewHistory.values()).find(
-      history => history.userId === insertHistory.userId && history.movieId === insertHistory.movieId
-    );
+    // Check if there's an existing history entry
+    const existing = await db
+      .select()
+      .from(viewHistory)
+      .where(
+        and(
+          eq(viewHistory.userId, insertHistory.userId),
+          eq(viewHistory.movieId, insertHistory.movieId)
+        )
+      );
     
-    // Increment movie view count
-    const movie = this.movies.get(insertHistory.movieId);
-    if (movie && (!existingHistory || (existingHistory.progress ?? 0) < 10)) {
-      // Only count as a new view if it's a new history entry or previous progress was minimal
-      const updatedMovie = { 
-        ...movie, 
-        viewCount: (movie.viewCount || 0) + 1 
-      };
-      this.movies.set(movie.id, updatedMovie);
-    }
-    
-    if (existingHistory) {
-      // Update the existing entry
-      const updatedHistory: ViewHistory = {
-        ...existingHistory,
-        progress: insertHistory.progress || existingHistory.progress,
-        watchedAt: new Date()
-      };
-      this.viewHistory.set(existingHistory.id, updatedHistory);
-      return updatedHistory;
+    if (existing.length > 0) {
+      // Update existing entry
+      const result = await db
+        .update(viewHistory)
+        .set({
+          progress: insertHistory.progress,
+          watchedAt: new Date()
+        })
+        .where(eq(viewHistory.id, existing[0].id))
+        .returning();
+      return result[0];
     } else {
-      // Create a new entry
-      const id = this.currentViewHistoryId++;
-      const history: ViewHistory = { 
-        ...insertHistory, 
-        id, 
-        watchedAt: new Date(),
-        progress: insertHistory.progress || 0
-      };
-      this.viewHistory.set(id, history);
-      return history;
+      // Create new entry
+      const result = await db
+        .insert(viewHistory)
+        .values(insertHistory)
+        .returning();
+      return result[0];
     }
   }
-  
-  // Helper methods to initialize sample data
-  private initializeGenres() {
-    const genreNames = [
-      "Action", "Adventure", "Comedy", "Drama", "Horror", 
-      "Science Fiction", "Thriller", "Documentary", "Animation"
-    ];
-    
-    genreNames.forEach(name => {
-      const genre: Genre = {
-        id: this.currentGenreId++,
-        name
-      };
-      this.genres.set(genre.id, genre);
-    });
-  }
-  
+
   // ========== ADMIN USER MANAGEMENT ==========
-  
+
   async getAllUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
+    return db.select().from(users);
   }
-  
+
   async getUsersByRole(role: string): Promise<User[]> {
-    return Array.from(this.users.values())
-      .filter(user => user.role === role);
+    return db.select().from(users).where(eq(users.role, role));
   }
-  
+
   async createAdminUser(user: InsertUser): Promise<User> {
-    // Same as createUser but with role set to admin or sub-admin
-    const adminUser = { ...user, role: user.role || "admin" };
-    return this.createUser(adminUser);
+    return this.createUser({
+      ...user,
+      role: "admin"
+    });
   }
-  
+
   async updateUserRole(userId: number, role: string, adminId: number): Promise<User> {
-    const user = await this.getUser(userId);
-    if (!user) {
-      throw new Error(`User with ID ${userId} not found`);
-    }
-    
-    // Log the admin action
+    // Log the action
     await this.logAdminActivity({
       adminId,
-      action: "update_user_role",
+      action: "user_role_update",
       entityId: userId,
       entityType: "user",
-      details: { oldRole: user.role, newRole: role }
+      details: { role }
     });
     
-    return this.updateUser(userId, { role: role as "user" | "admin" | "sub-admin" });
+    // Update the user
+    return this.updateUser(userId, { role });
   }
-  
+
   async deactivateUser(userId: number, adminId: number): Promise<User> {
-    const user = await this.getUser(userId);
-    if (!user) {
-      throw new Error(`User with ID ${userId} not found`);
-    }
-    
-    // Log the admin action
+    // Log the action
     await this.logAdminActivity({
       adminId,
-      action: "deactivate_user",
+      action: "user_deactivate",
       entityId: userId,
-      entityType: "user",
-      details: { reason: "Admin deactivation" }
+      entityType: "user"
     });
     
+    // Update the user
     return this.updateUser(userId, { isActive: false });
   }
-  
+
   async reactivateUser(userId: number, adminId: number): Promise<User> {
-    const user = await this.getUser(userId);
-    if (!user) {
-      throw new Error(`User with ID ${userId} not found`);
-    }
-    
-    // Log the admin action
+    // Log the action
     await this.logAdminActivity({
       adminId,
-      action: "reactivate_user",
+      action: "user_reactivate",
       entityId: userId,
-      entityType: "user",
-      details: { reason: "Admin reactivation" }
+      entityType: "user"
     });
     
+    // Update the user
     return this.updateUser(userId, { isActive: true });
   }
-  
+
   // ========== ADMIN MOVIE MANAGEMENT ==========
-  
+
   async createMovieUpload(movieUpload: InsertMovieUpload): Promise<MovieUpload> {
-    const id = this.currentMovieUploadId++;
-    
-    const upload: MovieUpload = {
-      ...movieUpload,
-      id,
-      status: movieUpload.status || "draft",
-      uploadedAt: new Date(),
-      publishedAt: movieUpload.publishedAt || null,
-      approvedBy: movieUpload.approvedBy || null,
-      reviewNotes: movieUpload.reviewNotes || null
-    };
-    
-    this.movieUploads.set(id, upload);
-    return upload;
+    const result = await db
+      .insert(movieUploads)
+      .values(movieUpload)
+      .returning();
+    return result[0];
   }
-  
+
   async getMovieUpload(id: number): Promise<MovieUpload | undefined> {
-    return this.movieUploads.get(id);
+    const result = await db
+      .select()
+      .from(movieUploads)
+      .where(eq(movieUploads.id, id));
+    return result[0];
   }
-  
+
   async getPendingMovieUploads(): Promise<MovieUpload[]> {
-    return Array.from(this.movieUploads.values())
-      .filter(upload => upload.status === "pending_review");
+    return db
+      .select()
+      .from(movieUploads)
+      .orderBy(desc(movieUploads.uploadedAt));
   }
-  
+
   async updateMovieUploadStatus(
-    id: number, 
-    status: string, 
-    adminId: number, 
+    id: number,
+    status: string,
+    adminId: number,
     notes?: string
   ): Promise<MovieUpload> {
-    const upload = this.movieUploads.get(id);
-    
-    if (!upload) {
-      throw new Error(`Movie upload with ID ${id} not found`);
-    }
-    
-    const updatedUpload: MovieUpload = {
-      ...upload,
-      status: status as "draft" | "published" | "pending_review" | "rejected",
-      approvedBy: status === "published" ? adminId : upload.approvedBy,
-      publishedAt: status === "published" ? new Date() : upload.publishedAt,
-      reviewNotes: notes || upload.reviewNotes
-    };
-    
-    this.movieUploads.set(id, updatedUpload);
-    
-    // Log the admin action
+    // Log the action
     await this.logAdminActivity({
       adminId,
-      action: "update_movie_status",
+      action: "movie_upload_status_update",
       entityId: id,
       entityType: "movie_upload",
-      details: { 
-        oldStatus: upload.status, 
-        newStatus: status,
-        movieId: upload.movieId
-      }
+      details: { status, notes }
     });
     
-    return updatedUpload;
-  }
-  
-  async getMoviesByUploader(uploaderId: number): Promise<Movie[]> {
-    const uploaderMovieIds = Array.from(this.movieUploads.values())
-      .filter(upload => upload.uploadedBy === uploaderId)
-      .map(upload => upload.movieId);
-    
-    return Array.from(this.movies.values())
-      .filter(movie => uploaderMovieIds.includes(movie.id));
-  }
-  
-  // ========== FINANCIAL MANAGEMENT ==========
-  
-  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
-    const id = this.currentTransactionId++;
-    
-    const newTransaction: Transaction = {
-      ...transaction,
-      id,
-      status: transaction.status || "pending",
-      createdAt: transaction.createdAt || new Date(),
-      processedAt: transaction.processedAt || null,
-      processedBy: transaction.processedBy || null,
-      description: transaction.description || null,
-      txHash: transaction.txHash || null
+    // Update the upload
+    const updates: Partial<MovieUpload> = {
+      status: status as any,
+      approvedBy: adminId,
+      reviewNotes: notes
     };
     
-    this.transactions.set(id, newTransaction);
-    return newTransaction;
+    // If it's being published, set the published date
+    if (status === "published") {
+      updates.publishedAt = new Date();
+    }
+    
+    const result = await db
+      .update(movieUploads)
+      .set(updates)
+      .where(eq(movieUploads.id, id))
+      .returning();
+    return result[0];
   }
-  
+
+  async getMoviesByUploader(uploaderId: number): Promise<Movie[]> {
+    // Get the movie uploads by this uploader
+    const uploads = await db
+      .select()
+      .from(movieUploads)
+      .where(eq(movieUploads.uploadedBy, uploaderId));
+    
+    // Get the movies
+    const uploaderMovies = await Promise.all(
+      uploads.map(upload => this.getMovie(upload.movieId))
+    );
+    
+    // Filter out undefined movies
+    return uploaderMovies.filter(Boolean) as Movie[];
+  }
+
+  // ========== FINANCIAL MANAGEMENT ==========
+
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    const result = await db
+      .insert(transactions)
+      .values({
+        ...transaction,
+        createdAt: new Date(),
+      })
+      .returning();
+    return result[0];
+  }
+
   async getTransaction(id: number): Promise<Transaction | undefined> {
-    return this.transactions.get(id);
+    const result = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, id));
+    return result[0];
   }
-  
+
   async getUserTransactions(userId: number): Promise<Transaction[]> {
-    return Array.from(this.transactions.values())
-      .filter(tx => tx.userId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(desc(transactions.createdAt));
   }
-  
+
   async getAllTransactions(limit?: number, offset?: number): Promise<Transaction[]> {
-    let transactions = Array.from(this.transactions.values())
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    let query = db
+      .select()
+      .from(transactions)
+      .orderBy(desc(transactions.createdAt));
     
     if (offset) {
-      transactions = transactions.slice(offset);
+      query = query.offset(offset);
     }
     
     if (limit) {
-      transactions = transactions.slice(0, limit);
+      query = query.limit(limit);
     }
     
-    return transactions;
+    return query;
   }
-  
+
   async getPendingTransactions(): Promise<Transaction[]> {
-    return Array.from(this.transactions.values())
-      .filter(tx => tx.status === "pending")
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    return db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.status, "pending"))
+      .orderBy(desc(transactions.createdAt));
   }
-  
+
   async processTransaction(
-    id: number, 
-    status: string, 
+    id: number,
+    status: string,
     adminId: number
   ): Promise<Transaction> {
-    const transaction = this.transactions.get(id);
-    
-    if (!transaction) {
-      throw new Error(`Transaction with ID ${id} not found`);
-    }
-    
-    const updatedTransaction: Transaction = {
-      ...transaction,
-      status: status as "pending" | "completed" | "failed" | "refunded",
-      processedAt: new Date(),
-      processedBy: adminId
-    };
-    
-    this.transactions.set(id, updatedTransaction);
-    
-    // If the transaction is completed and it's a deposit or subscription
-    // Update the user's wallet balance
-    if (status === "completed" && 
-        (transaction.type === "deposit" || transaction.type === "subscription")) {
-      const user = await this.getUser(transaction.userId);
-      if (user) {
-        await this.updateUser(user.id, { 
-          walletBalance: user.walletBalance + transaction.amount 
-        });
-        
-        // If it's a subscription, also update the premium status
-        if (transaction.type === "subscription") {
-          const premiumExpiresAt = new Date();
-          premiumExpiresAt.setMonth(premiumExpiresAt.getMonth() + 1); // 1 month subscription
-          
-          await this.updateUser(user.id, {
-            userType: "premium",
-            premiumExpiresAt
-          });
-        }
-      }
-    }
-    
-    // Log the admin action
+    // Log the action
     await this.logAdminActivity({
       adminId,
-      action: "process_transaction",
+      action: "transaction_process",
       entityId: id,
       entityType: "transaction",
-      details: { 
-        oldStatus: transaction.status, 
-        newStatus: status,
-        amount: transaction.amount,
-        userId: transaction.userId
-      }
+      details: { status }
     });
     
-    return updatedTransaction;
+    // Update the transaction
+    const result = await db
+      .update(transactions)
+      .set({
+        status: status as any,
+        processedAt: new Date(),
+        processedBy: adminId
+      })
+      .where(eq(transactions.id, id))
+      .returning();
+    return result[0];
   }
-  
+
   async getIncomeStatistics(
     startDate?: Date, 
     endDate?: Date
@@ -665,55 +523,46 @@ export class MemStorage implements IStorage {
     deposits: number;
     refunds: number;
   }> {
-    const completedTransactions = Array.from(this.transactions.values())
-      .filter(tx => tx.status === "completed")
-      .filter(tx => {
-        if (!startDate && !endDate) return true;
-        
-        const txDate = tx.processedAt || tx.createdAt;
-        
-        if (startDate && endDate) {
-          return txDate >= startDate && txDate <= endDate;
-        }
-        
-        if (startDate) {
-          return txDate >= startDate;
-        }
-        
-        if (endDate) {
-          return txDate <= endDate;
-        }
-        
-        return true;
-      });
+    // Get all transactions
+    let query = db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.status, "completed"));
     
-    const refunds = Array.from(this.transactions.values())
-      .filter(tx => tx.status === "refunded")
-      .filter(tx => {
-        if (!startDate && !endDate) return true;
-        
-        const txDate = tx.processedAt || tx.createdAt;
-        
-        if (startDate && endDate) {
-          return txDate >= startDate && txDate <= endDate;
-        }
-        
-        if (startDate) {
-          return txDate >= startDate;
-        }
-        
-        if (endDate) {
-          return txDate <= endDate;
-        }
-        
-        return true;
-      });
+    // Add date filters if provided
+    if (startDate) {
+      query = query.where(gte(transactions.createdAt, startDate));
+    }
     
-    const subscriptions = completedTransactions
+    if (endDate) {
+      query = query.where(lte(transactions.createdAt, endDate));
+    }
+    
+    const allTransactions = await query;
+    
+    // Get refunds
+    let refundsQuery = db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.status, "refunded"));
+    
+    // Add date filters if provided
+    if (startDate) {
+      refundsQuery = refundsQuery.where(gte(transactions.createdAt, startDate));
+    }
+    
+    if (endDate) {
+      refundsQuery = refundsQuery.where(lte(transactions.createdAt, endDate));
+    }
+    
+    const refunds = await refundsQuery;
+    
+    // Calculate statistics
+    const subscriptions = allTransactions
       .filter(tx => tx.type === "subscription")
       .reduce((sum, tx) => sum + tx.amount, 0);
     
-    const deposits = completedTransactions
+    const deposits = allTransactions
       .filter(tx => tx.type === "deposit")
       .reduce((sum, tx) => sum + tx.amount, 0);
     
@@ -727,305 +576,45 @@ export class MemStorage implements IStorage {
       refunds: refundAmount
     };
   }
-  
+
   // ========== ADMIN ACTIVITY LOGGING ==========
-  
+
   async logAdminActivity(log: InsertAdminLog): Promise<AdminLog> {
-    const id = this.currentAdminLogId++;
-    
-    const adminLog: AdminLog = {
-      ...log,
-      id,
-      createdAt: log.createdAt || new Date(),
-      details: log.details || {},
-      entityId: log.entityId || null,
-      entityType: log.entityType || null,
-      ipAddress: log.ipAddress || null
-    };
-    
-    this.adminLogs.set(id, adminLog);
-    return adminLog;
+    const result = await db
+      .insert(adminLogs)
+      .values({
+        ...log,
+        createdAt: new Date(),
+      })
+      .returning();
+    return result[0];
   }
-  
+
   async getAdminLogs(
     adminId?: number, 
     limit?: number, 
     offset?: number
   ): Promise<AdminLog[]> {
-    let logs = Array.from(this.adminLogs.values())
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    let query = db
+      .select()
+      .from(adminLogs)
+      .orderBy(desc(adminLogs.createdAt));
     
     if (adminId) {
-      logs = logs.filter(log => log.adminId === adminId);
+      query = query.where(eq(adminLogs.adminId, adminId));
     }
     
     if (offset) {
-      logs = logs.slice(offset);
+      query = query.offset(offset);
     }
     
     if (limit) {
-      logs = logs.slice(0, limit);
+      query = query.limit(limit);
     }
     
-    return logs;
-  }
-  
-  // Helper function to create an admin user
-  private initializeAdminUser() {
-    // Create an admin user if none exists
-    const existingAdmin = Array.from(this.users.values())
-      .find(user => user.role === "admin");
-    
-    if (!existingAdmin) {
-      this.createUser({
-        username: "admin",
-        password: "admin", // In a real app, this should be hashed
-        email: "admin@filmflex.com",
-        role: "admin",
-        userType: "premium",
-        isActive: true
-      });
-    }
-  }
-  
-  private initializeMovies() {
-    // Each sample movie now includes the videoUrl field with null as default
-    const sampleMovies: Omit<Movie, 'id'>[] = [
-      // Kung Fu Panda movies (from user)
-      {
-        title: "Kung Fu Panda",
-        description: "To everyone's surprise, including his own, Po, an overweight, clumsy panda, is chosen as protector of the Valley of Peace. His suitability will soon be tested as the valley's arch-enemy is on his way.",
-        releaseYear: 2008,
-        duration: 92,
-        posterUrl: "https://static.tuoitre.vn/tto/i/s626/2008/06/25/kJFEt8qE.jpg",
-        backdropUrl: "https://static.tuoitre.vn/tto/i/s626/2008/06/25/kJFEt8qE.jpg",
-        rating: "PG",
-        matchPercentage: 94,
-        videoUrl: "136atrovI1bWEMoSgq3X12veiNwh2fzO6", // First Google Drive ID provided
-        videoSources: [],
-        genreIds: [2, 3, 4], // Adventure, Comedy, Animation
-        director: "Mark Osborne, John Stevenson",
-        cast: ["Jack Black", "Dustin Hoffman", "Angelina Jolie"],
-        imdbRating: "7.6",
-        viewCount: 1200
-      },
-      {
-        title: "Kung Fu Panda 2",
-        description: "Po and his friends fight to stop a peacock villain from conquering China with a deadly new weapon, but first the Dragon Warrior must come to terms with his past.",
-        releaseYear: 2011,
-        duration: 90,
-        posterUrl: "https://i.pinimg.com/564x/25/da/73/25da73a1b09d45370042aa5a3744f819.jpg",
-        backdropUrl: "https://i.pinimg.com/564x/25/da/73/25da73a1b09d45370042aa5a3744f819.jpg",
-        rating: "PG",
-        matchPercentage: 92,
-        videoUrl: "1-irIEcfPe0zgPacX-XcMGv1zoB5hMWwI", // Second Google Drive ID provided
-        videoSources: [],
-        genreIds: [2, 3, 4], // Adventure, Comedy, Animation
-        director: "Jennifer Yuh Nelson",
-        cast: ["Jack Black", "Angelina Jolie", "Jackie Chan"],
-        imdbRating: "7.2",
-        viewCount: 1100
-      },
-      {
-        title: "The Dark Knight",
-        description: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.",
-        releaseYear: 2008,
-        duration: 152,
-        posterUrl: "https://images.unsplash.com/photo-1497514440240-3b870f7341f0",
-        backdropUrl: "https://images.unsplash.com/photo-1497514440240-3b870f7341f0",
-        rating: "PG-13",
-        matchPercentage: 98,
-        videoSources: [
-          { quality: "1080p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" },
-          { quality: "720p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" }
-        ],
-        videoUrl: null, // No Google Drive URL yet
-        genreIds: [1, 7], // Action, Thriller
-        director: "Christopher Nolan",
-        cast: ["Christian Bale", "Heath Ledger", "Aaron Eckhart"],
-        imdbRating: "9.0",
-        viewCount: 1245
-      },
-      {
-        title: "Inception",
-        description: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
-        releaseYear: 2010,
-        duration: 148,
-        posterUrl: "https://images.unsplash.com/photo-1536440136628-849c177e76a1",
-        backdropUrl: "https://images.unsplash.com/photo-1536440136628-849c177e76a1",
-        rating: "PG-13",
-        matchPercentage: 97,
-        videoSources: [
-          { quality: "1080p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" },
-          { quality: "720p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" }
-        ],
-        genreIds: [1, 6, 7], // Action, Sci-Fi, Thriller
-        director: "Christopher Nolan",
-        cast: ["Leonardo DiCaprio", "Joseph Gordon-Levitt", "Elliot Page"],
-        imdbRating: "8.8",
-        viewCount: 1052
-      },
-      {
-        title: "Interstellar",
-        description: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.",
-        releaseYear: 2014,
-        duration: 169,
-        posterUrl: "https://images.unsplash.com/photo-1478720568477-152d9b164e26",
-        backdropUrl: "https://images.unsplash.com/photo-1478720568477-152d9b164e26",
-        rating: "PG-13",
-        matchPercentage: 94,
-        videoSources: [
-          { quality: "1080p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" },
-          { quality: "720p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" }
-        ],
-        genreIds: [2, 6], // Adventure, Sci-Fi
-        director: "Christopher Nolan",
-        cast: ["Matthew McConaughey", "Anne Hathaway", "Jessica Chastain"],
-        imdbRating: "8.6",
-        viewCount: 950
-      },
-      {
-        title: "The Matrix",
-        description: "A computer hacker learns from mysterious rebels about the true nature of his reality and his role in the war against its controllers.",
-        releaseYear: 1999,
-        duration: 136,
-        posterUrl: "https://images.unsplash.com/photo-1594909122845-11baa439b7bf",
-        backdropUrl: "https://images.unsplash.com/photo-1594909122845-11baa439b7bf",
-        rating: "R",
-        matchPercentage: 92,
-        videoSources: [
-          { quality: "1080p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" },
-          { quality: "720p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" }
-        ],
-        genreIds: [1, 6], // Action, Sci-Fi
-        director: "Lana Wachowski, Lilly Wachowski",
-        cast: ["Keanu Reeves", "Laurence Fishburne", "Carrie-Anne Moss"],
-        imdbRating: "8.7",
-        viewCount: 1275
-      },
-      {
-        title: "Blade Runner 2049",
-        description: "Young Blade Runner K's discovery of a long-buried secret leads him to track down former Blade Runner Rick Deckard, who's been missing for thirty years.",
-        releaseYear: 2017,
-        duration: 164,
-        posterUrl: "https://images.unsplash.com/photo-1611523658822-385aa008324c",
-        backdropUrl: "https://images.unsplash.com/photo-1611523658822-385aa008324c",
-        rating: "R",
-        matchPercentage: 89,
-        videoSources: [
-          { quality: "1080p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" },
-          { quality: "720p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" }
-        ],
-        genreIds: [1, 6], // Action, Sci-Fi
-        director: "Denis Villeneuve",
-        cast: ["Ryan Gosling", "Harrison Ford", "Ana de Armas"],
-        imdbRating: "8.0",
-        viewCount: 850
-      },
-      {
-        title: "Dune",
-        description: "Feature adaptation of Frank Herbert's science fiction novel, about the son of a noble family entrusted with the protection of the most valuable asset and most vital element in the galaxy.",
-        releaseYear: 2021,
-        duration: 155,
-        posterUrl: "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0",
-        backdropUrl: "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0",
-        rating: "PG-13",
-        matchPercentage: 91,
-        videoSources: [
-          { quality: "1080p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" },
-          { quality: "720p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" }
-        ],
-        genreIds: [2, 6], // Adventure, Sci-Fi
-        director: "Denis Villeneuve",
-        cast: ["Timothée Chalamet", "Rebecca Ferguson", "Zendaya"],
-        imdbRating: "8.0",
-        viewCount: 780
-      },
-      {
-        title: "Tenet",
-        description: "Armed with only one word, Tenet, and fighting for the survival of the entire world, a Protagonist journeys through a twilight world of international espionage on a mission that will unfold in something beyond real time.",
-        releaseYear: 2020,
-        duration: 150,
-        posterUrl: "https://images.unsplash.com/photo-1507207611509-ec012433ff52",
-        backdropUrl: "https://images.unsplash.com/photo-1507207611509-ec012433ff52",
-        rating: "PG-13",
-        matchPercentage: 88,
-        videoSources: [
-          { quality: "1080p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" },
-          { quality: "720p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" }
-        ],
-        genreIds: [1, 6, 7], // Action, Sci-Fi, Thriller
-        director: "Christopher Nolan",
-        cast: ["John David Washington", "Robert Pattinson", "Elizabeth Debicki"],
-        imdbRating: "7.4",
-        viewCount: 720
-      },
-      {
-        title: "The Tomorrow War",
-        description: "A family man is drafted to fight in a future war where the fate of humanity relies on his ability to confront the past.",
-        releaseYear: 2021,
-        duration: 138,
-        posterUrl: "https://images.unsplash.com/photo-1529641484336-ef35148bab06",
-        backdropUrl: "https://images.unsplash.com/photo-1529641484336-ef35148bab06",
-        rating: "PG-13",
-        matchPercentage: 82,
-        videoSources: [
-          { quality: "1080p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" },
-          { quality: "720p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" }
-        ],
-        genreIds: [1, 2, 6], // Action, Adventure, Sci-Fi
-        director: "Chris McKay",
-        cast: ["Chris Pratt", "Yvonne Strahovski", "J.K. Simmons"],
-        imdbRating: "6.6",
-        viewCount: 680
-      },
-      {
-        title: "No Time to Die",
-        description: "James Bond has left active service. His peace is short-lived when Felix Leiter, an old friend from the CIA, turns up asking for help.",
-        releaseYear: 2021,
-        duration: 163,
-        posterUrl: "https://images.unsplash.com/photo-1512070679279-8988d32161be",
-        backdropUrl: "https://images.unsplash.com/photo-1512070679279-8988d32161be",
-        rating: "PG-13",
-        matchPercentage: 87,
-        videoSources: [
-          { quality: "1080p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" },
-          { quality: "720p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" }
-        ],
-        genreIds: [1, 2, 7], // Action, Adventure, Thriller
-        director: "Cary Joji Fukunaga",
-        cast: ["Daniel Craig", "Ana de Armas", "Rami Malek"],
-        imdbRating: "7.3",
-        viewCount: 820
-      },
-      {
-        title: "Free Guy",
-        description: "A bank teller discovers that he's actually an NPC inside a brutal, open world video game.",
-        releaseYear: 2021,
-        duration: 115,
-        posterUrl: "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c",
-        backdropUrl: "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c",
-        rating: "PG-13",
-        matchPercentage: 90,
-        videoSources: [
-          { quality: "1080p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" },
-          { quality: "720p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" }
-        ],
-        genreIds: [1, 2, 3], // Action, Adventure, Comedy
-        director: "Shawn Levy",
-        cast: ["Ryan Reynolds", "Jodie Comer", "Taika Waititi"],
-        imdbRating: "7.1",
-        viewCount: 915
-      }
-    ];
-    
-    sampleMovies.forEach(movie => {
-      const id = this.currentMovieId++;
-      // Ensure viewCount exists for all movies, default to a random number between 100-2000 if not provided
-      const viewCount = movie.viewCount || Math.floor(Math.random() * 1900) + 100;
-      this.movies.set(id, { ...movie, id, viewCount });
-    });
+    return query;
   }
 }
 
-export const storage = new MemStorage();
+// Initialize database and create the storage instance
+export const storage = new DatabaseStorage();
