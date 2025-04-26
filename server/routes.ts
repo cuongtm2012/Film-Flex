@@ -727,6 +727,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Mount regular API routes
   app.use("/api", router);
+  
+  // Utility endpoint for updating test movies with video URLs
+  app.patch("/api/movies/:id", async (req, res) => {
+    try {
+      const movieId = parseInt(req.params.id);
+      if (isNaN(movieId)) {
+        return res.status(400).json({ error: "Invalid movie ID" });
+      }
+      
+      const updatedMovie = await storage.updateMovie(movieId, req.body);
+      res.json(updatedMovie);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update movie" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
