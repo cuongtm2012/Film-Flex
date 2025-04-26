@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -18,6 +19,7 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import { AuthProvider } from "@/hooks/use-auth";
 import { LanguageProvider } from "@/hooks/use-language";
 import { ProtectedRoute } from "@/lib/protected-route";
+import { initializeDriveAPI } from "@/lib/driveHelper";
 
 function Router() {
   return (
@@ -40,6 +42,28 @@ function Router() {
 }
 
 function App() {
+  const [driveInitialized, setDriveInitialized] = useState(false);
+  const [driveError, setDriveError] = useState<string | null>(null);
+
+  // Initialize Google Drive API on component mount
+  useEffect(() => {
+    const initDrive = async () => {
+      try {
+        const initialized = await initializeDriveAPI();
+        setDriveInitialized(initialized);
+        if (!initialized) {
+          console.warn('Failed to initialize Google Drive API');
+          setDriveError('Could not initialize Google Drive API');
+        }
+      } catch (error) {
+        console.error('Error initializing Google Drive API:', error);
+        setDriveError('Error initializing Google Drive API');
+      }
+    };
+
+    initDrive();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -47,6 +71,13 @@ function App() {
           <AuthProvider>
             <Toaster />
             <Router />
+            
+            {/* Show Drive status in development mode */}
+            {import.meta.env.DEV && driveError && (
+              <div className="fixed bottom-4 right-4 bg-red-600 text-white px-4 py-2 rounded shadow-lg z-50">
+                {driveError}
+              </div>
+            )}
           </AuthProvider>
         </LanguageProvider>
       </TooltipProvider>
