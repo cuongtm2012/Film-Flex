@@ -216,6 +216,24 @@ const MovieDetails = () => {
             </div>
           )}
           
+          {/* Google Drive Auth Overlay */}
+          {needsGoogleAuth && !isLoadingVideo && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-10">
+              <div className="text-center max-w-md p-8 bg-zinc-900 rounded-lg shadow-xl">
+                <Film className="h-12 w-12 text-red-600 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Google Drive Authentication Required</h3>
+                <p className="text-gray-300 mb-6">
+                  This movie is hosted on Google Drive. Please authenticate to access the content.
+                </p>
+                <GoogleDriveAuth 
+                  onSuccess={handleAuthSuccess} 
+                  size="lg"
+                  className="mx-auto" 
+                />
+              </div>
+            </div>
+          )}
+          
           {/* Video element */}
           <video
             ref={videoRef}
@@ -226,7 +244,7 @@ const MovieDetails = () => {
           />
           
           {/* Play overlay with big centered play button */}
-          {!isPlaying && !isLoadingVideo && (
+          {!isPlaying && !isLoadingVideo && !needsGoogleAuth && videoSrc && (
             <div 
               className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer"
               onClick={togglePlay}
