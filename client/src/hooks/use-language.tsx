@@ -532,6 +532,7 @@ const translations = {
     'admin.description': 'Mô Tả',
     'admin.director': 'Đạo Diễn',
     'admin.cast': 'Diễn Viên',
+    'admin.videoUrl': 'URL Video',
   }
 };
 
