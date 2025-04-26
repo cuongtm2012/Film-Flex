@@ -28,6 +28,7 @@ export interface Movie {
   rating: string; // e.g., "PG-13", "R"
   matchPercentage?: number; // e.g., 97
   videoSources: VideoSource[];
+  videoUrl?: string; // Direct URL or Google Drive file ID
   genreIds: number[];
   director?: string;
   cast?: string[];

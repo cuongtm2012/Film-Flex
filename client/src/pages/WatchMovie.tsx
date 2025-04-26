@@ -18,38 +18,17 @@ import {
 import Navbar from "@/components/Navbar";
 import { API_BASE_URL, Movie } from "@/lib/constants";
 import { convertToDirectStreamingUrl } from "@/lib/googleDriveApi";
-import { getDriveVideoStreamingUrl, extractDriveFileId } from "@/lib/driveHelper";
+import { getDriveVideoStreamingUrl, extractDriveFileId, isValidDriveFileId } from "@/lib/driveHelper";
 import { useLanguage } from "@/hooks/use-language";
 
-// Simulated subtitles data - would normally come from an API/file
-const mockSubtitles = {
-  en: [
-    { id: 1, start: 0, end: 5, text: "Hello, welcome to this movie." },
-    { id: 2, start: 6, end: 10, text: "I hope you enjoy watching it." },
-    { id: 3, start: 11, end: 15, text: "The story begins in a remote village." },
-    { id: 4, start: 16, end: 20, text: "Where our hero will face many challenges." },
-    { id: 5, start: 21, end: 25, text: "But first, let's meet the main characters." },
-    // More subtitles would go here...
-  ],
-  vi: [
-    { id: 1, start: 0, end: 5, text: "Xin chào, chào mừng đến với bộ phim này." },
-    { id: 2, start: 6, end: 10, text: "Tôi hy vọng bạn thích xem nó." },
-    { id: 3, start: 11, end: 15, text: "Câu chuyện bắt đầu ở một ngôi làng hẻo lánh." },
-    { id: 4, start: 16, end: 20, text: "Nơi mà người hùng của chúng ta sẽ đối mặt với nhiều thách thức." },
-    { id: 5, start: 21, end: 25, text: "Nhưng trước tiên, hãy gặp gỡ các nhân vật chính." },
-    // More subtitles would go here...
-  ]
+// Placeholder subtitles - this will be loaded dynamically from the API in the future
+const subtitlesData = {
+  en: [] as { id: number, start: number, end: number, text: string }[],
+  vi: [] as { id: number, start: number, end: number, text: string }[]
 };
 
-// Transcript data - would normally be loaded from a file or API
-const mockTranscript = [
-  { id: 1, time: 0, speaker: "Narrator", text: "Our story begins in a small town, where life was simple but meaningful." },
-  { id: 2, time: 15, speaker: "John", text: "I've lived here my whole life, but something tells me things are about to change." },
-  { id: 3, time: 30, speaker: "Maria", text: "The prophecy spoke of a hero who would arise when darkness threatens the land." },
-  { id: 4, time: 45, speaker: "John", text: "I'm no hero, I'm just a simple farmer." },
-  { id: 5, time: 60, speaker: "Elder", text: "Sometimes heroes are found in the most unexpected places." },
-  // More transcript entries would go here...
-];
+// Placeholder transcript - this will be loaded dynamically from the API in the future
+const transcriptData: { id: number, time: number, speaker: string, text: string }[] = [];
 
 // Video playback speeds
 const speeds = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -115,11 +94,13 @@ const WatchMovie = () => {
       
       // Find current subtitle
       if (subtitleEnabled) {
-        const currentSubs = mockSubtitles[subtitleLanguage];
-        const activeSub = currentSubs.find(
-          sub => videoRef.current!.currentTime >= sub.start && videoRef.current!.currentTime <= sub.end
-        );
-        setCurrentSubtitle(activeSub ? activeSub.text : '');
+        const currentSubs = subtitlesData[subtitleLanguage];
+        if (currentSubs.length > 0) {
+          const activeSub = currentSubs.find(
+            sub => videoRef.current!.currentTime >= sub.start && videoRef.current!.currentTime <= sub.end
+          );
+          setCurrentSubtitle(activeSub ? activeSub.text : '');
+        }
       } else {
         setCurrentSubtitle('');
       }
@@ -277,11 +258,11 @@ const WatchMovie = () => {
   const getVideoSource = async () => {
     if (!movie) return '';
     
-    // First priority: Check if we have a Google Drive videoUrl
-    if (movie.videoUrl) {
-      try {
+    try {
+      // Check if we have videoUrl from the database
+      if (movie.videoUrl) {
         // Case 1: Direct Google Drive file ID
-        if (/^[a-zA-Z0-9_-]{25,}$/.test(movie.videoUrl)) {
+        if (isValidDriveFileId(movie.videoUrl)) {
           return await getDriveVideoStreamingUrl(movie.videoUrl);
         }
         
@@ -295,10 +276,10 @@ const WatchMovie = () => {
         if (movie.videoUrl.startsWith('http')) {
           return movie.videoUrl;
         }
-      } catch (error) {
-        console.error('Error processing Google Drive videoUrl:', error);
-        // Fall through to traditional sources if Google Drive fails
       }
+    } catch (error) {
+      console.error('Error processing video source:', error);
+      // Fall through to videoSources if primary source fails
     }
     
     // Second priority: Check traditional videoSources
@@ -333,12 +314,8 @@ const WatchMovie = () => {
       }
     }
     
-    // Ultimate fallback for development mode: use the sample video
-    try {
-      return await getDriveVideoStreamingUrl('development-fallback');
-    } catch (e) {
-      console.warn('Failed to get development fallback video');
-    }
+    // No hardcoded fallback - rely on the database data
+    console.warn('No video source found for this movie');
     
     return '';
   };
