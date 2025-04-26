@@ -1,66 +1,92 @@
-import React, { useState } from 'react';
-import { Mic, MicOff, Eye, EyeOff, VolumeX, Volume2, FileAudio, Settings } from 'lucide-react';
-import { useVoiceControl } from '@/hooks/use-voice-control';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Mic, MicOff, Eye, EyeOff, FileAudio, Settings } from 'lucide-react';
+import { useAccessibility } from '@/hooks/use-accessibility';
+import { useVoiceControl, VoiceCommand } from '@/hooks/use-voice-control';
 
-interface AccessibilityControlsProps {
-  onToggleScreenReader?: () => void;
-  isScreenReaderActive?: boolean;
-  onToggleHighContrast?: () => void;
-  isHighContrastActive?: boolean;
-  onToggleFontSize?: () => void;
-  onToggleVoiceControl?: (enabled: boolean) => void;
-  isVoiceControlActive?: boolean;
-  className?: string;
-}
-
-export default function AccessibilityControls({
-  onToggleScreenReader,
-  isScreenReaderActive = false,
-  onToggleHighContrast,
-  isHighContrastActive = false,
-  onToggleFontSize,
-  onToggleVoiceControl,
-  isVoiceControlActive = false,
-  className = ''
-}: AccessibilityControlsProps) {
+export default function AccessibilityControls() {
   const [isExpanded, setIsExpanded] = useState(false);
   
-  // Define commands for voice control
-  const voiceCommands = [
+  const { 
+    isScreenReaderActive, 
+    isHighContrastActive,
+    isLargeTextActive,
+    isVoiceControlActive,
+    toggleScreenReader,
+    toggleHighContrast,
+    toggleLargeText,
+    toggleVoiceControl,
+    announceToScreenReader
+  } = useAccessibility();
+  
+  // Memoized command handlers to avoid recreating on each render
+  const handleScreenReaderToggle = useCallback(() => {
+    toggleScreenReader();
+    if (!isScreenReaderActive) {
+      announceToScreenReader("Screen reader activated");
+    }
+  }, [toggleScreenReader, isScreenReaderActive, announceToScreenReader]);
+  
+  const handleHighContrastToggle = useCallback(() => {
+    toggleHighContrast();
+    if (isScreenReaderActive) {
+      announceToScreenReader(`High contrast mode ${isHighContrastActive ? 'deactivated' : 'activated'}`);
+    }
+  }, [toggleHighContrast, isHighContrastActive, isScreenReaderActive, announceToScreenReader]);
+  
+  const handleLargeTextToggle = useCallback(() => {
+    toggleLargeText();
+    if (isScreenReaderActive) {
+      announceToScreenReader(`Large text mode ${isLargeTextActive ? 'deactivated' : 'activated'}`);
+    }
+  }, [toggleLargeText, isLargeTextActive, isScreenReaderActive, announceToScreenReader]);
+  
+  const handleVoiceControlToggle = useCallback(() => {
+    toggleVoiceControl();
+    if (isScreenReaderActive) {
+      announceToScreenReader(`Voice control ${isVoiceControlActive ? 'deactivated' : 'activated'}`);
+    }
+  }, [toggleVoiceControl, isVoiceControlActive, isScreenReaderActive, announceToScreenReader]);
+  
+  // Define voice commands for voice control
+  const commands: VoiceCommand[] = [
     {
       command: "Toggle screen reader",
       aliases: ["screen reader", "reader", "enable reader", "disable reader"],
-      handler: () => onToggleScreenReader && onToggleScreenReader(),
+      handler: handleScreenReaderToggle,
       description: "Turns screen reader on or off"
     },
     {
       command: "Toggle high contrast",
       aliases: ["high contrast", "contrast", "increase contrast"],
-      handler: () => onToggleHighContrast && onToggleHighContrast(),
+      handler: handleHighContrastToggle,
       description: "Switches to high contrast mode for better visibility"
     },
     {
-      command: "Increase font size",
+      command: "Toggle large text",
       aliases: ["larger text", "bigger text", "larger font"],
-      handler: () => onToggleFontSize && onToggleFontSize(),
+      handler: handleLargeTextToggle,
       description: "Makes text larger for easier reading"
+    },
+    {
+      command: "Hide menu",
+      aliases: ["close menu", "close options", "hide options"],
+      handler: () => setIsExpanded(false),
+      description: "Closes the accessibility menu"
     }
   ];
   
   // Use voice control hook
-  const { isListening, isSupported } = useVoiceControl({
-    commands: voiceCommands,
+  const { isSupported } = useVoiceControl({
+    commands,
     enabled: isVoiceControlActive
   });
   
-  const toggleVoiceControl = () => {
-    if (onToggleVoiceControl) {
-      onToggleVoiceControl(!isVoiceControlActive);
-    }
-  };
+  // Simple check for voice support as fallback
+  const isVoiceSupported = isSupported || (typeof window !== 'undefined' && 
+    ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window));
   
   return (
-    <div className={`fixed bottom-4 left-4 z-50 ${className}`}>
+    <div className="fixed bottom-4 left-4 z-50">
       {/* Main accessibility button */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
@@ -86,7 +112,7 @@ export default function AccessibilityControls({
                 <span className="text-white text-sm">Screen Reader</span>
               </div>
               <button
-                onClick={onToggleScreenReader}
+                onClick={handleScreenReaderToggle}
                 className={`px-3 py-1 rounded-full text-xs font-medium ${
                   isScreenReaderActive 
                     ? 'bg-blue-600 hover:bg-blue-700 text-white' 
@@ -110,7 +136,7 @@ export default function AccessibilityControls({
                 <span className="text-white text-sm">High Contrast</span>
               </div>
               <button
-                onClick={onToggleHighContrast}
+                onClick={handleHighContrastToggle}
                 className={`px-3 py-1 rounded-full text-xs font-medium ${
                   isHighContrastActive 
                     ? 'bg-yellow-600 hover:bg-yellow-700 text-white' 
@@ -130,19 +156,24 @@ export default function AccessibilityControls({
                 <span className="text-white text-sm">Larger Text</span>
               </div>
               <button
-                onClick={onToggleFontSize}
-                className="px-3 py-1 rounded-full text-xs font-medium bg-zinc-700 hover:bg-zinc-600 text-gray-200"
-                aria-label="Increase font size"
+                onClick={handleLargeTextToggle}
+                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  isLargeTextActive 
+                    ? 'bg-green-600 hover:bg-green-700 text-white' 
+                    : 'bg-zinc-700 hover:bg-zinc-600 text-gray-200'
+                }`}
+                aria-pressed={isLargeTextActive}
+                aria-label={isLargeTextActive ? "Use normal text size" : "Use larger text size"}
               >
-                Resize
+                {isLargeTextActive ? 'On' : 'Off'}
               </button>
             </div>
             
             {/* Voice Control */}
-            {isSupported && (
+            {isVoiceSupported && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  {isListening ? (
+                  {isVoiceControlActive ? (
                     <Mic className="w-5 h-5 text-red-400" />
                   ) : (
                     <MicOff className="w-5 h-5 text-red-400" />
@@ -150,7 +181,7 @@ export default function AccessibilityControls({
                   <span className="text-white text-sm">Voice Control</span>
                 </div>
                 <button
-                  onClick={toggleVoiceControl}
+                  onClick={handleVoiceControlToggle}
                   className={`px-3 py-1 rounded-full text-xs font-medium ${
                     isVoiceControlActive 
                       ? 'bg-red-600 hover:bg-red-700 text-white' 
