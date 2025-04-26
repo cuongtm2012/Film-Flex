@@ -1,0 +1,118 @@
+1. Phân tích yêu cầu và lập kế hoạch
+Tính năng chính cần triển khai
+1.1. Giao diện thân thiện, chuẩn SEO
+Thiết kế UI/UX:
+
+Mục tiêu: Đơn giản, dễ sử dụng, phù hợp mọi độ tuổi.
+Giải pháp:
+Sử dụng Tailwind CSS để nhanh chóng xây dựng giao diện responsive.
+Đảm bảo trải nghiệm tốt trên thiết bị di động (mobile-first design).
+Navigation rõ ràng với menu chính hiển thị các danh mục như: Trang chủ, Tìm kiếm, Thể loại, Yêu thích.
+Chuẩn SEO:
+
+Sử dụng Next.js với hỗ trợ SSR (Server-Side Rendering) và ISR (Incremental Static Regeneration) để tối ưu SEO.
+Các yếu tố chuẩn SEO:
+URL thân thiện: /phim/[slug].
+Metadata: Tự động thêm thẻ <title>, <meta description> dựa trên thông tin phim.
+Schema Markup: Thêm thông tin phim (tên, mô tả, đánh giá, diễn viên) dưới dạng JSON-LD để Google hiểu nội dung.
+1.2. Cơ chế xem phim thoải mái, hấp dẫn
+Trình phát video:
+Sử dụng Video.js hoặc Plyr.js để tích hợp trình phát hỗ trợ:
+Adaptive streaming (HLS/DASH): Tự động thay đổi chất lượng video dựa trên tốc độ mạng.
+Phụ đề (hỗ trợ định dạng .vtt hoặc .srt).
+Tùy chỉnh chất lượng, chế độ toàn màn hình.
+Giải pháp buffer thông minh:
+Sử dụng CDN (Cloudflare) để giảm tải và cải thiện tốc độ phát video.
+Kết hợp preload video cho các phân đoạn tiếp theo để giảm độ trễ.
+1.3. Lấy phim từ nhiều nguồn
+Tích hợp các dịch vụ lưu trữ:
+Google Drive, Dropbox, hoặc link trực tiếp.
+Xử lý link phim bằng proxy server:
+Bảo vệ link tránh bị lộ bằng cách mã hóa URL (URL signing).
+Stream video qua các API như Google Drive API hoặc Dropbox API.
+1.4. Quản trị người dùng và thông tin phim
+Người dùng:
+Tích hợp OAuth 2.0 (đăng nhập qua Google, Facebook).
+Lưu lịch sử xem phim, danh sách yêu thích (watchlist) trong MongoDB.
+Role-based Access Control (RBAC): Phân quyền người dùng (user) và quản trị viên (admin).
+Quản lý nội dung phim:
+Hệ thống CMS cho phép quản trị viên thêm, sửa, xóa phim.
+Theo dõi thông tin như lượt xem, đánh giá.
+1.5. Hiệu suất và ổn định
+Caching:
+Sử dụng Redis để cache dữ liệu thường xuyên truy cập như danh sách phim, thể loại.
+Phân phối nội dung qua CDN:
+Dùng Cloudflare CDN để giảm tải server gốc và cải thiện tốc độ phát video.
+Xử lý lỗi tải phim:
+Hiển thị thông báo khi xảy ra lỗi hoặc mất kết nối.
+Tự động thử lại nếu phát hiện mất kết nối mạng.
+2. Công nghệ sử dụng
+Frontend
+Framework: Next.js (React.js) hỗ trợ SEO, SSR, ISR.
+Thư viện UI: Tailwind CSS hoặc Material UI.
+Video Player: Video.js hoặc Plyr.js.
+Backend
+Framework: Node.js với NestJS (có cấu trúc module mạnh mẽ) hoặc Express.js (nhẹ và linh hoạt).
+Database:
+MongoDB: Lưu thông tin người dùng, danh sách yêu thích, lịch sử xem phim.
+PostgreSQL/MySQL: Quản lý thông tin phim và metadata.
+Storage: Google Cloud Storage hoặc AWS S3 để lưu trữ nội dung nếu không dùng link ngoài.
+Media Streaming
+Adaptive Streaming: Sử dụng HLS/DASH để hỗ trợ nhiều chất lượng.
+CDN: Cloudflare CDN giảm tải server và tăng tốc độ phát.
+Authentication
+OAuth 2.0: Đăng nhập qua Google, Facebook để tăng tính tiện lợi và bảo mật.
+JWT (JSON Web Token): Token-based authentication đảm bảo người dùng xác thực khi truy cập.
+SEO
+Next.js: Tự động thêm metadata, hỗ trợ SSR.
+Schema Markup: Dùng JSON-LD cung cấp thông tin phim cho Google.
+3. Chi tiết triển khai
+3.1. Giao diện người dùng (UI/UX)
+Trang chủ
+Hiển thị danh sách phim:
+Phim nổi bật (dựa trên lượt xem/rating).
+Phim mới cập nhật.
+Dựa trên thể loại hoặc gợi ý theo người dùng.
+Có thanh tìm kiếm với gợi ý từ khóa (autocomplete).
+Bộ lọc phim theo thể loại, năm phát hành, ngôn ngữ.
+Trang chi tiết phim
+Hiển thị:
+Tên phim, mô tả, thể loại, đánh giá, diễn viên.
+Nút "Play" để xem.
+Danh sách tập (nếu là phim bộ).
+Gồm các tính năng:
+Chia sẻ phim qua mạng xã hội.
+Đánh giá phim (rating).
+Trang người dùng
+Đăng nhập, đăng ký qua Google/Facebook hoặc email.
+Xem lịch sử xem phim.
+Tạo danh sách yêu thích (watchlist).
+Dashboard quản trị viên
+Quản lý phim:
+Thêm, sửa, xóa phim.
+Cập nhật metadata (tên, mô tả, rating, link nguồn).
+Thống kê:
+Lượt xem phim theo ngày/tháng.
+Danh sách phim được yêu thích nhất.
+3.2. Backend API
+Endpoints chính
+/api/movies:
+GET: Lấy danh sách phim (hỗ trợ phân trang).
+POST: Thêm phim mới (chỉ admin).
+PUT: Sửa thông tin phim.
+DELETE: Xóa phim.
+/api/users:
+Đăng nhập, đăng ký người dùng.
+Lấy thông tin người dùng (lịch sử xem, danh sách yêu thích).
+/api/stream:
+Xử lý phát video qua link từ Google Drive, Dropbox.
+Quản lý link phim
+Sử dụng proxy server để mã hóa link:
+URL được ký (signed URL) để ngăn lộ link phim.
+3.3. Tối ưu hiệu năng và bảo mật
+Hiệu suất
+Caching: Redis để cache phim được xem nhiều.
+Optimize Media: Sử dụng FFmpeg để xử lý video (nén, tạo segment HLS).
+Bảo mật
+HTTPS để mã hóa dữ liệu giữa client và server.
+Giới hạn request (rate limiting) để chống DDOS.
