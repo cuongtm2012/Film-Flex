@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Play, Plus, Star } from "lucide-react";
@@ -9,6 +9,8 @@ const MovieDetails = () => {
   const [, setLocation] = useLocation();
   const [match, params] = useRoute("/movie/:id");
   const movieId = match ? parseInt(params.id) : null;
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   
   // Fetch movie details
   const { data: movie, isLoading, error } = useQuery({
@@ -39,10 +41,31 @@ const MovieDetails = () => {
     }
   }, [movie, allMovies]);
   
-  const handlePlay = () => {
-    if (movie) {
-      setLocation(`/watch/${movie.id}`);
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
     }
+  };
+
+  // Get the highest quality video source
+  const getVideoSource = (movie?: Movie) => {
+    if (!movie?.videoSources || movie.videoSources.length === 0) {
+      return '';
+    }
+    
+    // Sort by quality (assuming higher numbers = better quality)
+    const sortedSources = [...movie.videoSources].sort((a, b) => {
+      const qualityA = parseInt(a.quality.replace('p', ''));
+      const qualityB = parseInt(b.quality.replace('p', ''));
+      return qualityB - qualityA;
+    });
+    
+    return sortedSources[0].url;
   };
 
   if (isLoading) {
@@ -75,54 +98,69 @@ const MovieDetails = () => {
     );
   }
 
-  // Format movie duration to hours and minutes
-  const formatMovieDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
-  };
-
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
       
-      {/* Movie Backdrop with Title and Info */}
-      <div className="relative w-full h-[60vh]">
-        <img 
-          src={movie.backdropUrl}
-          alt={movie.title}
-          className="w-full h-full object-cover brightness-50"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div>
-        
-        <div className="absolute bottom-0 left-0 w-full p-6 md:p-10">
-          <div className="max-w-6xl mx-auto">
-            <h1 className="text-5xl md:text-7xl font-bold mb-4">{movie.title}</h1>
-            
-            <div className="flex items-center space-x-4 mb-6">
-              <div className="flex items-center">
-                <Star className="text-yellow-500 fill-yellow-500 h-5 w-5 mr-1" />
-                <span className="font-semibold text-lg">{movie.imdbRating || '0.0'}</span>
-              </div>
-              <span>{movie.releaseYear}</span>
-              <span>{formatMovieDuration(movie.duration)}</span>
-              <span className="border border-white/30 px-2 py-0.5">{movie.rating}</span>
-            </div>
-            
-            <button 
-              onClick={handlePlay}
-              className="flex items-center bg-white hover:bg-white/90 text-black rounded px-8 py-3 font-semibold transition-colors"
+      {/* Movie Title and Information */}
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        <h1 className="text-4xl font-bold mb-2">{movie.title}</h1>
+        <div className="text-gray-400 text-sm mb-4">
+          {movie.description.slice(0, 100)}...
+        </div>
+      </div>
+      
+      {/* Video Player */}
+      <div className="relative max-w-7xl mx-auto bg-black mb-6">
+        <div className="aspect-video w-full relative">
+          {/* Video element */}
+          <video
+            ref={videoRef}
+            className="w-full h-full object-contain"
+            src={getVideoSource(movie)}
+            poster={movie.backdropUrl}
+            preload="auto"
+          />
+          
+          {/* Play overlay with big centered play button */}
+          {!isPlaying && (
+            <div 
+              className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer"
+              onClick={togglePlay}
             >
-              <Play className="mr-2 h-5 w-5 fill-black" /> 
-              Play Movie
-            </button>
-          </div>
+              <div className="text-8xl text-white/90 select-none">
+                <div className="flex items-center justify-center w-24 h-24 rounded-full bg-black/30">
+                  <Play className="h-12 w-12 fill-white text-white" />
+                </div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl opacity-40 font-light">
+                  PLAY VIDEO
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       
       <div className="max-w-6xl mx-auto px-6 md:px-10">
+        {/* Video Stats */}
+        <div className="mb-8">
+          <div className="flex gap-2 text-sm">
+            <div className="py-1 px-2 bg-red-600 rounded-sm">#1</div>
+            <div className="py-1 px-2 bg-zinc-800 rounded-sm">#2</div>
+          </div>
+          <div className="flex items-center gap-2 mt-3">
+            <div className="flex items-center">
+              <Star className="text-yellow-500 fill-yellow-500 h-5 w-5 mr-1" />
+              <span className="font-semibold">{movie.imdbRating || '0.0'}</span>
+            </div>
+            <span>{movie.releaseYear}</span>
+            <span>{formatDuration(movie.duration)}</span>
+            <span className="border border-white/30 px-2 py-0.5">{movie.rating}</span>
+          </div>
+        </div>
+      
         {/* About the Movie Section */}
-        <div className="mt-8 mb-10">
+        <div className="mb-10">
           <div className="flex flex-col md:flex-row gap-8">
             {/* Movie Poster */}
             <div className="w-full md:w-1/4 flex-shrink-0">
