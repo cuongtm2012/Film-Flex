@@ -161,19 +161,9 @@ const MovieDetails = () => {
       
         {/* About the Movie Section */}
         <div className="mb-10">
-          <article className="flex flex-col md:flex-row gap-8 bg-zinc-900/40 p-6 rounded-lg">
-            {/* Movie Poster */}
-            <div className="w-full md:w-1/4 flex-shrink-0">
-              <img 
-                src={movie.posterUrl}
-                alt={`${movie.title} movie poster`}
-                className="w-full aspect-[2/3] object-cover rounded-md shadow-xl hover:shadow-red-900/30 transition-all"
-                loading="lazy"
-              />
-            </div>
-            
+          <article className="bg-zinc-900/40 p-6 rounded-lg">
             {/* Movie Details */}
-            <div className="flex-1">
+            <div>
               <h2 className="text-2xl font-bold mb-4 text-white">About the Movie</h2>
               
               <p className="text-white/80 mb-6 leading-relaxed text-base">
