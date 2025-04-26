@@ -387,7 +387,7 @@ const MovieDetails = () => {
           )}
           
           {/* Play overlay with big centered play button */}
-          {!isPlaying && !isLoadingVideo && !needsGoogleAuth && videoSrc && movie.videoUrl && (
+          {!isPlaying && !isLoadingVideo && !needsGoogleAuth && videoSrc && (
             <div 
               className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer"
               onClick={togglePlay}
@@ -404,7 +404,7 @@ const MovieDetails = () => {
           )}
           
           {/* Enhanced Watch Button */}
-          {movie.videoUrl && (
+          {videoSrc && (
             <div className="absolute bottom-4 right-4 z-10">
               <button
                 onClick={() => setLocation(`/watch/${movie.id}`)}
