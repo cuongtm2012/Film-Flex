@@ -459,21 +459,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Log environment variable presence without revealing the key
         console.log(`GOOGLE_API_KEY exists: ${!!process.env.GOOGLE_API_KEY}`);
         
-        // Fetch files from the folder
+        if (!process.env.GOOGLE_API_KEY) {
+          return res.status(500).json({
+            error: "Missing Google API Key",
+            message: "The Google API key is not configured. Please contact the administrator."
+          });
+        }
+        
+        // First check if the folder exists and is accessible
+        try {
+          const folderResponse = await axios.get(
+            `https://www.googleapis.com/drive/v3/files/${folderId}?key=${process.env.GOOGLE_API_KEY}&fields=name,shared`
+          );
+          
+          // Check if the folder is shared
+          if (folderResponse.data && folderResponse.data.shared === false) {
+            return res.status(403).json({
+              error: "Folder not shared",
+              message: "The Google Drive folder is not shared publicly. Please share it with 'Anyone with the link'."
+            });
+          }
+          
+          console.log("Folder found:", folderResponse.data.name);
+        } catch (folderError: any) {
+          console.error("Error accessing folder:", folderError.message);
+          return res.status(404).json({
+            error: "Folder not found",
+            message: "Could not access the Google Drive folder. It may not exist or is not publicly accessible.",
+            details: folderError.message
+          });
+        }
+        
+        // If folder is accessible, fetch files from the folder
         const filesResponse = await axios.get(
           `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=${process.env.GOOGLE_API_KEY}&fields=files(id,name,mimeType,videoMediaMetadata,fileExtension,size,createdTime,thumbnailLink)&orderBy=name`
         );
         
-        // Fetch folder name
-        const folderResponse = await axios.get(
-          `https://www.googleapis.com/drive/v3/files/${folderId}?key=${process.env.GOOGLE_API_KEY}&fields=name`
-        );
+        if (!filesResponse.data.files || filesResponse.data.files.length === 0) {
+          return res.json([]); // Empty array if no files found
+        }
         
         // Filter video files
         const videoFiles = filesResponse.data.files.filter((file: any) => 
           file.mimeType.includes('video') || 
           (file.fileExtension && ['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(file.fileExtension.toLowerCase()))
         );
+        
+        if (videoFiles.length === 0) {
+          return res.json([]); // Empty array if no video files found
+        }
         
         // Convert to movie objects for the frontend
         const movies = videoFiles.map((file: any) => convertDriveFileToMovie(file));
