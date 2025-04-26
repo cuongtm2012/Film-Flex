@@ -263,6 +263,8 @@ const translations = {
     'admin.destinationFolderId': 'Destination Folder ID',
     'admin.destinationFolderIdHint': 'The ID of the Google Drive folder where movies will be copied to',
     'admin.copyMovies': 'Copy Movies',
+    'admin.driveMoviesCopied': 'Drive Movies Copied',
+    'admin.driveMoviesCopiedSuccess': 'Successfully copied {count} movies from Drive',
   },
   vi: {
     // Navbar
@@ -500,6 +502,8 @@ const translations = {
     'admin.copyFailed': 'Không thể sao chép phim',
     'admin.enterSourceUrl': 'Nhập URL thư mục Google Drive nguồn',
     'admin.selectDestination': 'Chọn thư mục đích',
+    'admin.driveMoviesCopied': 'Đã sao chép phim từ Drive',
+    'admin.driveMoviesCopiedSuccess': 'Đã sao chép thành công {count} phim từ Drive',
     'admin.editMovieDescription': 'Chỉnh sửa chi tiết phim',
     'admin.posterUrl': 'URL Poster',
     'admin.backdropUrl': 'URL Backdrop',

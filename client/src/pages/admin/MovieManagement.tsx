@@ -254,7 +254,7 @@ export default function MovieManagement() {
     onSuccess: (data) => {
       toast({
         title: t('admin.driveMoviesCopied'),
-        description: t('admin.driveMoviesCopiedSuccess', { count: data.details.filter((d: any) => d.success).length }),
+        description: t('admin.driveMoviesCopiedSuccess').replace('{count}', data.details.filter((d: any) => d.success).length.toString()),
       });
       setOpenCopyDialog(false);
       // Reset the form

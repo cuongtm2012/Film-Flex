@@ -371,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Step 1: Get files from source folder
       const sourceFilesResponse = await axios.get(
-        `https://www.googleapis.com/drive/v3/files?q='${sourceFolderId}'+in+parents&key=${process.env.GOOGLE_API_KEY}&fields=files(id,name,mimeType)`
+        `https://www.googleapis.com/drive/v3/files?q='${sourceFolderId}' in parents&key=${process.env.GOOGLE_API_KEY}&fields=files(id,name,mimeType)`
       );
       
       if (!sourceFilesResponse.data.files || sourceFilesResponse.data.files.length === 0) {
