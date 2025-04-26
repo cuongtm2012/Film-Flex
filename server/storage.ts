@@ -250,7 +250,7 @@ export class MemStorage implements IStorage {
     
     // Increment movie view count
     const movie = this.movies.get(insertHistory.movieId);
-    if (movie && (!existingHistory || existingHistory.progress < 10)) {
+    if (movie && (!existingHistory || (existingHistory.progress ?? 0) < 10)) {
       // Only count as a new view if it's a new history entry or previous progress was minimal
       const updatedMovie = { 
         ...movie, 
@@ -354,7 +354,8 @@ export class MemStorage implements IStorage {
         genreIds: [2, 6], // Adventure, Sci-Fi
         director: "Christopher Nolan",
         cast: ["Matthew McConaughey", "Anne Hathaway", "Jessica Chastain"],
-        imdbRating: "8.6"
+        imdbRating: "8.6",
+        viewCount: 950
       },
       {
         title: "The Matrix",
@@ -372,7 +373,8 @@ export class MemStorage implements IStorage {
         genreIds: [1, 6], // Action, Sci-Fi
         director: "Lana Wachowski, Lilly Wachowski",
         cast: ["Keanu Reeves", "Laurence Fishburne", "Carrie-Anne Moss"],
-        imdbRating: "8.7"
+        imdbRating: "8.7",
+        viewCount: 1275
       },
       {
         title: "Blade Runner 2049",
@@ -390,7 +392,8 @@ export class MemStorage implements IStorage {
         genreIds: [1, 6], // Action, Sci-Fi
         director: "Denis Villeneuve",
         cast: ["Ryan Gosling", "Harrison Ford", "Ana de Armas"],
-        imdbRating: "8.0"
+        imdbRating: "8.0",
+        viewCount: 850
       },
       {
         title: "Dune",
