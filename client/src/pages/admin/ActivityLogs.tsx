@@ -132,7 +132,7 @@ export default function ActivityLogs() {
                 <SelectValue placeholder={t('admin.allActions')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">{t('admin.allActions')}</SelectItem>
+                <SelectItem value="all">{t('admin.allActions')}</SelectItem>
                 {Object.entries(ACTIONS_MAP).map(([key, label]) => (
                   <SelectItem key={key} value={key}>
                     {label}

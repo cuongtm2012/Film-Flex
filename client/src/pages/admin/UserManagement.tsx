@@ -267,7 +267,7 @@ export default function UserManagement() {
                   <SelectValue placeholder={t('admin.allRoles')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('admin.allRoles')}</SelectItem>
+                  <SelectItem value="all">{t('admin.allRoles')}</SelectItem>
                   <SelectItem value="admin">{t('admin.adminRole')}</SelectItem>
                   <SelectItem value="sub-admin">{t('admin.subAdminRole')}</SelectItem>
                   <SelectItem value="user">{t('admin.userRole')}</SelectItem>
@@ -284,7 +284,7 @@ export default function UserManagement() {
                   <SelectValue placeholder={t('admin.allStatuses')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('admin.allStatuses')}</SelectItem>
+                  <SelectItem value="all">{t('admin.allStatuses')}</SelectItem>
                   <SelectItem value="active">{t('admin.activeUsers')}</SelectItem>
                   <SelectItem value="inactive">{t('admin.inactiveUsers')}</SelectItem>
                 </SelectContent>
