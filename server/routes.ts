@@ -446,8 +446,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Google Drive integration
-  router.get("/drive/folder/:folderId", async (req, res) => {
+  // Google Drive integration - Main endpoint to get processed movies from Drive folder
+  router.get("/drive/movies/:folderId", async (req, res) => {
     try {
       const { folderId } = req.params;
       
@@ -475,16 +475,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (file.fileExtension && ['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(file.fileExtension.toLowerCase()))
         );
         
-        res.json({
-          id: folderId,
-          name: folderResponse.data.name || 'Movies Folder',
-          files: videoFiles
-        });
-      } catch (error) {
+        // Convert to movie objects for the frontend
+        const movies = videoFiles.map((file: any) => convertDriveFileToMovie(file));
+        
+        res.json(movies);
+      } catch (error: any) {
         console.error("Error fetching Google Drive content:", error);
         res.status(500).json({ 
           error: "Failed to fetch Google Drive content", 
-          details: error.message,
+          details: error.message || 'Unknown error',
           apiKeyExists: !!process.env.GOOGLE_API_KEY 
         });
       }
@@ -492,6 +491,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to process Google Drive request" });
     }
   });
+  
+  // Helper function to parse movie info from filename
+  function parseMovieInfo(filename: string): { 
+    title: string; 
+    year?: number;
+    additionalInfo?: string;
+  } {
+    // Remove file extension
+    const nameWithoutExtension = filename.replace(/\.[^/.]+$/, "");
+    
+    // Extract year if present in format (YYYY)
+    const yearMatch = nameWithoutExtension.match(/\((\d{4})\)/);
+    let year: number | undefined = undefined;
+    if (yearMatch && yearMatch[1]) {
+      year = parseInt(yearMatch[1], 10);
+    }
+    
+    // Extract additional info in square brackets [INFO]
+    const additionalInfoMatch = nameWithoutExtension.match(/\[(.*?)\]/);
+    let additionalInfo: string | undefined = undefined;
+    if (additionalInfoMatch && additionalInfoMatch[1]) {
+      additionalInfo = additionalInfoMatch[1];
+    }
+    
+    // Get title by removing year and additional info
+    let title = nameWithoutExtension
+      .replace(/\(\d{4}\)/, '')  // Remove year
+      .replace(/\[.*?\]/, '')    // Remove additional info
+      .trim();
+      
+    return { title, year, additionalInfo };
+  }
+  
+  // Helper function to convert Drive file to Movie format
+  function convertDriveFileToMovie(file: any): any {
+    const { title, year } = parseMovieInfo(file.name);
+    
+    // Generate a stream URL
+    const streamUrl = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${process.env.GOOGLE_API_KEY}`;
+    
+    // Generate a movie object compatible with our app's Movie type
+    return {
+      id: parseInt(file.id.substring(0, 8), 16) % 10000, // Generate a numeric ID from Drive ID
+      title,
+      description: `Watch ${title} on FilmFlex.`,
+      releaseYear: year || new Date().getFullYear(),
+      duration: file.videoMediaMetadata 
+        ? Math.floor(parseInt(file.videoMediaMetadata.durationMillis) / 60000) 
+        : 120, // Duration in minutes or default
+      posterUrl: file.thumbnailLink || 'https://via.placeholder.com/300x450?text=No+Thumbnail',
+      backdropUrl: file.thumbnailLink || 'https://via.placeholder.com/1280x720?text=No+Preview',
+      rating: 'PG-13',
+      videoSources: [
+        {
+          quality: 'HD',
+          url: streamUrl
+        }
+      ],
+      genreIds: [1], // Default to Action genre
+      director: 'Unknown Director',
+      cast: ['Actor 1', 'Actor 2'],
+      imdbRating: '7.5',
+      viewCount: 0
+    };
+  }
   
   // Debug route to check API key status
   router.get("/drive/status", (req, res) => {

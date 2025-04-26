@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '@/hooks/use-language';
@@ -6,15 +6,14 @@ import Navbar from '@/components/Navbar';
 import MobileNavBar from '@/components/MobileNavBar';
 import { Play, FileVideo, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getDriveFolderContent, DriveFile, convertDriveFileToMovie } from '@/lib/googleDriveService';
 import { Movie } from '@/lib/constants';
+import { apiRequest } from '@/lib/queryClient';
 
 // Google Drive folder ID - from shared URL
 const GOOGLE_DRIVE_FOLDER_ID = '10e9ynLaJdenTOQzuq3E9eoBM6JL5LDEF';
 
 export default function DriveMovies() {
   const { t } = useLanguage();
-  const [movies, setMovies] = useState<Movie[]>([]);
   
   // Format rating as string
   const formatRating = (rating?: string) => {
@@ -22,20 +21,23 @@ export default function DriveMovies() {
     return rating.includes('.') ? rating : rating + '.0';
   };
   
-  // Query to fetch movies from Google Drive
-  const { data: driveData, isLoading, error } = useQuery({
-    queryKey: ['googleDrive', GOOGLE_DRIVE_FOLDER_ID],
-    queryFn: () => getDriveFolderContent(GOOGLE_DRIVE_FOLDER_ID),
+  // Query to fetch movies from Google Drive via server endpoint
+  const { data: movies = [], isLoading, error } = useQuery<Movie[]>({
+    queryKey: ['driveMovies', GOOGLE_DRIVE_FOLDER_ID],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest('GET', `/api/drive/movies/${GOOGLE_DRIVE_FOLDER_ID}`);
+        if (!res.ok) {
+          throw new Error(`Error: ${res.status}`);
+        }
+        return await res.json() as Movie[];
+      } catch (err) {
+        console.error('Error fetching drive movies:', err);
+        throw err;
+      }
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes cache
   });
-  
-  // Process drive files into movie objects
-  useEffect(() => {
-    if (driveData && driveData.files && driveData.files.length > 0) {
-      const processedMovies = driveData.files.map(file => convertDriveFileToMovie(file));
-      setMovies(processedMovies);
-    }
-  }, [driveData]);
   
   if (isLoading) {
     return (
@@ -88,7 +90,7 @@ export default function DriveMovies() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {movies.map((movie) => (
+            {movies.map((movie: Movie) => (
               <Link key={movie.id} href={`/movie/${movie.id}`}>
                 <div className="group relative cursor-pointer">
                   <div className="relative">
