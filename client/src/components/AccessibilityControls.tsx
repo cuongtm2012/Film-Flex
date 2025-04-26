@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Mic, MicOff, Eye, EyeOff, FileAudio, Settings } from 'lucide-react';
 import { useAccessibility } from '@/hooks/use-accessibility';
 import { useVoiceControl, VoiceCommand } from '@/hooks/use-voice-control';
@@ -24,28 +24,19 @@ export default function AccessibilityControls() {
     if (!isScreenReaderActive) {
       announceToScreenReader("Screen reader activated");
     }
-  }, [toggleScreenReader, isScreenReaderActive, announceToScreenReader]);
+  }, [toggleScreenReader, announceToScreenReader]);
   
   const handleHighContrastToggle = useCallback(() => {
     toggleHighContrast();
-    if (isScreenReaderActive) {
-      announceToScreenReader(`High contrast mode ${isHighContrastActive ? 'deactivated' : 'activated'}`);
-    }
-  }, [toggleHighContrast, isHighContrastActive, isScreenReaderActive, announceToScreenReader]);
+  }, [toggleHighContrast]);
   
   const handleLargeTextToggle = useCallback(() => {
     toggleLargeText();
-    if (isScreenReaderActive) {
-      announceToScreenReader(`Large text mode ${isLargeTextActive ? 'deactivated' : 'activated'}`);
-    }
-  }, [toggleLargeText, isLargeTextActive, isScreenReaderActive, announceToScreenReader]);
+  }, [toggleLargeText]);
   
   const handleVoiceControlToggle = useCallback(() => {
     toggleVoiceControl();
-    if (isScreenReaderActive) {
-      announceToScreenReader(`Voice control ${isVoiceControlActive ? 'deactivated' : 'activated'}`);
-    }
-  }, [toggleVoiceControl, isVoiceControlActive, isScreenReaderActive, announceToScreenReader]);
+  }, [toggleVoiceControl]);
   
   // Define voice commands for voice control
   const commands: VoiceCommand[] = [

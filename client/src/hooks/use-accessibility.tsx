@@ -15,16 +15,17 @@ interface AccessibilityContextType {
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined);
 
 export const AccessibilityProvider = ({ children }: { children: ReactNode }) => {
-  // State for accessibility settings
-  const [isScreenReaderActive, setIsScreenReaderActive] = useState(false);
-  const [isHighContrastActive, setIsHighContrastActive] = useState(false);
-  const [isLargeTextActive, setIsLargeTextActive] = useState(false);
-  const [isVoiceControlActive, setIsVoiceControlActive] = useState(false);
+  // State for accessibility settings - with SSR-safety check
+  const [isScreenReaderActive, setIsScreenReaderActive] = useState<boolean>(false);
+  const [isHighContrastActive, setIsHighContrastActive] = useState<boolean>(false);
+  const [isLargeTextActive, setIsLargeTextActive] = useState<boolean>(false);
+  const [isVoiceControlActive, setIsVoiceControlActive] = useState<boolean>(false);
   const [announcement, setAnnouncement] = useState('');
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
   
-  // Load saved preferences from localStorage
+  // Load saved preferences from localStorage - only runs once after mount
   useEffect(() => {
-    const loadPreferences = () => {
+    if (typeof window !== 'undefined') {
       try {
         const savedScreenReader = localStorage.getItem('isScreenReaderActive');
         const savedHighContrast = localStorage.getItem('isHighContrastActive');
@@ -35,14 +36,16 @@ export const AccessibilityProvider = ({ children }: { children: ReactNode }) => 
         if (savedLargeText) setIsLargeTextActive(savedLargeText === 'true');
       } catch (error) {
         console.error('Failed to load accessibility preferences', error);
+      } finally {
+        setIsInitialized(true);
       }
-    };
-    
-    loadPreferences();
+    }
   }, []);
   
-  // Save preferences when they change
+  // Save preferences when they change - only runs after initialization
   useEffect(() => {
+    if (!isInitialized) return;
+    
     try {
       localStorage.setItem('isScreenReaderActive', isScreenReaderActive.toString());
       localStorage.setItem('isHighContrastActive', isHighContrastActive.toString());
@@ -50,7 +53,7 @@ export const AccessibilityProvider = ({ children }: { children: ReactNode }) => 
     } catch (error) {
       console.error('Failed to save accessibility preferences', error);
     }
-  }, [isScreenReaderActive, isHighContrastActive, isLargeTextActive]);
+  }, [isScreenReaderActive, isHighContrastActive, isLargeTextActive, isInitialized]);
   
   // Apply global styles based on preferences
   useEffect(() => {

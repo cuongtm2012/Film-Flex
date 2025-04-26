@@ -61,11 +61,18 @@ export function useVoiceControl({ commands, enabled = false }: UseVoiceControlPr
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const { toast } = useToast();
 
-  // Process voice commands
+  // Process voice commands - Using a ref for available commands to avoid dependency cycle
+  const commandsRef = useRef(commands);
+  
+  // Update commands ref when they change
+  useEffect(() => {
+    commandsRef.current = commands;
+  }, [commands]);
+  
   const processCommand = useCallback((text: string) => {
     // Special case for "help" command
     if (text === 'help' || text === 'what can i say') {
-      const commandList = availableCommands.map(cmd => `"${cmd.command}": ${cmd.description}`).join(', ');
+      const commandList = commandsRef.current.map(cmd => `"${cmd.command}": ${cmd.description}`).join(', ');
       toast({
         title: "Available voice commands",
         description: commandList,
@@ -74,7 +81,7 @@ export function useVoiceControl({ commands, enabled = false }: UseVoiceControlPr
     }
     
     // Check all commands and their aliases
-    for (const command of availableCommands) {
+    for (const command of commandsRef.current) {
       if (
         text === command.command.toLowerCase() || 
         (command.aliases && command.aliases.some(alias => text === alias.toLowerCase()))
@@ -96,7 +103,7 @@ export function useVoiceControl({ commands, enabled = false }: UseVoiceControlPr
         variant: "destructive",
       });
     }
-  }, [availableCommands, toast]);
+  }, [toast]);
 
   // Check if browser supports speech recognition
   useEffect(() => {
