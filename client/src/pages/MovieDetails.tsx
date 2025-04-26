@@ -20,7 +20,7 @@ const MovieDetails = () => {
   
   // Fetch movie details
   const { data: movie, isLoading, error } = useQuery({
-    queryKey: [`${API_BASE_URL}/movies/${movieId}`],
+    queryKey: [`${API_BASE_URL}/movie/${movieId}`],
     staleTime: 60 * 1000, // 1 minute
     enabled: !!movieId,
   });
