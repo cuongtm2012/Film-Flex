@@ -149,10 +149,16 @@ function toast({ ...props }: Toast) {
     })
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
+  // Ensure description is converted to string if it's not already
+  const safeProps = { ...props };
+  if (safeProps.description !== undefined && typeof safeProps.description !== 'string') {
+    safeProps.description = String(safeProps.description);
+  }
+
   dispatch({
     type: "ADD_TOAST",
     toast: {
-      ...props,
+      ...safeProps,
       id,
       open: true,
       onOpenChange: (open) => {
