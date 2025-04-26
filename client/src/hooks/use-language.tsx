@@ -21,7 +21,10 @@ const translations = {
     // Home page
     'home.featured': 'Featured',
     'home.newReleases': 'New Releases',
-    'home.action': 'Action',
+    'loading.movies': 'Loading movies...',
+    'error.title': 'Oops!',
+    'error.movies': 'We encountered an error while loading movies. Please try again later.',
+    'genres.action': 'Action',
     'home.premiumContent': 'Premium Content',
     'home.premiumDescription': 'Get access to exclusive trending movies and early releases with our premium membership.',
     'home.upgradeNow': 'Upgrade Now',
@@ -107,7 +110,10 @@ const translations = {
     // Home page
     'home.featured': 'Nổi bật',
     'home.newReleases': 'Phim mới',
-    'home.action': 'Hành động',
+    'loading.movies': 'Đang tải phim...',
+    'error.title': 'Rất tiếc!',
+    'error.movies': 'Đã xảy ra lỗi khi tải phim. Vui lòng thử lại sau.',
+    'genres.action': 'Hành động',
     'home.premiumContent': 'Nội dung cao cấp',
     'home.premiumDescription': 'Truy cập các phim xu hướng độc quyền và phát hành sớm với tư cách thành viên cao cấp.',
     'home.upgradeNow': 'Nâng cấp ngay',

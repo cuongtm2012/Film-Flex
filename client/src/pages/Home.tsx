@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 
 const Home = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   
   // Fetch all movies
   const { data: allMovies, isLoading: isLoadingMovies, error: moviesError } = useQuery({
@@ -143,7 +144,7 @@ const Home = () => {
                     </Button>
                   </Link>
                   
-                  {useAuth().user?.userType === "premium" && (
+                  {user?.userType === "premium" && (
                     <Link href="/trending">
                       <Button
                         variant="outline"
