@@ -189,21 +189,6 @@ const MovieDetails = () => {
           </article>
         </div>
         
-        {/* Categories/Hashtags */}
-        <div className="mb-10">
-          <h2 className="text-xl font-bold mb-4">Categories</h2>
-          <div className="flex flex-wrap gap-2">
-            {getGenreNames(movie.genreIds).map((genre, index) => (
-              <span 
-                key={index} 
-                className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-full text-white/90 text-sm font-medium cursor-pointer transition-all hover:shadow-md hover:shadow-red-900/20"
-              >
-                #{genre.replace(/\s+/g, '')}
-              </span>
-            ))}
-          </div>
-        </div>
-        
         {/* Recommended Films */}
         {similarMovies.length > 0 && (
           <div className="mb-16">
