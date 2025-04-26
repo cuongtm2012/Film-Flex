@@ -279,6 +279,17 @@ const MovieDetails = () => {
               </div>
             </div>
           )}
+          
+          {/* Enhanced Watch Button */}
+          <div className="absolute bottom-4 right-4 z-10">
+            <button
+              onClick={() => setLocation(`/watch/${movie.id}`)}
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-lg transition-colors"
+            >
+              <Play className="h-5 w-5" />
+              <span>Watch with Enhanced Player</span>
+            </button>
+          </div>
         </div>
       </div>
       
