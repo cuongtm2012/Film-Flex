@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '@/hooks/use-language';
 import { apiRequest } from '@/lib/queryClient';
@@ -130,6 +130,10 @@ export default function MovieManagement() {
   
   const [urlForm, setUrlForm] = useState(defaultUrlForm);
   
+  // State for sorting
+  const [sortField, setSortField] = useState<string>('id');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  
   // Fetch movies
   const { data: movies = [], isLoading: isLoadingMovies } = useQuery<Movie[]>({
     queryKey: ['/api/admin/movies'],
@@ -138,6 +142,52 @@ export default function MovieManagement() {
       return res.json();
     },
   });
+  
+  // Sort movies based on current sort settings
+  const sortedMovies = useMemo(() => {
+    if (!movies.length) return [];
+    
+    return [...movies].sort((a, b) => {
+      const aValue = a[sortField as keyof Movie];
+      const bValue = b[sortField as keyof Movie];
+      
+      // Handle different types
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const aLower = aValue.toLowerCase();
+        const bLower = bValue.toLowerCase();
+        
+        if (sortOrder === 'asc') {
+          return aLower > bLower ? 1 : -1;
+        } else {
+          return aLower < bLower ? 1 : -1;
+        }
+      } 
+      
+      // Handle numbers
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        if (sortOrder === 'asc') {
+          return aValue > bValue ? 1 : -1;
+        } else {
+          return aValue < bValue ? 1 : -1;
+        }
+      }
+      
+      // Default comparison for other types
+      return 0;
+    });
+  }, [movies, sortField, sortOrder]);
+  
+  // Handle sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Toggle order if same field
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
   
   // Fetch pending movie uploads
   const { data: pendingUploads = [], isLoading: isLoadingUploads } = useQuery<MovieUpload[]>({
@@ -565,12 +615,66 @@ export default function MovieManagement() {
               <TableCaption>{t('admin.moviesListCaption')}</TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t('admin.id')}</TableHead>
-                  <TableHead>{t('admin.title')}</TableHead>
-                  <TableHead>{t('admin.releaseYear')}</TableHead>
-                  <TableHead>{t('admin.duration')}</TableHead>
-                  <TableHead>{t('admin.rating')}</TableHead>
-                  <TableHead>{t('admin.views')}</TableHead>
+                  <TableHead onClick={() => handleSort('id')} className="cursor-pointer hover:bg-muted">
+                    <div className="flex items-center">
+                      {t('admin.id')}
+                      {sortField === 'id' && (
+                        <span className="ml-1">
+                          {sortOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead onClick={() => handleSort('title')} className="cursor-pointer hover:bg-muted">
+                    <div className="flex items-center">
+                      {t('admin.title')}
+                      {sortField === 'title' && (
+                        <span className="ml-1">
+                          {sortOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead onClick={() => handleSort('releaseYear')} className="cursor-pointer hover:bg-muted">
+                    <div className="flex items-center">
+                      {t('admin.releaseYear')}
+                      {sortField === 'releaseYear' && (
+                        <span className="ml-1">
+                          {sortOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead onClick={() => handleSort('duration')} className="cursor-pointer hover:bg-muted">
+                    <div className="flex items-center">
+                      {t('admin.duration')}
+                      {sortField === 'duration' && (
+                        <span className="ml-1">
+                          {sortOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead onClick={() => handleSort('rating')} className="cursor-pointer hover:bg-muted">
+                    <div className="flex items-center">
+                      {t('admin.rating')}
+                      {sortField === 'rating' && (
+                        <span className="ml-1">
+                          {sortOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead onClick={() => handleSort('viewCount')} className="cursor-pointer hover:bg-muted">
+                    <div className="flex items-center">
+                      {t('admin.views')}
+                      {sortField === 'viewCount' && (
+                        <span className="ml-1">
+                          {sortOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
                   <TableHead className="text-right">{t('admin.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -588,7 +692,7 @@ export default function MovieManagement() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  movies.map((movie) => (
+                  sortedMovies.map((movie) => (
                     <TableRow key={movie.id}>
                       <TableCell>{movie.id}</TableCell>
                       <TableCell className="font-medium">
