@@ -22,6 +22,13 @@ async function hashPassword(password: string) {
 }
 
 async function comparePasswords(supplied: string, stored: string) {
+  // If the stored password doesn't contain a salt (no dot separator), it's not hashed
+  // This is for development purposes only to allow simple passwords like "admin"
+  if (!stored.includes('.')) {
+    return supplied === stored;
+  }
+  
+  // Otherwise use the normal secure comparison for hashed passwords
   const [hashed, salt] = stored.split(".");
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
