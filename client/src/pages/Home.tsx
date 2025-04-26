@@ -67,7 +67,7 @@ const Home = () => {
             <div className="flex space-x-4 overflow-x-auto pb-4 no-scrollbar">
               {allMovies.slice(0, 5).map((movie: Movie) => (
                 <Link key={movie.id} href={`/movie/${movie.id}`}>
-                  <a className="flex-shrink-0 w-[250px] md:w-[280px] relative group">
+                  <div className="flex-shrink-0 w-[250px] md:w-[280px] relative group cursor-pointer">
                     <img 
                       src={movie.posterUrl}
                       alt={movie.title}
@@ -76,7 +76,7 @@ const Home = () => {
                     <div className="absolute bottom-0 left-0 right-0 p-3 text-sm">
                       <h3 className="font-semibold text-white">{movie.title}</h3>
                     </div>
-                  </a>
+                  </div>
                 </Link>
               ))}
             </div>
@@ -89,7 +89,7 @@ const Home = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {newReleases?.slice(0, 5).map((movie: Movie) => (
               <Link key={movie.id} href={`/movie/${movie.id}`}>
-                <a className="group relative">
+                <div className="group relative cursor-pointer">
                   <div className="relative">
                     <img 
                       src={movie.posterUrl}
@@ -109,7 +109,7 @@ const Home = () => {
                     </div>
                   </div>
                   <h3 className="mt-1 text-sm font-medium truncate">{movie.title}</h3>
-                </a>
+                </div>
               </Link>
             ))}
           </div>
@@ -131,31 +131,25 @@ const Home = () => {
                 </div>
                 
                 <div className="flex space-x-3">
-                  <Button
-                    asChild
-                    className="bg-black text-white hover:bg-black/80"
-                  >
-                    <Link href="/profile?tab=premium">
-                      <a className="flex items-center">
-                        <Crown className="h-4 w-4 mr-2" />
-                        Upgrade Now
-                      </a>
-                    </Link>
-                  </Button>
+                  <Link href="/profile?tab=premium">
+                    <Button
+                      className="bg-black text-white hover:bg-black/80 flex items-center"
+                    >
+                      <Crown className="h-4 w-4 mr-2" />
+                      Upgrade Now
+                    </Button>
+                  </Link>
                   
                   {useAuth().user?.userType === "premium" && (
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="border-black text-black hover:bg-black/10"
-                    >
-                      <Link href="/trending">
-                        <a className="flex items-center">
-                          <TrendingUp className="h-4 w-4 mr-2" />
-                          View Trending
-                        </a>
-                      </Link>
-                    </Button>
+                    <Link href="/trending">
+                      <Button
+                        variant="outline"
+                        className="border-black text-black hover:bg-black/10 flex items-center"
+                      >
+                        <TrendingUp className="h-4 w-4 mr-2" />
+                        View Trending
+                      </Button>
+                    </Link>
                   )}
                 </div>
               </div>
@@ -169,7 +163,7 @@ const Home = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {getMoviesByGenre(1).slice(0, 5).map((movie: Movie) => (
               <Link key={movie.id} href={`/movie/${movie.id}`}>
-                <a className="group relative">
+                <div className="group relative cursor-pointer">
                   <div className="relative">
                     <img 
                       src={movie.posterUrl}
@@ -189,7 +183,7 @@ const Home = () => {
                     </div>
                   </div>
                   <h3 className="mt-1 text-sm font-medium truncate">{movie.title}</h3>
-                </a>
+                </div>
               </Link>
             ))}
           </div>
