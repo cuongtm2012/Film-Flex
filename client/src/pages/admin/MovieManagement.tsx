@@ -147,7 +147,7 @@ export default function MovieManagement() {
   // Create movie mutation
   const createMovieMutation = useMutation({
     mutationFn: async (movie: any) => {
-      const res = await apiRequest('POST', '/api/movies', movie);
+      const res = await apiRequest('POST', '/api/admin/movies', movie);
       return res.json();
     },
     onSuccess: () => {
@@ -155,9 +155,18 @@ export default function MovieManagement() {
         title: t('admin.movieCreated'),
         description: t('admin.movieCreatedSuccess'),
       });
-      setOpenCreateDialog(false);
+      // Close dialog and reset forms depending on which form was submitted
+      if (openCreateDialog) {
+        setOpenCreateDialog(false);
+        resetMovieForm();
+      } 
+      if (openAddUrlDialog) {
+        setOpenAddUrlDialog(false);
+        setUrlForm(defaultUrlForm);
+      }
+      // Invalidate movie queries to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['/api/movies'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/movies'] });
-      resetMovieForm();
     },
     onError: (error: any) => {
       toast({
@@ -469,6 +478,17 @@ export default function MovieManagement() {
   // Handle adding movie from URL
   const handleAddMovieFromUrl = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!urlForm.title || !urlForm.videoUrl) {
+      toast({
+        title: t('admin.error'),
+        description: 'Title and video URL are required',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     // Create a movie with the video sources from the URL
     const movie = {
       ...urlForm,
@@ -482,9 +502,6 @@ export default function MovieManagement() {
     
     // Call the create movie mutation
     createMovieMutation.mutate(movie);
-    
-    // Close the dialog
-    setOpenAddUrlDialog(false);
   };
   
   return (
