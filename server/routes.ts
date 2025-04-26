@@ -260,6 +260,191 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Profile Management
+  router.get("/profile", async (req, res) => {
+    try {
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "You must be logged in" });
+      }
+      
+      const userId = req.user!.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Return user details without sensitive information
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        userType: user.userType,
+        walletBalance: user.walletBalance,
+        walletAddress: user.walletAddress,
+        premiumExpiresAt: user.premiumExpiresAt,
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user profile" });
+    }
+  });
+
+  // Update wallet address
+  router.put("/profile/wallet-address", async (req, res) => {
+    try {
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "You must be logged in" });
+      }
+      
+      const userId = req.user!.id;
+      const { walletAddress } = req.body;
+      
+      if (!walletAddress) {
+        return res.status(400).json({ message: "Wallet address is required" });
+      }
+      
+      // Update wallet address in the database
+      const updatedUser = await storage.updateUser(userId, { walletAddress });
+      
+      res.json({
+        id: updatedUser.id,
+        username: updatedUser.username,
+        walletAddress: updatedUser.walletAddress
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update wallet address" });
+    }
+  });
+
+  // Deposit funds via USDT
+  router.post("/profile/deposit", async (req, res) => {
+    try {
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "You must be logged in" });
+      }
+      
+      const userId = req.user!.id;
+      const { amount, transactionHash } = req.body;
+      
+      if (!amount || !transactionHash) {
+        return res.status(400).json({ message: "Amount and transaction hash are required" });
+      }
+      
+      // In a real implementation, you would verify the transaction on the blockchain
+      // For this demo, we'll assume the transaction is valid
+      
+      // Update user's wallet balance
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const updatedUser = await storage.updateUser(userId, {
+        walletBalance: user.walletBalance + parseInt(amount)
+      });
+      
+      res.json({
+        id: updatedUser.id,
+        username: updatedUser.username,
+        walletBalance: updatedUser.walletBalance,
+        message: `Successfully deposited ${amount} USDT`
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to process deposit" });
+    }
+  });
+
+  // Upgrade to premium
+  router.post("/profile/upgrade", async (req, res) => {
+    try {
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "You must be logged in" });
+      }
+      
+      const userId = req.user!.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Premium membership costs 100 USDT for 30 days
+      const premiumCost = 10000; // 100 USDT in cents
+      
+      if (user.walletBalance < premiumCost) {
+        return res.status(400).json({ 
+          message: "Insufficient funds",
+          walletBalance: user.walletBalance,
+          premiumCost
+        });
+      }
+      
+      // Calculate premium expiration date
+      const now = new Date();
+      const expiresAt = new Date(now.setDate(now.getDate() + 30));
+      
+      // Update user to premium status and deduct balance
+      const updatedUser = await storage.updateUser(userId, {
+        userType: "premium",
+        walletBalance: user.walletBalance - premiumCost,
+        premiumExpiresAt: expiresAt
+      });
+      
+      res.json({
+        id: updatedUser.id,
+        username: updatedUser.username,
+        userType: updatedUser.userType,
+        walletBalance: updatedUser.walletBalance,
+        premiumExpiresAt: updatedUser.premiumExpiresAt,
+        message: "Successfully upgraded to premium membership"
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to upgrade to premium" });
+    }
+  });
+
+  // Get premium content (trending movies)
+  router.get("/premium/trending", async (req, res) => {
+    try {
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "You must be logged in" });
+      }
+      
+      const userId = req.user!.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if user is premium
+      if (user.userType !== "premium") {
+        return res.status(403).json({ message: "This content is only available for premium users" });
+      }
+      
+      // Check if premium subscription is still valid
+      if (user.premiumExpiresAt && new Date() > user.premiumExpiresAt) {
+        // Update user to normal if premium has expired
+        await storage.updateUser(userId, {
+          userType: "normal",
+          premiumExpiresAt: null
+        });
+        return res.status(403).json({ message: "Your premium subscription has expired" });
+      }
+      
+      // For this demo, we'll return the top 5 movies by view count as trending
+      const trendingMovies = await storage.getTrendingMovies();
+      res.json(trendingMovies);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch trending movies" });
+    }
+  });
+
   // Proxy for video streaming
   router.get("/stream/:movieId", async (req, res) => {
     try {

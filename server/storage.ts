@@ -16,6 +16,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, updates: Partial<Omit<User, 'id' | 'username' | 'password'>>): Promise<User>;
   
   // Genre methods
   getAllGenres(): Promise<Genre[]>;
@@ -29,6 +30,7 @@ export interface IStorage {
   searchMovies(query: string): Promise<Movie[]>;
   getFeaturedMovies(): Promise<Movie[]>;
   getNewReleases(): Promise<Movie[]>;
+  getTrendingMovies(): Promise<Movie[]>; // For premium users
   createMovie(movie: InsertMovie): Promise<Movie>;
   
   // Favorites methods
@@ -99,11 +101,15 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
     
-    // Ensure email is null if undefined to match the User type
+    // Ensure all optional fields have proper default values
     const user: User = { 
       ...insertUser, 
       id, 
-      email: insertUser.email || null 
+      email: insertUser.email || null,
+      userType: insertUser.userType || "normal",
+      walletBalance: insertUser.walletBalance || 0,
+      walletAddress: insertUser.walletAddress || null,
+      premiumExpiresAt: insertUser.premiumExpiresAt || null
     };
     
     this.users.set(id, user);
@@ -166,6 +172,32 @@ export class MemStorage implements IStorage {
     const movie: Movie = { ...insertMovie, id };
     this.movies.set(id, movie);
     return movie;
+  }
+  
+  async getTrendingMovies(): Promise<Movie[]> {
+    // Return movies sorted by view count (most viewed first)
+    return Array.from(this.movies.values())
+      .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
+      .slice(0, 5);
+  }
+  
+  async updateUser(
+    id: number, 
+    updates: Partial<Omit<User, 'id' | 'username' | 'password'>>
+  ): Promise<User> {
+    const user = this.users.get(id);
+    
+    if (!user) {
+      throw new Error(`User with ID ${id} not found`);
+    }
+    
+    const updatedUser = {
+      ...user,
+      ...updates
+    };
+    
+    this.users.set(id, updatedUser);
+    return updatedUser;
   }
   
   // Favorites methods

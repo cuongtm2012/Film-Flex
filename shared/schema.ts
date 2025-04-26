@@ -8,13 +8,27 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email"),
+  userType: text("user_type").default("normal").notNull(), // normal or premium
+  walletBalance: integer("wallet_balance").default(0).notNull(), // Balance in cents (for USDT)
+  walletAddress: text("wallet_address"), // User's USDT wallet address
+  premiumExpiresAt: timestamp("premium_expires_at"), // When premium subscription ends
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
   email: true,
-}).partial({ email: true });
+  userType: true,
+  walletBalance: true,
+  walletAddress: true,
+  premiumExpiresAt: true,
+}).partial({ 
+  email: true,
+  userType: true,
+  walletBalance: true,
+  walletAddress: true,
+  premiumExpiresAt: true,
+});
 
 // Genre model
 export const genres = pgTable("genres", {
