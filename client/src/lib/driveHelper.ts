@@ -90,9 +90,17 @@ export async function authenticateDrive(): Promise<boolean> {
 export async function getDriveVideoStreamingUrl(fileId: string): Promise<string> {
   // In development mode, return a sample video URL for testing
   if (isDevelopmentMode) {
-    console.log('Development mode: Providing sample video URL for testing');
+    console.log('Development mode: Providing sample video URL for testing, fileId:', fileId);
+    
+    // Map specific fileIds to different sample videos
+    if (fileId === '1-irIEcfPe0zgPacX-XcMGv1zoB5hMWwI') {
+      return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
+    } else if (fileId === '136atrovI1bWEMoSgq3X12veiNwh2fzO6') {
+      return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+    }
+    
     // Use a sample video from the web that's publicly accessible
-    return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+    return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
   }
 
   try {
@@ -112,8 +120,16 @@ export async function getDriveVideoStreamingUrl(fileId: string): Promise<string>
     if (authenticationErrorCount >= MAX_AUTH_ERRORS) {
       console.log('Switching to development mode after streaming URL error');
       isDevelopmentMode = true;
-      // Return a sample video URL from a public source
-      return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+      
+      // Return different sample videos based on fileId
+      if (fileId === '1-irIEcfPe0zgPacX-XcMGv1zoB5hMWwI') {
+        return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
+      } else if (fileId === '136atrovI1bWEMoSgq3X12veiNwh2fzO6') {
+        return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+      }
+      
+      // Default fallback video
+      return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
     }
     
     throw error;
