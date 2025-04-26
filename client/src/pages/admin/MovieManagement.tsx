@@ -58,6 +58,7 @@ import {
   XCircle,
   Copy,
   Link,
+  Info,
 } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 
@@ -109,8 +110,8 @@ export default function MovieManagement() {
   });
   
   const [copyForm, setCopyForm] = useState({
-    sourceFolderId: '',
-    destinationFolderId: '',
+    sourceFolderId: '1K9yzITGEGc9sbXWV0NT9Nj8sIdTcO5hN',
+    destinationFolderId: '10e9ynLaJdenTOQzuq3E9eoBM6JL5LDEF',
   });
   
   // Default URL form for adding movies directly from URL
@@ -279,16 +280,23 @@ export default function MovieManagement() {
       return res.json();
     },
     onSuccess: (data) => {
-      toast({
-        title: t('admin.driveMoviesCopied'),
-        description: t('admin.driveMoviesCopiedSuccess').replace('{count}', data.details.filter((d: any) => d.success).length.toString()),
-      });
-      setOpenCopyDialog(false);
-      // Reset the form
-      setCopyForm({
-        sourceFolderId: '',
-        destinationFolderId: '',
-      });
+      // Show the instructions returned from the API
+      if (data.instructions) {
+        toast({
+          title: data.message || t('admin.useUrlMethod'),
+          description: data.instructions.join('\n'),
+        });
+      } else {
+        toast({
+          title: t('admin.driveMoviesCopied'),
+          description: t('admin.driveMoviesCopiedSuccess').replace('{count}', data.details.filter((d: any) => d.success).length.toString()),
+        });
+      }
+      
+      // Don't close the dialog immediately to let user read instructions
+      setTimeout(() => {
+        setOpenCopyDialog(false);
+      }, 1500);
     },
     onError: (error: any) => {
       toast({
@@ -1273,13 +1281,36 @@ export default function MovieManagement() {
       
       {/* Copy from Google Drive Dialog */}
       <Dialog open={openCopyDialog} onOpenChange={setOpenCopyDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{t('admin.copyFromDrive')}</DialogTitle>
             <DialogDescription>
-              {t('admin.copyFromDriveDescription')}
+              <span className="text-yellow-600 font-medium">⚠️ Note: Direct Drive API access requires OAuth authentication.</span> Please use the "Add from URL" method as described below.
             </DialogDescription>
           </DialogHeader>
+          <div className="mt-4 mb-6 border-l-4 border-blue-500 bg-blue-50 p-4 rounded-sm">
+            <h4 className="font-medium mb-2">Using the URL Method (Recommended)</h4>
+            <ol className="list-decimal ml-5 space-y-1">
+              <li>Open your Google Drive folder directly in a browser</li>
+              <li>Click on each video file you want to add</li>
+              <li>Click the "More actions" menu (three dots) and select "Get link"</li>
+              <li>Copy the link and use it in the "Add from URL" feature</li>
+              <li>Add each video one by one with proper metadata</li>
+            </ol>
+            <Button 
+              className="mt-4" 
+              onClick={() => {
+                setOpenCopyDialog(false);
+                setTimeout(() => {
+                  setUrlForm(defaultUrlForm);
+                  setOpenAddUrlDialog(true);
+                }, 100);
+              }}
+            >
+              <Link className="mr-2 h-4 w-4" />
+              Use Add from URL Instead
+            </Button>
+          </div>
           <form onSubmit={handleCopyDriveMovies}>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
@@ -1289,11 +1320,12 @@ export default function MovieManagement() {
                   name="sourceFolderId"
                   value={copyForm.sourceFolderId}
                   onChange={handleCopyInputChange}
-                  placeholder="1AbCdEfGhIjKlMnOpQrStUv"
+                  placeholder="1K9yzITGEGc9sbXWV0NT9Nj8sIdTcO5hN"
+                  defaultValue="1K9yzITGEGc9sbXWV0NT9Nj8sIdTcO5hN"
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  {t('admin.sourceFolderIdHint')}
+                  Extract from URL: https://drive.google.com/drive/folders/1K9yzITGEGc9sbXWV0NT9Nj8sIdTcO5hN
                 </p>
               </div>
               
@@ -1304,11 +1336,12 @@ export default function MovieManagement() {
                   name="destinationFolderId"
                   value={copyForm.destinationFolderId}
                   onChange={handleCopyInputChange}
-                  placeholder="1AbCdEfGhIjKlMnOpQrStUv"
+                  placeholder="10e9ynLaJdenTOQzuq3E9eoBM6JL5LDEF"
+                  defaultValue="10e9ynLaJdenTOQzuq3E9eoBM6JL5LDEF"
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  {t('admin.destinationFolderIdHint')}
+                  Extract from URL: https://drive.google.com/drive/folders/10e9ynLaJdenTOQzuq3E9eoBM6JL5LDEF
                 </p>
               </div>
             </div>
@@ -1322,8 +1355,8 @@ export default function MovieManagement() {
                 {copyDriveMoviesMutation.isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                <Copy className="mr-2 h-4 w-4" />
-                {t('admin.copyMovies')}
+                <Info className="mr-2 h-4 w-4" />
+                Get Instructions
               </Button>
             </DialogFooter>
           </form>
