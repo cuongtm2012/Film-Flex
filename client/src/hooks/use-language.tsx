@@ -247,6 +247,7 @@ const translations = {
     'admin.description': 'Description',
     'admin.director': 'Director',
     'admin.cast': 'Cast',
+    'admin.videoUrl': 'Video URL',
     'admin.copyFromDrive': 'Copy from Drive',
     'admin.addFromUrl': 'Add from URL',
     'admin.copyMovieDescription': 'Copy a movie from a public Google Drive folder to the website',
@@ -267,6 +268,9 @@ const translations = {
     'admin.driveMoviesCopied': 'Drive Movies Copied',
     'admin.driveMoviesCopiedSuccess': 'Successfully copied {count} movies from Drive',
     'admin.driveMoviesCopyFailed': 'Failed to copy movies from Drive',
+    'admin.creating': 'Creating...',
+    'admin.movieCreated': 'Movie Created',
+    'admin.movieCreatedSuccess': 'Movie has been created successfully',
   },
   vi: {
     // Navbar
@@ -508,6 +512,9 @@ const translations = {
     'admin.driveMoviesCopied': 'Đã sao chép phim từ Drive',
     'admin.driveMoviesCopiedSuccess': 'Đã sao chép thành công {count} phim từ Drive',
     'admin.driveMoviesCopyFailed': 'Không thể sao chép phim từ Drive',
+    'admin.creating': 'Đang tạo...',
+    'admin.movieCreated': 'Phim đã được tạo',
+    'admin.movieCreatedSuccess': 'Phim đã được tạo thành công',
     'admin.editMovieDescription': 'Chỉnh sửa chi tiết phim',
     'admin.posterUrl': 'URL Poster',
     'admin.backdropUrl': 'URL Backdrop',

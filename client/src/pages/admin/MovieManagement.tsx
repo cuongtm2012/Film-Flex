@@ -1320,6 +1320,152 @@ export default function MovieManagement() {
           </form>
         </DialogContent>
       </Dialog>
+      
+      {/* Add Movie from URL Dialog */}
+      <Dialog open={openAddUrlDialog} onOpenChange={setOpenAddUrlDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t('admin.addFromUrl')}</DialogTitle>
+            <DialogDescription>
+              {t('admin.addMovieDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddMovieFromUrl}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="url-title">{t('admin.title')} *</Label>
+                  <Input
+                    id="url-title"
+                    name="title"
+                    value={urlForm.title}
+                    onChange={handleUrlInputChange}
+                    required
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="url-releaseYear">{t('admin.releaseYear')}</Label>
+                    <Input
+                      id="url-releaseYear"
+                      name="releaseYear"
+                      type="number"
+                      value={urlForm.releaseYear}
+                      onChange={handleUrlInputChange}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="url-duration">{t('admin.duration')} (min)</Label>
+                    <Input
+                      id="url-duration"
+                      name="duration"
+                      type="number"
+                      value={urlForm.duration}
+                      onChange={handleUrlInputChange}
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2 col-span-full">
+                  <Label htmlFor="url-description">{t('admin.description')}</Label>
+                  <Textarea
+                    id="url-description"
+                    name="description"
+                    value={urlForm.description}
+                    onChange={handleUrlInputChange}
+                    className="h-20"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="url-posterUrl">{t('admin.posterUrl')}</Label>
+                  <Input
+                    id="url-posterUrl"
+                    name="posterUrl"
+                    value={urlForm.posterUrl}
+                    onChange={handleUrlInputChange}
+                    placeholder="https://example.com/poster.jpg"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="url-backdropUrl">{t('admin.backdropUrl')}</Label>
+                  <Input
+                    id="url-backdropUrl"
+                    name="backdropUrl"
+                    value={urlForm.backdropUrl}
+                    onChange={handleUrlInputChange}
+                    placeholder="https://example.com/backdrop.jpg"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="url-rating">{t('admin.rating')}</Label>
+                  <Select 
+                    name="rating" 
+                    value={urlForm.rating}
+                    onValueChange={(value) => setUrlForm({ ...urlForm, rating: value })}
+                  >
+                    <SelectTrigger id="url-rating">
+                      <SelectValue placeholder={t('admin.selectRating')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="G">G</SelectItem>
+                      <SelectItem value="PG">PG</SelectItem>
+                      <SelectItem value="PG-13">PG-13</SelectItem>
+                      <SelectItem value="R">R</SelectItem>
+                      <SelectItem value="NC-17">NC-17</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="url-director">{t('admin.director')}</Label>
+                  <Input
+                    id="url-director"
+                    name="director"
+                    value={urlForm.director}
+                    onChange={handleUrlInputChange}
+                  />
+                </div>
+                
+                <div className="space-y-2 col-span-full">
+                  <Label htmlFor="url-videoUrl">{t('admin.videoUrl')} *</Label>
+                  <Input
+                    id="url-videoUrl"
+                    name="videoUrl"
+                    value={urlForm.videoUrl}
+                    onChange={handleUrlInputChange}
+                    placeholder="https://example.com/video.mp4"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline" type="button">
+                  {t('admin.cancel')}
+                </Button>
+              </DialogClose>
+              <Button type="submit" disabled={createMovieMutation.isPending}>
+                {createMovieMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {t('admin.creating')}
+                  </>
+                ) : (
+                  t('admin.createMovie')
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
