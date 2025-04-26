@@ -24,7 +24,7 @@ export default function AccessibilityControls() {
     if (!isScreenReaderActive) {
       announceToScreenReader("Screen reader activated");
     }
-  }, [toggleScreenReader, announceToScreenReader]);
+  }, [toggleScreenReader, announceToScreenReader, isScreenReaderActive]);
   
   const handleHighContrastToggle = useCallback(() => {
     toggleHighContrast();
