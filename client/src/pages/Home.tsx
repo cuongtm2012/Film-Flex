@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Play } from "lucide-react";
+import { Play, TrendingUp, Crown } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
 import MobileNavBar from "@/components/MobileNavBar";
 import { API_BASE_URL, Movie, MOVIE_GENRES } from "@/lib/constants";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
 
 const Home = () => {
   // Fetch all movies
@@ -113,6 +115,54 @@ const Home = () => {
           </div>
         </section>
         
+        {/* Premium Content Banner */}
+        <section className="mb-12">
+          <div className="relative overflow-hidden rounded-lg">
+            <div className="bg-gradient-to-r from-yellow-600 to-yellow-400 p-6 md:p-8">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between">
+                <div className="mb-4 md:mb-0">
+                  <h2 className="text-2xl md:text-3xl font-bold text-black mb-2 flex items-center">
+                    <Crown className="h-7 w-7 mr-2" />
+                    Premium Content
+                  </h2>
+                  <p className="text-black/80 max-w-2xl">
+                    Get access to exclusive trending movies and early releases with our premium membership.
+                  </p>
+                </div>
+                
+                <div className="flex space-x-3">
+                  <Button
+                    asChild
+                    className="bg-black text-white hover:bg-black/80"
+                  >
+                    <Link href="/profile?tab=premium">
+                      <a className="flex items-center">
+                        <Crown className="h-4 w-4 mr-2" />
+                        Upgrade Now
+                      </a>
+                    </Link>
+                  </Button>
+                  
+                  {useAuth().user?.userType === "premium" && (
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="border-black text-black hover:bg-black/10"
+                    >
+                      <Link href="/trending">
+                        <a className="flex items-center">
+                          <TrendingUp className="h-4 w-4 mr-2" />
+                          View Trending
+                        </a>
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Action Movies Section */}
         <section className="mb-12">
           <h2 className="text-2xl font-bold mb-4">Action</h2>

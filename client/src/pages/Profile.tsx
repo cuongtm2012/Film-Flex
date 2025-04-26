@@ -220,9 +220,16 @@ export default function ProfilePage() {
                 <Label>Membership</Label>
                 <div className="flex items-center gap-2">
                   {profile?.userType === "premium" ? (
-                    <Badge className="bg-yellow-500 hover:bg-yellow-600 text-black">
-                      <Crown className="h-3 w-3 mr-1" /> Premium
-                    </Badge>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge className="bg-yellow-500 hover:bg-yellow-600 text-black">
+                        <Crown className="h-3 w-3 mr-1" /> Premium
+                      </Badge>
+                      <Link href="/trending">
+                        <Button variant="link" size="sm" className="text-yellow-500 px-0 py-0">
+                          View Premium Content
+                        </Button>
+                      </Link>
+                    </div>
                   ) : (
                     <Badge variant="outline">Normal</Badge>
                   )}
