@@ -25,6 +25,12 @@ const MobileNavBar = () => {
             <span className="text-xs mt-1">{t('nav.search')}</span>
           </div>
         </Link>
+        <Link href="/drive-movies">
+          <div className={`flex flex-col items-center cursor-pointer ${isActive("/drive-movies")}`}>
+            <FileVideo className="h-5 w-5" />
+            <span className="text-xs mt-1">{t('nav.driveMovies')}</span>
+          </div>
+        </Link>
         <Link href="/my-list">
           <div className={`flex flex-col items-center cursor-pointer ${isActive("/my-list")}`}>
             <Film className="h-5 w-5" />
