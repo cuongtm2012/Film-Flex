@@ -61,12 +61,18 @@ const MovieDetails = () => {
     
     // Sort by quality (assuming higher numbers = better quality)
     const sortedSources = [...movie.videoSources].sort((a, b) => {
-      const qualityA = parseInt(a.quality.replace('p', ''));
-      const qualityB = parseInt(b.quality.replace('p', ''));
+      const qualityA = parseInt(a.quality.replace('p', '')) || 0;
+      const qualityB = parseInt(b.quality.replace('p', '')) || 0;
       return qualityB - qualityA;
     });
     
-    return sortedSources[0].url;
+    // Convert to direct streaming URL if it's a Google Drive link
+    const sourceUrl = sortedSources[0].url;
+    if (isGoogleDriveUrl(sourceUrl)) {
+      return convertToDirectStreamingUrl(sourceUrl);
+    }
+    
+    return sourceUrl;
   };
 
   if (isLoading) {
