@@ -14,11 +14,11 @@ const FIREBASE_PROJECT_ID = import.meta.env.VITE_FIREBASE_PROJECT_ID;
 
 // Google API constants
 const API_KEY = GOOGLE_API_KEY;
-// For OAuth, we construct a client ID using the Firebase project ID format
-// Default to a fallback if PROJECT_ID is missing
-const CLIENT_ID = FIREBASE_PROJECT_ID ? 
-  `${FIREBASE_PROJECT_ID}.apps.googleusercontent.com` : 
-  import.meta.env.VITE_FIREBASE_CLIENT_ID;
+// For OAuth client ID from Firebase, we need the full ID which should be provided as a secret
+// The full client ID should be provided in VITE_FIREBASE_CLIENT_ID environment variable
+// If not provided, we'll try to construct it using the project ID, but this might not work
+const CLIENT_ID = import.meta.env.VITE_FIREBASE_CLIENT_ID || 
+  (FIREBASE_PROJECT_ID ? `${FIREBASE_PROJECT_ID}.apps.googleusercontent.com` : '');
 const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
 const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
 
