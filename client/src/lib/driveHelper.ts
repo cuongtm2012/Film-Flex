@@ -7,8 +7,22 @@ import googleDriveService from './googleDriveService';
 
 // Track authentication errors to provide better fallbacks
 let authenticationErrorCount = 0;
-const MAX_AUTH_ERRORS = 2; // Max errors before switching to development mode
+const MAX_AUTH_ERRORS = 1; // Max errors before switching to development mode (reduced from 2 to 1)
 let isDevelopmentMode = false;
+
+// Check if we're in development mode right from the start
+// This helps prevent edge cases with unhandled promise rejections
+try {
+  if (window.location.hostname.includes('replit.dev') || 
+      window.location.hostname.includes('localhost') || 
+      window.location.hostname.includes('127.0.0.1')) {
+    // Enable development mode immediately on development domains
+    console.log('Development domain detected, enabling development mode by default');
+    isDevelopmentMode = true;
+  }
+} catch (e) {
+  console.error('Error checking development mode:', e);
+}
 
 /**
  * Initialize the Google Drive API

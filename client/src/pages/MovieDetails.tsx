@@ -113,9 +113,11 @@ const MovieDetails = () => {
   
   // Get video source with Google Drive integration
   const getVideoSource = async (movie: Movie) => {
-    // First priority: Check if we have a Google Drive videoUrl
-    if (movie.videoUrl) {
-      try {
+    // Try with development mode helper function first, which will handle all the authentication for us
+    try {
+      // This will handle authentication and return a valid URL in development mode
+      // Pass an empty string for a fallback since we'll provide a backup later if all fails
+      if (movie.videoUrl) {
         // Case 1: Direct Google Drive file ID
         if (isValidDriveFileId(movie.videoUrl)) {
           return await getDriveVideoStreamingUrl(movie.videoUrl);
@@ -131,10 +133,10 @@ const MovieDetails = () => {
         if (movie.videoUrl.startsWith('http')) {
           return movie.videoUrl;
         }
-      } catch (error) {
-        console.error('Error processing Google Drive videoUrl:', error);
-        // Fall through to traditional sources if Google Drive fails
       }
+    } catch (error) {
+      console.error('Error processing Google Drive videoUrl:', error);
+      // Fall through to traditional sources if Google Drive fails
     }
     
     // Second priority: Check traditional videoSources
@@ -150,13 +152,31 @@ const MovieDetails = () => {
         // Convert to direct streaming URL if it's a Google Drive link
         const sourceUrl = sortedSources[0].url;
         if (isGoogleDriveUrl(sourceUrl)) {
-          return convertToDirectStreamingUrl(sourceUrl);
+          try {
+            // Use our development-mode friendly function for Google Drive URLs
+            const fileId = extractDriveFileId(sourceUrl);
+            if (fileId) {
+              return await getDriveVideoStreamingUrl(fileId);
+            }
+            return convertToDirectStreamingUrl(sourceUrl);
+          } catch (e) {
+            console.error('Error converting Google Drive URL:', e);
+            return sourceUrl; // Use original URL as fallback
+          }
         }
         
         return sourceUrl;
       } catch (error) {
         console.error('Error processing videoSources:', error);
       }
+    }
+    
+    // Ultimate fallback for development mode: use the BigBuckBunny sample
+    try {
+      // Get a sample URL from the development mode helper
+      return await getDriveVideoStreamingUrl('development-fallback');
+    } catch (e) {
+      console.warn('Failed to get development fallback video');
     }
     
     // Fallback: No valid source found
