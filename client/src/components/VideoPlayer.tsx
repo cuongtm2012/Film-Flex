@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Info, Settings, Play, Pause, SkipForward, Volume2, VolumeX, Subtitles, Maximize } from "lucide-react";
-import { Movie, VideoSource } from "@/lib/constants";
+import { Movie } from "@shared/schema";
 import { useLocation } from "wouter";
-import { convertToDirectStreamingUrl, isGoogleDriveUrl } from "@/lib/googleDriveApi";
+import { getDriveVideoStreamingUrl, extractDriveFileId, isValidDriveFileId } from "@/lib/driveHelper";
 
 // Import Video.js styles
 import "video.js/dist/video-js.css";
@@ -42,32 +42,73 @@ const VideoPlayer = ({ movie, onClose }: VideoPlayerProps) => {
         const videojs = await import("video.js").then(mod => mod.default);
         
         if (videoRef.current) {
+          // Check if this is a Google Drive video (either from videoUrl field or videoSources)
+          let sources = [];
+          
+          if (movie.videoUrl) {
+            // If we have a videoUrl that's a Google Drive ID, prioritize it
+            if (isValidDriveFileId(movie.videoUrl)) {
+              const streamingUrl = await getDriveVideoStreamingUrl(movie.videoUrl);
+              sources.push({
+                src: streamingUrl,
+                type: "video/mp4"
+              });
+            } else if (extractDriveFileId(movie.videoUrl)) {
+              const fileId = extractDriveFileId(movie.videoUrl)!;
+              const streamingUrl = await getDriveVideoStreamingUrl(fileId);
+              sources.push({
+                src: streamingUrl,
+                type: "video/mp4"
+              });
+            }
+          }
+          
+          // If no Drive URL found or we couldn't process it, fall back to videoSources
+          // If no Google Drive source found, try to use regular videoSources
+          if (sources.length === 0 && movie.videoSources) {
+            try {
+              const videoSourcesArray = movie.videoSources as any[];
+              if (Array.isArray(videoSourcesArray)) {
+                sources = videoSourcesArray.map(source => {
+                  if (typeof source === 'object' && source.url) {
+                    // Determine content type based on URL
+                    const sourceUrl = source.url;
+                    const isHLS = sourceUrl.includes('.m3u8');
+                    
+                    // Set appropriate video type
+                    let videoType = "video/mp4";
+                    if (isHLS) {
+                      videoType = "application/x-mpegURL";
+                    }
+                    
+                    return {
+                      src: sourceUrl,
+                      type: videoType
+                    };
+                  }
+                  return null;
+                }).filter(Boolean);
+              }
+            } catch (error) {
+              console.error("Error parsing videoSources:", error);
+            }
+          }
+          
+          // Fallback source if all else fails
+          if (sources.length === 0) {
+            console.warn("No valid video sources found for movie:", movie.title);
+            sources = [{
+              src: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
+              type: "application/x-mpegURL"
+            }];
+          }
+          
           player = videojs(videoRef.current, {
             autoplay: true,
             controls: false, // We'll use custom controls
             responsive: true,
             fluid: true,
-            sources: movie.videoSources.map(source => {
-              // Convert Google Drive URLs to direct streaming URLs
-              const sourceUrl = convertToDirectStreamingUrl(source.url);
-              
-              // Determine content type based on URL
-              const isHLS = sourceUrl.includes('.m3u8');
-              const isGoogleDrive = isGoogleDriveUrl(source.url);
-              
-              // Set appropriate video type
-              let videoType = "video/mp4";
-              if (isHLS) {
-                videoType = "application/x-mpegURL";
-              } else if (isGoogleDrive) {
-                videoType = "video/mp4"; // Default to MP4 for Google Drive files
-              }
-              
-              return {
-                src: sourceUrl,
-                type: videoType
-              };
-            })
+            sources: sources
           });
           
           playerRef.current = player;

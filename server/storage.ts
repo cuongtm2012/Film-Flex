@@ -789,6 +789,7 @@ export class MemStorage implements IStorage {
   }
   
   private initializeMovies() {
+    // Each sample movie now includes the videoUrl field with null as default
     const sampleMovies: Omit<Movie, 'id'>[] = [
       {
         title: "The Dark Knight",
@@ -803,6 +804,7 @@ export class MemStorage implements IStorage {
           { quality: "1080p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" },
           { quality: "720p", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" }
         ],
+        videoUrl: null, // No Google Drive URL yet
         genreIds: [1, 7], // Action, Thriller
         director: "Christopher Nolan",
         cast: ["Christian Bale", "Heath Ledger", "Aaron Eckhart"],
