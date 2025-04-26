@@ -388,12 +388,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Log files to be copied (for admin review)
-      await storage.logAdminActivity({
-        adminId: req.user.id,
-        action: 'COPY_MOVIE_STARTED',
-        target: 'DRIVE',
-        details: `Started copying ${videoFiles.length} videos from ${sourceFolderId} to ${destinationFolderId}`
-      });
+      if (req.user) {
+        await storage.logAdminActivity({
+          adminId: req.user.id,
+          action: 'COPY_MOVIE_STARTED',
+          entityType: 'DRIVE',
+          details: `Started copying ${videoFiles.length} videos from ${sourceFolderId} to ${destinationFolderId}`
+        });
+      }
       
       // For each video file, create a copy in the destination folder
       const copyPromises = videoFiles.map(async (file: any) => {

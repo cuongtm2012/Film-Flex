@@ -106,6 +106,11 @@ export default function MovieManagement() {
     notes: '',
   });
   
+  const [copyForm, setCopyForm] = useState({
+    sourceFolderId: '',
+    destinationFolderId: '',
+  });
+  
   // Fetch movies
   const { data: movies = [], isLoading: isLoadingMovies } = useQuery<Movie[]>({
     queryKey: ['/api/admin/movies'],
@@ -240,6 +245,33 @@ export default function MovieManagement() {
     }
   });
   
+  // Copy movies from Google Drive mutation
+  const copyDriveMoviesMutation = useMutation({
+    mutationFn: async (data: { sourceFolderId: string, destinationFolderId: string }) => {
+      const res = await apiRequest('POST', '/api/drive/copy', data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: t('admin.driveMoviesCopied'),
+        description: t('admin.driveMoviesCopiedSuccess', { count: data.details.filter((d: any) => d.success).length }),
+      });
+      setOpenCopyDialog(false);
+      // Reset the form
+      setCopyForm({
+        sourceFolderId: '',
+        destinationFolderId: '',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('admin.error'),
+        description: error.message || t('admin.driveMoviesCopyFailed'),
+        variant: 'destructive',
+      });
+    }
+  });
+  
   // Format date
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
@@ -287,6 +319,12 @@ export default function MovieManagement() {
   const handleReviewInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setReviewForm({ ...reviewForm, [name]: value });
+  };
+  
+  // Handle input change for copy form
+  const handleCopyInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCopyForm({ ...copyForm, [name]: value });
   };
   
   // Handle select change
@@ -398,6 +436,15 @@ export default function MovieManagement() {
     }
   };
   
+  // Handle copy movie from Google Drive
+  const handleCopyDriveMovies = (e: React.FormEvent) => {
+    e.preventDefault();
+    copyDriveMoviesMutation.mutate({
+      sourceFolderId: copyForm.sourceFolderId,
+      destinationFolderId: copyForm.destinationFolderId
+    });
+  };
+  
   return (
     <div className="space-y-6">
       {/* Tabs */}
@@ -422,10 +469,16 @@ export default function MovieManagement() {
         <TabsContent value="movies" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">{t('admin.movieManagement')}</h2>
-            <Button onClick={() => setOpenCreateDialog(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              {t('admin.addMovie')}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setOpenCopyDialog(true)}>
+                <Copy className="mr-2 h-4 w-4" />
+                {t('admin.copyFromDrive')}
+              </Button>
+              <Button onClick={() => setOpenCreateDialog(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t('admin.addMovie')}
+              </Button>
+            </div>
           </div>
           
           {/* Movies Table */}
@@ -1145,6 +1198,65 @@ export default function MovieManagement() {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Copy from Google Drive Dialog */}
+      <Dialog open={openCopyDialog} onOpenChange={setOpenCopyDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('admin.copyFromDrive')}</DialogTitle>
+            <DialogDescription>
+              {t('admin.copyFromDriveDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCopyDriveMovies}>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="sourceFolderId">{t('admin.sourceFolderId')} *</Label>
+                <Input
+                  id="sourceFolderId"
+                  name="sourceFolderId"
+                  value={copyForm.sourceFolderId}
+                  onChange={handleCopyInputChange}
+                  placeholder="1AbCdEfGhIjKlMnOpQrStUv"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('admin.sourceFolderIdHint')}
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="destinationFolderId">{t('admin.destinationFolderId')} *</Label>
+                <Input
+                  id="destinationFolderId"
+                  name="destinationFolderId"
+                  value={copyForm.destinationFolderId}
+                  onChange={handleCopyInputChange}
+                  placeholder="1AbCdEfGhIjKlMnOpQrStUv"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('admin.destinationFolderIdHint')}
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline" type="button">
+                  {t('admin.cancel')}
+                </Button>
+              </DialogClose>
+              <Button type="submit" disabled={copyDriveMoviesMutation.isPending}>
+                {copyDriveMoviesMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                <Copy className="mr-2 h-4 w-4" />
+                {t('admin.copyMovies')}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
