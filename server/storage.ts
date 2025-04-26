@@ -778,9 +778,10 @@ export class MemStorage implements IStorage {
     if (!existingAdmin) {
       this.createUser({
         username: "admin",
-        password: "admin123", // In a real app, this should be hashed
+        password: "admin", // In a real app, this should be hashed
         email: "admin@filmflex.com",
         role: "admin",
+        userType: "premium",
         isActive: true
       });
     }
