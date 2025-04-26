@@ -370,8 +370,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Step 1: Get files from source folder
+      // Extract folder ID from URL if a full URL was provided
+      const folderId = sourceFolderId.includes('drive.google.com') 
+        ? sourceFolderId.split('/').pop() 
+        : sourceFolderId;
+        
       const sourceFilesResponse = await axios.get(
-        `https://www.googleapis.com/drive/v3/files?q='${sourceFolderId}' in parents&key=${process.env.GOOGLE_API_KEY}&fields=files(id,name,mimeType)`
+        `https://www.googleapis.com/drive/v3/files?q='${folderId}' in parents&key=${process.env.GOOGLE_API_KEY}&fields=files(id,name,mimeType)`
       );
       
       if (!sourceFilesResponse.data.files || sourceFilesResponse.data.files.length === 0) {
@@ -398,6 +403,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // For each video file, create a copy in the destination folder
+      // Extract destination folder ID if a full URL was provided
+      const destId = destinationFolderId.includes('drive.google.com') 
+        ? destinationFolderId.split('/').pop() 
+        : destinationFolderId;
+      
       const copyPromises = videoFiles.map(async (file: any) => {
         try {
           // Use the Drive API to create a copy in the destination folder
@@ -405,7 +415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             `https://www.googleapis.com/drive/v3/files/${file.id}/copy?key=${process.env.GOOGLE_API_KEY}`,
             {
               name: file.name,
-              parents: [destinationFolderId]
+              parents: [destId]
             }
           );
           

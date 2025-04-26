@@ -265,6 +265,7 @@ const translations = {
     'admin.copyMovies': 'Copy Movies',
     'admin.driveMoviesCopied': 'Drive Movies Copied',
     'admin.driveMoviesCopiedSuccess': 'Successfully copied {count} movies from Drive',
+    'admin.driveMoviesCopyFailed': 'Failed to copy movies from Drive',
   },
   vi: {
     // Navbar
@@ -504,6 +505,7 @@ const translations = {
     'admin.selectDestination': 'Chọn thư mục đích',
     'admin.driveMoviesCopied': 'Đã sao chép phim từ Drive',
     'admin.driveMoviesCopiedSuccess': 'Đã sao chép thành công {count} phim từ Drive',
+    'admin.driveMoviesCopyFailed': 'Không thể sao chép phim từ Drive',
     'admin.editMovieDescription': 'Chỉnh sửa chi tiết phim',
     'admin.posterUrl': 'URL Poster',
     'admin.backdropUrl': 'URL Backdrop',
