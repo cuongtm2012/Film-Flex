@@ -6,9 +6,12 @@ import Navbar from "@/components/Navbar";
 import MobileNavBar from "@/components/MobileNavBar";
 import { API_BASE_URL, Movie, MOVIE_GENRES } from "@/lib/constants";
 import { useAuth } from "@/hooks/use-auth";
+import { useLanguage } from "@/hooks/use-language";
 import { Button } from "@/components/ui/button";
 
 const Home = () => {
+  const { t } = useLanguage();
+  
   // Fetch all movies
   const { data: allMovies, isLoading: isLoadingMovies, error: moviesError } = useQuery({
     queryKey: [`${API_BASE_URL}/movies`],
