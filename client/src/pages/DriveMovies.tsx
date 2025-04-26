@@ -10,7 +10,7 @@ import { Movie } from '@/lib/constants';
 import { apiRequest } from '@/lib/queryClient';
 
 // Google Drive folder ID - from shared URL
-// Using a test folder with sample videos - 
+// Using the folder shared by the user
 // Note: If you want to use a different folder, you would replace this ID
 const GOOGLE_DRIVE_FOLDER_ID = '10e9ynLaJdenTOQzuq3E9eoBM6JL5LDEF';
 

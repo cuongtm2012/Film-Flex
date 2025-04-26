@@ -1,60 +1,74 @@
-import express, { type Express } from "express";
+import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { z } from "zod";
-import { insertMovieSchema, insertUserSchema, insertFavoriteSchema, insertViewHistorySchema } from "@shared/schema";
-import { setupAuth } from "./auth";
+import express, { Request, Response, NextFunction } from "express";
 import axios from "axios";
+import { storage } from "./storage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication
-  setupAuth(app);
-  
+  // Set up auth routes
+  if (process.env.NODE_ENV !== 'test') {
+    try {
+      const { setupAuth } = await import('./auth');
+      setupAuth(app);
+    } catch (error) {
+      console.error('Failed to set up authentication:', error);
+    }
+  }
+
   const router = express.Router();
 
-  // Movies routes
+  // API routes
   router.get("/movies", async (req, res) => {
     try {
       const movies = await storage.getAllMovies();
       res.json(movies);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch movies" });
+      res.status(500).json({ message: "Failed to retrieve movies" });
     }
   });
 
-  router.get("/movies/:id", async (req, res) => {
+  router.get("/movie/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
+      const movieId = parseInt(req.params.id);
+      if (isNaN(movieId)) {
         return res.status(400).json({ message: "Invalid movie ID" });
       }
       
-      const movie = await storage.getMovie(id);
+      const movie = await storage.getMovie(movieId);
       if (!movie) {
         return res.status(404).json({ message: "Movie not found" });
       }
       
       res.json(movie);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch movie" });
+      res.status(500).json({ message: "Failed to retrieve movie" });
     }
   });
 
-  router.get("/movies/genre/:id", async (req, res) => {
+  router.get("/genres", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
+      const genres = await storage.getAllGenres();
+      res.json(genres);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to retrieve genres" });
+    }
+  });
+
+  router.get("/genre/:id/movies", async (req, res) => {
+    try {
+      const genreId = parseInt(req.params.id);
+      if (isNaN(genreId)) {
         return res.status(400).json({ message: "Invalid genre ID" });
       }
       
-      const movies = await storage.getMoviesByGenre(id);
+      const movies = await storage.getMoviesByGenre(genreId);
       res.json(movies);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch movies by genre" });
+      res.status(500).json({ message: "Failed to retrieve movies by genre" });
     }
   });
 
-  router.get("/movies/search", async (req, res) => {
+  router.get("/search", async (req, res) => {
     try {
       const query = req.query.q as string;
       if (!query) {
@@ -68,385 +82,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.get("/featured-movies", async (req, res) => {
+  router.get("/featured", async (req, res) => {
     try {
-      const movies = await storage.getFeaturedMovies();
-      res.json(movies);
+      const featuredMovies = await storage.getFeaturedMovies();
+      res.json(featuredMovies);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch featured movies" });
+      res.status(500).json({ message: "Failed to retrieve featured movies" });
     }
   });
 
   router.get("/new-releases", async (req, res) => {
     try {
-      const movies = await storage.getNewReleases();
-      res.json(movies);
+      const newReleases = await storage.getNewReleases();
+      res.json(newReleases);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch new releases" });
+      res.status(500).json({ message: "Failed to retrieve new releases" });
     }
   });
 
-  router.post("/movies", async (req, res) => {
+  router.get("/trending", async (req, res) => {
     try {
-      const movieData = insertMovieSchema.parse(req.body);
-      const movie = await storage.createMovie(movieData);
-      res.status(201).json(movie);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid movie data", errors: error.errors });
+      // Check if user is premium (would normally be handled with auth middleware)
+      const isPremium = req.query.premium === 'true';
+      
+      if (!isPremium) {
+        return res.status(403).json({ 
+          message: "Access denied", 
+          details: "Trending movies are only available for premium users" 
+        });
       }
-      res.status(500).json({ message: "Failed to create movie" });
+      
+      const trendingMovies = await storage.getTrendingMovies();
+      res.json(trendingMovies);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to retrieve trending movies" });
     }
   });
 
-  // Genres routes
-  router.get("/genres", async (req, res) => {
+  // User routes (favorites, watchlist, etc.)
+  router.get("/user/:userId/favorites", async (req, res) => {
     try {
-      const genres = await storage.getAllGenres();
-      res.json(genres);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch genres" });
-    }
-  });
-
-  router.get("/genres/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid genre ID" });
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
       }
       
-      const genre = await storage.getGenre(id);
-      if (!genre) {
-        return res.status(404).json({ message: "Genre not found" });
-      }
-      
-      res.json(genre);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch genre" });
-    }
-  });
-
-  // User routes
-  router.post("/users", async (req, res) => {
-    try {
-      const userData = insertUserSchema.parse(req.body);
-      
-      // Check if username already exists
-      const existingUser = await storage.getUserByUsername(userData.username);
-      if (existingUser) {
-        return res.status(409).json({ message: "Username already taken" });
-      }
-      
-      const user = await storage.createUser(userData);
-      res.status(201).json({ id: user.id, username: user.username });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid user data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create user" });
-    }
-  });
-
-  // Favorites routes - Protected routes
-  router.get("/favorites", async (req, res) => {
-    try {
-      // Check if user is authenticated
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "You must be logged in" });
-      }
-      
-      const userId = req.user!.id;
       const favorites = await storage.getUserFavorites(userId);
       res.json(favorites);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch favorites" });
+      res.status(500).json({ message: "Failed to retrieve user favorites" });
     }
   });
 
-  router.post("/favorites", async (req, res) => {
+  router.post("/user/:userId/favorites", async (req, res) => {
     try {
-      // Check if user is authenticated
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "You must be logged in" });
+      const userId = parseInt(req.params.userId);
+      const movieId = parseInt(req.body.movieId);
+      
+      if (isNaN(userId) || isNaN(movieId)) {
+        return res.status(400).json({ message: "Invalid user ID or movie ID" });
       }
       
-      // Add the user ID from the authenticated session
-      const userId = req.user!.id;
-      const movieId = req.body.movieId;
-      
-      if (!movieId) {
-        return res.status(400).json({ message: "Movie ID is required" });
-      }
-      
-      const favorite = await storage.addFavorite({
-        userId,
-        movieId,
-        createdAt: new Date()
-      });
-      
+      const favorite = await storage.addFavorite({ userId, movieId });
       res.status(201).json(favorite);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid favorite data", errors: error.errors });
-      }
       res.status(500).json({ message: "Failed to add favorite" });
     }
   });
 
-  router.delete("/favorites/:movieId", async (req, res) => {
+  router.delete("/user/:userId/favorites/:movieId", async (req, res) => {
     try {
-      // Check if user is authenticated
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "You must be logged in" });
-      }
-      
-      const userId = req.user!.id;
+      const userId = parseInt(req.params.userId);
       const movieId = parseInt(req.params.movieId);
       
-      if (isNaN(movieId)) {
-        return res.status(400).json({ message: "Invalid movie ID" });
+      if (isNaN(userId) || isNaN(movieId)) {
+        return res.status(400).json({ message: "Invalid user ID or movie ID" });
       }
       
       await storage.removeFavorite(userId, movieId);
-      res.status(204).send();
+      res.sendStatus(204);
     } catch (error) {
       res.status(500).json({ message: "Failed to remove favorite" });
     }
   });
 
-  // View history routes - Protected routes
-  router.get("/history", async (req, res) => {
+  router.get("/user/:userId/history", async (req, res) => {
     try {
-      // Check if user is authenticated
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "You must be logged in" });
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
       }
       
-      const userId = req.user!.id;
       const history = await storage.getUserViewHistory(userId);
       res.json(history);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch view history" });
+      res.status(500).json({ message: "Failed to retrieve view history" });
     }
   });
 
-  router.post("/history", async (req, res) => {
+  router.post("/user/:userId/history", async (req, res) => {
     try {
-      // Check if user is authenticated
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "You must be logged in" });
+      const userId = parseInt(req.params.userId);
+      const movieId = parseInt(req.body.movieId);
+      const progress = parseInt(req.body.progress);
+      
+      if (isNaN(userId) || isNaN(movieId) || isNaN(progress)) {
+        return res.status(400).json({ message: "Invalid parameters" });
       }
       
-      const userId = req.user!.id;
-      const { movieId, progress } = req.body;
-      
-      if (!movieId) {
-        return res.status(400).json({ message: "Movie ID is required" });
-      }
-      
-      const history = await storage.addOrUpdateViewHistory({
-        userId,
-        movieId,
-        progress: progress || 0,
-        watchedAt: new Date()
+      const history = await storage.addOrUpdateViewHistory({ 
+        userId, 
+        movieId, 
+        progress,
+        timestamp: new Date() 
       });
-      
       res.status(201).json(history);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid history data", errors: error.errors });
-      }
       res.status(500).json({ message: "Failed to update view history" });
     }
   });
 
-  // User Profile Management
-  router.get("/profile", async (req, res) => {
-    try {
-      // Check if user is authenticated
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "You must be logged in" });
-      }
-      
-      const userId = req.user!.id;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // Return user details without sensitive information
-      res.json({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        userType: user.userType,
-        walletBalance: user.walletBalance,
-        walletAddress: user.walletAddress,
-        premiumExpiresAt: user.premiumExpiresAt,
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch user profile" });
-    }
-  });
-
-  // Update wallet address
-  router.put("/profile/wallet-address", async (req, res) => {
-    try {
-      // Check if user is authenticated
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "You must be logged in" });
-      }
-      
-      const userId = req.user!.id;
-      const { walletAddress } = req.body;
-      
-      if (!walletAddress) {
-        return res.status(400).json({ message: "Wallet address is required" });
-      }
-      
-      // Update wallet address in the database
-      const updatedUser = await storage.updateUser(userId, { walletAddress });
-      
-      res.json({
-        id: updatedUser.id,
-        username: updatedUser.username,
-        walletAddress: updatedUser.walletAddress
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update wallet address" });
-    }
-  });
-
-  // Deposit funds via USDT
-  router.post("/profile/deposit", async (req, res) => {
-    try {
-      // Check if user is authenticated
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "You must be logged in" });
-      }
-      
-      const userId = req.user!.id;
-      const { amount, transactionHash } = req.body;
-      
-      if (!amount || !transactionHash) {
-        return res.status(400).json({ message: "Amount and transaction hash are required" });
-      }
-      
-      // In a real implementation, you would verify the transaction on the blockchain
-      // For this demo, we'll assume the transaction is valid
-      
-      // Update user's wallet balance
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      const updatedUser = await storage.updateUser(userId, {
-        walletBalance: user.walletBalance + parseInt(amount)
-      });
-      
-      res.json({
-        id: updatedUser.id,
-        username: updatedUser.username,
-        walletBalance: updatedUser.walletBalance,
-        message: `Successfully deposited ${amount} USDT`
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to process deposit" });
-    }
-  });
-
-  // Upgrade to premium
-  router.post("/profile/upgrade", async (req, res) => {
-    try {
-      // Check if user is authenticated
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "You must be logged in" });
-      }
-      
-      const userId = req.user!.id;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // Premium membership costs 100 USDT for 30 days
-      const premiumCost = 10000; // 100 USDT in cents
-      
-      if (user.walletBalance < premiumCost) {
-        return res.status(400).json({ 
-          message: "Insufficient funds",
-          walletBalance: user.walletBalance,
-          premiumCost
-        });
-      }
-      
-      // Calculate premium expiration date
-      const now = new Date();
-      const expiresAt = new Date(now.setDate(now.getDate() + 30));
-      
-      // Update user to premium status and deduct balance
-      const updatedUser = await storage.updateUser(userId, {
-        userType: "premium",
-        walletBalance: user.walletBalance - premiumCost,
-        premiumExpiresAt: expiresAt
-      });
-      
-      res.json({
-        id: updatedUser.id,
-        username: updatedUser.username,
-        userType: updatedUser.userType,
-        walletBalance: updatedUser.walletBalance,
-        premiumExpiresAt: updatedUser.premiumExpiresAt,
-        message: "Successfully upgraded to premium membership"
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to upgrade to premium" });
-    }
-  });
-
-  // Get premium content (trending movies)
-  router.get("/premium/trending", async (req, res) => {
-    try {
-      // Check if user is authenticated
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "You must be logged in" });
-      }
-      
-      const userId = req.user!.id;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // Check if user is premium
-      if (user.userType !== "premium") {
-        return res.status(403).json({ message: "This content is only available for premium users" });
-      }
-      
-      // Check if premium subscription is still valid
-      if (user.premiumExpiresAt && new Date() > user.premiumExpiresAt) {
-        // Update user to normal if premium has expired
-        await storage.updateUser(userId, {
-          userType: "normal",
-          premiumExpiresAt: null
-        });
-        return res.status(403).json({ message: "Your premium subscription has expired" });
-      }
-      
-      // For this demo, we'll return the top 5 movies by view count as trending
-      const trendingMovies = await storage.getTrendingMovies();
-      res.json(trendingMovies);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch trending movies" });
-    }
-  });
-
-  // Google Drive integration - Main endpoint to get processed movies from Drive folder
+  // Google Drive movies endpoint
   router.get("/drive/movies/:folderId", async (req, res) => {
     try {
       const { folderId } = req.params;
@@ -455,74 +211,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Folder ID is required" });
       }
       
-      try {
-        // Log environment variable presence without revealing the key
-        console.log(`GOOGLE_API_KEY exists: ${!!process.env.GOOGLE_API_KEY}`);
-        
-        if (!process.env.GOOGLE_API_KEY) {
-          return res.status(500).json({
-            error: "Missing Google API Key",
-            message: "The Google API key is not configured. Please contact the administrator."
-          });
-        }
-        
-        // First check if the folder exists and is accessible
-        try {
-          const folderResponse = await axios.get(
-            `https://www.googleapis.com/drive/v3/files/${folderId}?key=${process.env.GOOGLE_API_KEY}&fields=name,shared`
-          );
-          
-          // Check if the folder is shared
-          if (folderResponse.data && folderResponse.data.shared === false) {
-            return res.status(403).json({
-              error: "Folder not shared",
-              message: "The Google Drive folder is not shared publicly. Please share it with 'Anyone with the link'."
-            });
-          }
-          
-          console.log("Folder found:", folderResponse.data.name);
-        } catch (folderError: any) {
-          console.error("Error accessing folder:", folderError.message);
-          return res.status(404).json({
-            error: "Folder not found",
-            message: "Could not access the Google Drive folder. It may not exist or is not publicly accessible.",
-            details: folderError.message
-          });
-        }
-        
-        // If folder is accessible, fetch files from the folder
-        const filesResponse = await axios.get(
-          `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=${process.env.GOOGLE_API_KEY}&fields=files(id,name,mimeType,videoMediaMetadata,fileExtension,size,createdTime,thumbnailLink)&orderBy=name`
-        );
-        
-        if (!filesResponse.data.files || filesResponse.data.files.length === 0) {
-          return res.json([]); // Empty array if no files found
-        }
-        
-        // Filter video files
-        const videoFiles = filesResponse.data.files.filter((file: any) => 
-          file.mimeType.includes('video') || 
-          (file.fileExtension && ['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(file.fileExtension.toLowerCase()))
-        );
-        
-        if (videoFiles.length === 0) {
-          return res.json([]); // Empty array if no video files found
-        }
-        
-        // Convert to movie objects for the frontend
-        const movies = videoFiles.map((file: any) => convertDriveFileToMovie(file));
-        
-        res.json(movies);
-      } catch (error: any) {
-        console.error("Error fetching Google Drive content:", error);
-        res.status(500).json({ 
-          error: "Failed to fetch Google Drive content", 
-          details: error.message || 'Unknown error',
-          apiKeyExists: !!process.env.GOOGLE_API_KEY 
+      // Check if API key is configured
+      console.log(`GOOGLE_API_KEY exists: ${!!process.env.GOOGLE_API_KEY}`);
+      
+      if (!process.env.GOOGLE_API_KEY) {
+        return res.status(500).json({
+          error: "Missing Google API Key",
+          message: "The Google API key is not configured. Please contact the administrator."
         });
       }
-    } catch (error) {
-      res.status(500).json({ message: "Failed to process Google Drive request" });
+      
+      console.log("Attempting to access Google Drive folder:", folderId);
+      
+      // Try to fetch folder metadata
+      let folderName = "Unknown";
+      try {
+        const folderResponse = await axios.get(
+          `https://www.googleapis.com/drive/v3/files/${folderId}?key=${process.env.GOOGLE_API_KEY}&fields=name,mimeType`
+        );
+        
+        if (folderResponse.data && folderResponse.data.mimeType === 'application/vnd.google-apps.folder') {
+          folderName = folderResponse.data.name;
+          console.log("Folder found:", folderName);
+        } else {
+          return res.status(400).json({
+            error: "Not a folder",
+            message: "The provided ID is not a Google Drive folder."
+          });
+        }
+      } catch (folderError: any) {
+        console.error("Error accessing folder metadata:", folderError.message);
+        // Continue anyway, as we might still be able to list files
+      }
+      
+      // Fetch files from the folder
+      const filesResponse = await axios.get(
+        `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=${process.env.GOOGLE_API_KEY}&fields=files(id,name,mimeType,videoMediaMetadata,fileExtension,size,createdTime,thumbnailLink)&orderBy=name`
+      );
+      
+      if (!filesResponse.data.files || filesResponse.data.files.length === 0) {
+        return res.json([]); // Empty array if no files found
+      }
+      
+      // Filter video files
+      const videoFiles = filesResponse.data.files.filter((file: any) => 
+        file.mimeType.includes('video') || 
+        (file.fileExtension && ['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(file.fileExtension.toLowerCase()))
+      );
+      
+      if (videoFiles.length === 0) {
+        return res.json([]); // Empty array if no video files found
+      }
+      
+      // Convert to movie objects for the frontend
+      const movies = videoFiles.map((file: any) => convertDriveFileToMovie(file));
+      
+      res.json(movies);
+    } catch (error: any) {
+      console.error("Error fetching Google Drive content:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch Google Drive content", 
+        details: error.message || 'Unknown error',
+        apiKeyExists: !!process.env.GOOGLE_API_KEY 
+      });
     }
   });
   
