@@ -474,6 +474,10 @@ export default function MovieManagement() {
                 <Copy className="mr-2 h-4 w-4" />
                 {t('admin.copyFromDrive')}
               </Button>
+              <Button variant="outline" onClick={() => setOpenCreateDialog(true)}>
+                <Link className="mr-2 h-4 w-4" />
+                {t('admin.addFromUrl')}
+              </Button>
               <Button onClick={() => setOpenCreateDialog(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 {t('admin.addMovie')}

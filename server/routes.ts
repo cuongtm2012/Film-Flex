@@ -454,6 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Error copying files:', error);
+      console.error('Full error details:', JSON.stringify(error, null, 2));
       res.status(500).json({ 
         message: "Failed to copy files", 
         error: (error as any).message 
