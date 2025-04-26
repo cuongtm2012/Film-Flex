@@ -13,6 +13,7 @@ import MyList from "@/pages/MyList";
 import AuthPage from "@/pages/auth-page";
 import Profile from "@/pages/Profile";
 import TrendingMovies from "@/pages/TrendingMovies";
+import DriveMovies from "@/pages/DriveMovies";
 import { AuthProvider } from "@/hooks/use-auth";
 import { LanguageProvider } from "@/hooks/use-language";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/search" component={Search} />
       <Route path="/genre/:id" component={GenreMovies} />
       <Route path="/genres" component={GenreMovies} />
+      <Route path="/drive-movies" component={DriveMovies} />
       <ProtectedRoute path="/my-list" component={MyList} />
       <ProtectedRoute path="/profile" component={Profile} />
       <ProtectedRoute path="/trending" component={TrendingMovies} />

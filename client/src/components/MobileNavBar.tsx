@@ -1,4 +1,4 @@
-import { Home, Search, Film, User } from "lucide-react";
+import { Home, Search, Film, User, FileVideo } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useLanguage } from "@/hooks/use-language";
 

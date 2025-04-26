@@ -52,6 +52,9 @@ const Navbar = () => {
           <Link href="/genres">
             <span className={`${isActive("/genres")} cursor-pointer`}>{t('nav.genres')}</span>
           </Link>
+          <Link href="/drive-movies">
+            <span className={`${isActive("/drive-movies")} cursor-pointer text-white`}>{t('nav.driveMovies')}</span>
+          </Link>
           {user && (
             <>
               <Link href="/my-list">

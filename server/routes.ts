@@ -446,6 +446,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Drive integration
+  router.get("/drive/folder/:folderId", async (req, res) => {
+    try {
+      const { folderId } = req.params;
+      
+      if (!folderId) {
+        return res.status(400).json({ message: "Folder ID is required" });
+      }
+      
+      try {
+        // Fetch files from the folder
+        const filesResponse = await axios.get(
+          `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=${process.env.GOOGLE_API_KEY}&fields=files(id,name,mimeType,videoMediaMetadata,fileExtension,size,createdTime,thumbnailLink)&orderBy=name`
+        );
+        
+        // Fetch folder name
+        const folderResponse = await axios.get(
+          `https://www.googleapis.com/drive/v3/files/${folderId}?key=${process.env.GOOGLE_API_KEY}&fields=name`
+        );
+        
+        // Filter video files
+        const videoFiles = filesResponse.data.files.filter((file: any) => 
+          file.mimeType.includes('video') || 
+          (file.fileExtension && ['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(file.fileExtension.toLowerCase()))
+        );
+        
+        res.json({
+          id: folderId,
+          name: folderResponse.data.name || 'Movies Folder',
+          files: videoFiles
+        });
+      } catch (error) {
+        console.error("Error fetching Google Drive content:", error);
+        res.status(500).json({ error: "Failed to fetch Google Drive content" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to process Google Drive request" });
+    }
+  });
+  
+  // Google Drive streaming
+  router.get("/drive/stream/:fileId", async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      
+      if (!fileId) {
+        return res.status(400).json({ message: "File ID is required" });
+      }
+      
+      // Return a direct link to stream from Google Drive
+      res.json({ 
+        url: `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${process.env.GOOGLE_API_KEY}`,
+        mimeType: "video/mp4" 
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate streaming URL" });
+    }
+  });
+  
   // Proxy for video streaming
   router.get("/stream/:movieId", async (req, res) => {
     try {
