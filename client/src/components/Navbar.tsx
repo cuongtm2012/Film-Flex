@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
-import { Search, LogOut, User } from "lucide-react";
+import { Search, LogOut, User, Wallet, Bookmark } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   DropdownMenu,
@@ -93,6 +93,19 @@ const Navbar = () => {
                   <User className="mr-2 h-4 w-4" />
                   <span>{user.username}</span>
                 </DropdownMenuItem>
+                <Link href="/profile" className="w-full">
+                  <DropdownMenuItem>
+                    <Wallet className="mr-2 h-4 w-4" />
+                    <span>My Profile</span>
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/my-list" className="w-full">
+                  <DropdownMenuItem>
+                    <Bookmark className="mr-2 h-4 w-4" />
+                    <span>My List</span>
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>

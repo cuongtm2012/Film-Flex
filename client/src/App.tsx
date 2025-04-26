@@ -11,6 +11,7 @@ import Search from "@/pages/Search";
 import GenreMovies from "@/pages/GenreMovies";
 import MyList from "@/pages/MyList";
 import AuthPage from "@/pages/auth-page";
+import Profile from "@/pages/Profile";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
 
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/genre/:id" component={GenreMovies} />
       <Route path="/genres" component={GenreMovies} />
       <ProtectedRoute path="/my-list" component={MyList} />
+      <ProtectedRoute path="/profile" component={Profile} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
