@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Info, Settings, Play, Pause, SkipForward, Volume2, VolumeX, Subtitles, Maximize } from "lucide-react";
 import { Movie, VideoSource } from "@/lib/constants";
 import { useLocation } from "wouter";
-import { convertToGoogleDriveStreamingUrl } from "@/lib/driveHelper";
+import { convertToDirectStreamingUrl, isGoogleDriveUrl } from "@/lib/googleDriveApi";
 
 // Import Video.js styles
 import "video.js/dist/video-js.css";
@@ -49,14 +49,23 @@ const VideoPlayer = ({ movie, onClose }: VideoPlayerProps) => {
             fluid: true,
             sources: movie.videoSources.map(source => {
               // Convert Google Drive URLs to direct streaming URLs
-              const sourceUrl = convertToGoogleDriveStreamingUrl(source.url);
+              const sourceUrl = convertToDirectStreamingUrl(source.url);
               
               // Determine content type based on URL
               const isHLS = sourceUrl.includes('.m3u8');
+              const isGoogleDrive = isGoogleDriveUrl(source.url);
+              
+              // Set appropriate video type
+              let videoType = "video/mp4";
+              if (isHLS) {
+                videoType = "application/x-mpegURL";
+              } else if (isGoogleDrive) {
+                videoType = "video/mp4"; // Default to MP4 for Google Drive files
+              }
               
               return {
                 src: sourceUrl,
-                type: isHLS ? "application/x-mpegURL" : "video/mp4"
+                type: videoType
               };
             })
           });

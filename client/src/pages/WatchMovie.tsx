@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Play } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { API_BASE_URL, Movie } from "@/lib/constants";
-import { convertToGoogleDriveStreamingUrl } from "@/lib/driveHelper";
+import { convertToDirectStreamingUrl } from "@/lib/googleDriveApi";
 
 const WatchMovie = () => {
   const [, setLocation] = useLocation();
@@ -80,7 +80,7 @@ const WatchMovie = () => {
     
     // Convert Google Drive URLs to streaming URLs
     const sourceUrl = sortedSources[0].url;
-    return convertToGoogleDriveStreamingUrl(sourceUrl);
+    return convertToDirectStreamingUrl(sourceUrl);
   };
 
   return (

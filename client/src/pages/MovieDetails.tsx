@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Play, Plus, Star } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { API_BASE_URL, Movie, formatDuration, getGenreNames } from "@/lib/constants";
+import { convertToDirectStreamingUrl, isGoogleDriveUrl } from "@/lib/googleDriveApi";
 
 const MovieDetails = () => {
   const [, setLocation] = useLocation();
