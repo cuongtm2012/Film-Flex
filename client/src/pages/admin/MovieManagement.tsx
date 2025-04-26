@@ -1321,7 +1321,6 @@ export default function MovieManagement() {
                   value={copyForm.sourceFolderId}
                   onChange={handleCopyInputChange}
                   placeholder="1K9yzITGEGc9sbXWV0NT9Nj8sIdTcO5hN"
-                  defaultValue="1K9yzITGEGc9sbXWV0NT9Nj8sIdTcO5hN"
                   required
                 />
                 <p className="text-xs text-muted-foreground">
@@ -1337,7 +1336,6 @@ export default function MovieManagement() {
                   value={copyForm.destinationFolderId}
                   onChange={handleCopyInputChange}
                   placeholder="10e9ynLaJdenTOQzuq3E9eoBM6JL5LDEF"
-                  defaultValue="10e9ynLaJdenTOQzuq3E9eoBM6JL5LDEF"
                   required
                 />
                 <p className="text-xs text-muted-foreground">
