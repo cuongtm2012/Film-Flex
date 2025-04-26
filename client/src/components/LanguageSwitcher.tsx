@@ -1,46 +1,28 @@
-import { useState } from 'react';
 import { useLanguage } from '@/hooks/use-language';
-import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { Globe } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 export default function LanguageSwitcher() {
   const { language, setLanguage } = useLanguage();
-  const [open, setOpen] = useState(false);
   
-  const languages = [
-    { code: 'en', label: 'English' },
-    { code: 'vi', label: 'Tiếng Việt' }
-  ] as const;
-  
-  const handleLanguageChange = (code: 'en' | 'vi') => {
-    setLanguage(code);
-    setOpen(false);
+  const handleLanguageChange = () => {
+    setLanguage(language === 'en' ? 'vi' : 'en');
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-          <Globe className="h-5 w-5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-36">
-        {languages.map((lang) => (
-          <DropdownMenuItem
-            key={lang.code}
-            className={`${language === lang.code ? 'bg-accent font-medium' : ''} cursor-pointer`}
-            onClick={() => handleLanguageChange(lang.code)}
-          >
-            {lang.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center gap-2">
+      <Globe className="h-4 w-4 text-gray-400" />
+      <div className="flex items-center space-x-2">
+        <Label htmlFor="language-mode" className="text-xs text-gray-400">
+          {language === 'en' ? 'EN' : 'VI'}
+        </Label>
+        <Switch
+          id="language-mode"
+          checked={language === 'vi'}
+          onCheckedChange={handleLanguageChange}
+        />
+      </div>
+    </div>
   );
 }
