@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { z } from "zod";
 import { insertMovieSchema, insertUserSchema, insertFavoriteSchema, insertViewHistorySchema } from "@shared/schema";
 import { setupAuth } from "./auth";
+import axios from "axios";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
