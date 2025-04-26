@@ -35,7 +35,7 @@ const Home = () => {
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
-          <p className="text-white">Loading movies...</p>
+          <p className="text-white">{t('loading.movies')}</p>
         </div>
       </div>
     );
@@ -45,9 +45,9 @@ const Home = () => {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center max-w-md">
-          <h2 className="text-2xl font-bold text-white mb-2">Oops!</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">{t('error.title')}</h2>
           <p className="text-gray-300">
-            We encountered an error while loading movies. Please try again later.
+            {t('error.movies')}
           </p>
         </div>
       </div>
@@ -88,7 +88,7 @@ const Home = () => {
         
         {/* New Releases Section */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4">New Releases</h2>
+          <h2 className="text-2xl font-bold mb-4">{t('home.newReleases')}</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {newReleases?.slice(0, 5).map((movie: Movie) => (
               <Link key={movie.id} href={`/movie/${movie.id}`}>
@@ -126,10 +126,10 @@ const Home = () => {
                 <div className="mb-4 md:mb-0">
                   <h2 className="text-2xl md:text-3xl font-bold text-black mb-2 flex items-center">
                     <Crown className="h-7 w-7 mr-2" />
-                    Premium Content
+                    {t('premium.title')}
                   </h2>
                   <p className="text-black/80 max-w-2xl">
-                    Get access to exclusive trending movies and early releases with our premium membership.
+                    {t('premium.description')}
                   </p>
                 </div>
                 
@@ -139,7 +139,7 @@ const Home = () => {
                       className="bg-black text-white hover:bg-black/80 flex items-center"
                     >
                       <Crown className="h-4 w-4 mr-2" />
-                      Upgrade Now
+                      {t('premium.upgrade')}
                     </Button>
                   </Link>
                   
@@ -150,7 +150,7 @@ const Home = () => {
                         className="border-black text-black hover:bg-black/10 flex items-center"
                       >
                         <TrendingUp className="h-4 w-4 mr-2" />
-                        View Trending
+                        {t('premium.viewTrending')}
                       </Button>
                     </Link>
                   )}
@@ -162,7 +162,7 @@ const Home = () => {
 
         {/* Action Movies Section */}
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4">Action</h2>
+          <h2 className="text-2xl font-bold mb-4">{t('genres.action')}</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {getMoviesByGenre(1).slice(0, 5).map((movie: Movie) => (
               <Link key={movie.id} href={`/movie/${movie.id}`}>
