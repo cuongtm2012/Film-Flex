@@ -94,9 +94,10 @@ export async function getDriveVideoStreamingUrl(fileId: string): Promise<string>
     
     // Map specific fileIds to different sample videos
     if (fileId === '1-irIEcfPe0zgPacX-XcMGv1zoB5hMWwI') {
-      return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
-    } else if (fileId === '136atrovI1bWEMoSgq3X12veiNwh2fzO6') {
+      console.log('Kung Fu Panda 2 video requested, providing sample video');
       return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+    } else if (fileId === '136atrovI1bWEMoSgq3X12veiNwh2fzO6') {
+      return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
     }
     
     // Use a sample video from the web that's publicly accessible
@@ -123,9 +124,10 @@ export async function getDriveVideoStreamingUrl(fileId: string): Promise<string>
       
       // Return different sample videos based on fileId
       if (fileId === '1-irIEcfPe0zgPacX-XcMGv1zoB5hMWwI') {
-        return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
-      } else if (fileId === '136atrovI1bWEMoSgq3X12veiNwh2fzO6') {
+        console.log('Kung Fu Panda 2 video requested (fallback mode), providing sample video');
         return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+      } else if (fileId === '136atrovI1bWEMoSgq3X12veiNwh2fzO6') {
+        return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
       }
       
       // Default fallback video
