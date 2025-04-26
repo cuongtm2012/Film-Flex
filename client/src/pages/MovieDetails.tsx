@@ -50,8 +50,6 @@ const MovieDetails = () => {
     }
   ]);
   const [newComment, setNewComment] = useState("");
-  const [userRating, setUserRating] = useState<number | null>(null);
-  const [totalRatings, setTotalRatings] = useState<{ value: number; count: number }>({ value: 4.5, count: 178 });
   const [showComments, setShowComments] = useState(true);
   
   // Multi-angle viewing mode state
@@ -89,22 +87,7 @@ const MovieDetails = () => {
     });
   };
   
-  // Submit a rating
-  const handleRateMovie = (rating: number) => {
-    setUserRating(rating);
-    
-    // Update total ratings
-    const newTotalValue = ((totalRatings.value * totalRatings.count) + rating) / (totalRatings.count + 1);
-    setTotalRatings({
-      value: parseFloat(newTotalValue.toFixed(1)),
-      count: totalRatings.count + 1
-    });
-    
-    toast({
-      title: "Rating Submitted",
-      description: `You rated this movie ${rating} stars!`,
-    });
-  };
+
   
   // Change viewing angle
   const handleChangeAngle = (angleId: string) => {
@@ -565,26 +548,7 @@ const MovieDetails = () => {
               </div>
             </div>
             
-            {/* User Rating Component */}
-            <div className="bg-zinc-900/50 p-3 rounded-lg">
-              <div className="text-sm text-gray-300 mb-2">Rate this movie:</div>
-              <div className="flex gap-1">
-                {[1, 2, 3, 4, 5].map(star => (
-                  <button
-                    key={star}
-                    onClick={() => handleRateMovie(star)}
-                    className={`p-1 rounded-full transition-colors ${userRating === star ? 'bg-red-600/30' : 'hover:bg-zinc-800'}`}
-                  >
-                    <Star 
-                      className={`h-6 w-6 ${star <= (userRating || 0) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-500'}`} 
-                    />
-                  </button>
-                ))}
-              </div>
-              <div className="text-xs text-gray-400 mt-1">
-                {totalRatings.count} ratings · Average: {totalRatings.value}
-              </div>
-            </div>
+
           </div>
         </div>
       
