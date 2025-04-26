@@ -170,7 +170,7 @@ const MovieDetails = () => {
                 {movie.description}
               </p>
               
-              <div className="flex flex-wrap gap-6 mb-6">
+              <div className="flex flex-wrap gap-6">
                 {movie.director && (
                   <div className="min-w-[200px]">
                     <h3 className="text-white/50 text-sm uppercase tracking-wider">Director</h3>
@@ -185,10 +185,6 @@ const MovieDetails = () => {
                   </div>
                 )}
               </div>
-              
-              <button className="flex items-center bg-red-600 hover:bg-red-700 rounded px-5 py-2.5 text-white font-medium transition-colors shadow-lg hover:shadow-red-900/50">
-                <Plus className="mr-2 h-5 w-5" /> Add to My List
-              </button>
             </div>
           </article>
         </div>
