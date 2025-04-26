@@ -87,6 +87,9 @@ export const favorites = pgTable("favorites", {
 export const insertFavoriteSchema = createInsertSchema(favorites).pick({
   userId: true,
   movieId: true,
+  createdAt: true,
+}).partial({
+  createdAt: true,
 });
 
 // View history model
@@ -102,6 +105,10 @@ export const insertViewHistorySchema = createInsertSchema(viewHistory).pick({
   userId: true,
   movieId: true,
   progress: true,
+  watchedAt: true,
+}).partial({
+  progress: true,
+  watchedAt: true,
 });
 
 // Types

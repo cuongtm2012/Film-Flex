@@ -235,7 +235,11 @@ export class MemStorage implements IStorage {
   async getUserViewHistory(userId: number): Promise<ViewHistory[]> {
     return Array.from(this.viewHistory.values())
       .filter(history => history.userId === userId)
-      .sort((a, b) => b.watchedAt.getTime() - a.watchedAt.getTime());
+      .sort((a, b) => {
+        const aTime = a.watchedAt?.getTime() || 0;
+        const bTime = b.watchedAt?.getTime() || 0;
+        return bTime - aTime;
+      });
   }
   
   async addOrUpdateViewHistory(insertHistory: InsertViewHistory): Promise<ViewHistory> {
@@ -331,7 +335,8 @@ export class MemStorage implements IStorage {
         genreIds: [1, 6, 7], // Action, Sci-Fi, Thriller
         director: "Christopher Nolan",
         cast: ["Leonardo DiCaprio", "Joseph Gordon-Levitt", "Elliot Page"],
-        imdbRating: "8.8"
+        imdbRating: "8.8",
+        viewCount: 1052
       },
       {
         title: "Interstellar",
@@ -481,7 +486,9 @@ export class MemStorage implements IStorage {
     
     sampleMovies.forEach(movie => {
       const id = this.currentMovieId++;
-      this.movies.set(id, { ...movie, id });
+      // Ensure viewCount exists for all movies, default to a random number between 100-2000 if not provided
+      const viewCount = movie.viewCount || Math.floor(Math.random() * 1900) + 100;
+      this.movies.set(id, { ...movie, id, viewCount });
     });
   }
 }
