@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { insertUserSchema } from "@shared/schema";
 import { Separator } from "@/components/ui/separator";
 import { auth, googleProvider } from "@/lib/firebase";
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { signInWithPopup } from "firebase/auth";
+import { useToast } from "@/hooks/use-toast";
 
 const loginSchema = insertUserSchema.pick({
   username: true,
@@ -29,12 +30,8 @@ const registerSchema = insertUserSchema.extend({
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("login");
-
-  // Redirect if already logged in
-  if (user) {
-    return <Redirect to="/" />;
-  }
-
+  const { toast } = useToast();
+  
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -52,6 +49,11 @@ export default function AuthPage() {
       email: "",
     },
   });
+  
+  // Redirect if already logged in
+  if (user) {
+    return <Redirect to="/" />;
+  }
 
   function onLoginSubmit(values: z.infer<typeof loginSchema>) {
     loginMutation.mutate(values);
