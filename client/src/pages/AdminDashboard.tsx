@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { Loader2, Users, Film, DollarSign, Activity } from 'lucide-react';
+import { Loader2, Users, Film, DollarSign, Activity, Home } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { User, Movie, Transaction, AdminLog } from '@shared/schema';
@@ -87,9 +88,12 @@ export default function AdminDashboard() {
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <h1 className="text-2xl font-bold mb-4">{t('admin.unauthorized')}</h1>
         <p className="text-gray-500 mb-6">{t('admin.adminAccessRequired')}</p>
-        <Button onClick={() => window.location.href = '/'}>
-          {t('general.backToHome')}
-        </Button>
+        <Link href="/">
+          <Button className="flex items-center gap-1">
+            <Home className="h-4 w-4" />
+            {t('admin.general.backToHome')}
+          </Button>
+        </Link>
       </div>
     );
   }
@@ -99,13 +103,16 @@ export default function AdminDashboard() {
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
           <h1 className="text-3xl font-bold">{t('admin.dashboard')}</h1>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => window.location.href = '/'}
-          >
-            {t('admin.general.backToHome')}
-          </Button>
+          <Link href="/">
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="flex items-center gap-1"
+            >
+              <Home className="h-4 w-4" />
+              {t('admin.general.backToHome')}
+            </Button>
+          </Link>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm">{t('admin.loggedInAs')}: </span>
