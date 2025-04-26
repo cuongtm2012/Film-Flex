@@ -20,6 +20,7 @@ const loginSchema = insertUserSchema.pick({
 
 const registerSchema = insertUserSchema.extend({
   passwordConfirm: z.string(),
+  email: z.string().email().optional(),
 }).refine((data) => data.password === data.passwordConfirm, {
   message: "Passwords do not match",
   path: ["passwordConfirm"],
@@ -48,6 +49,7 @@ export default function AuthPage() {
       username: "",
       password: "",
       passwordConfirm: "",
+      email: "",
     },
   });
 
@@ -218,6 +220,20 @@ export default function AuthPage() {
                     )}
                   />
                   
+                  <FormField
+                    control={registerForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email (optional)</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="Enter your email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
                   <Button 
                     type="submit" 
                     className="w-full"
@@ -258,7 +274,8 @@ export default function AuthPage() {
                           } else {
                             registerMutation.mutate({
                               username: user.email.split('@')[0],
-                              password: user.uid // Use the Firebase UID as password
+                              password: user.uid, // Use the Firebase UID as password
+                              email: user.email
                             });
                           }
                         }
