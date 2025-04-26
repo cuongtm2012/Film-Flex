@@ -356,6 +356,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Copy movie from one Google Drive folder to another
+  router.post("/drive/copy", isAdmin, async (req, res) => {
+    try {
+      const { sourceFolderId, destinationFolderId } = req.body;
+      
+      if (!sourceFolderId || !destinationFolderId) {
+        return res.status(400).json({ message: "Source and destination folder IDs are required" });
+      }
+      
+      if (!process.env.GOOGLE_API_KEY) {
+        return res.status(500).json({ message: "Google API key is missing" });
+      }
+      
+      // Step 1: Get files from source folder
+      const sourceFilesResponse = await axios.get(
+        `https://www.googleapis.com/drive/v3/files?q='${sourceFolderId}'+in+parents&key=${process.env.GOOGLE_API_KEY}&fields=files(id,name,mimeType)`
+      );
+      
+      if (!sourceFilesResponse.data.files || sourceFilesResponse.data.files.length === 0) {
+        return res.status(404).json({ message: "No files found in source folder" });
+      }
+      
+      // Step 2: Start copying process for each file (only videos)
+      const videoFiles = sourceFilesResponse.data.files.filter(
+        (file: any) => file.mimeType.includes('video')
+      );
+      
+      if (videoFiles.length === 0) {
+        return res.status(404).json({ message: "No video files found in source folder" });
+      }
+      
+      // Log files to be copied (for admin review)
+      await storage.logAdminActivity({
+        adminId: req.user.id,
+        action: 'COPY_MOVIE_STARTED',
+        target: 'DRIVE',
+        details: `Started copying ${videoFiles.length} videos from ${sourceFolderId} to ${destinationFolderId}`
+      });
+      
+      // For each video file, create a copy in the destination folder
+      const copyPromises = videoFiles.map(async (file: any) => {
+        try {
+          // Use the Drive API to create a copy in the destination folder
+          const copyResponse = await axios.post(
+            `https://www.googleapis.com/drive/v3/files/${file.id}/copy?key=${process.env.GOOGLE_API_KEY}`,
+            {
+              name: file.name,
+              parents: [destinationFolderId]
+            }
+          );
+          
+          return { 
+            originalFile: file, 
+            newFile: copyResponse.data,
+            success: true
+          };
+        } catch (error) {
+          console.error(`Failed to copy file ${file.name}:`, error);
+          return { 
+            originalFile: file, 
+            success: false, 
+            error: (error as any).message 
+          };
+        }
+      });
+      
+      const copyResults = await Promise.all(copyPromises);
+      const successCount = copyResults.filter(result => result.success).length;
+      
+      // Log copy results
+      await storage.logAdminActivity({
+        adminId: req.user.id,
+        action: 'COPY_MOVIE_COMPLETED',
+        target: 'DRIVE',
+        details: `Copied ${successCount}/${videoFiles.length} videos from ${sourceFolderId} to ${destinationFolderId}`
+      });
+      
+      res.json({ 
+        success: true,
+        message: `Copied ${successCount} of ${videoFiles.length} files`,
+        details: copyResults
+      });
+    } catch (error) {
+      console.error('Error copying files:', error);
+      res.status(500).json({ 
+        message: "Failed to copy files", 
+        error: (error as any).message 
+      });
+    }
+  });
+  
   // Google Drive streaming
   router.get("/drive/stream/:fileId", async (req, res) => {
     try {

@@ -56,6 +56,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  Copy,
 } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 
@@ -73,6 +74,7 @@ export default function MovieManagement() {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [openUploadDialog, setOpenUploadDialog] = useState(false);
   const [openReviewDialog, setOpenReviewDialog] = useState(false);
+  const [openCopyDialog, setOpenCopyDialog] = useState(false);
   
   // Selected items
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);

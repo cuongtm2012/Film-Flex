@@ -247,6 +247,16 @@ const translations = {
     'admin.description': 'Description',
     'admin.director': 'Director',
     'admin.cast': 'Cast',
+    'admin.copyFromDrive': 'Copy from Drive',
+    'admin.copyMovieDescription': 'Copy a movie from a public Google Drive folder to the website',
+    'admin.sourceFolderUrl': 'Source Folder URL',
+    'admin.destinationFolder': 'Destination Folder',
+    'admin.copyMovie': 'Copy Movie',
+    'admin.copyingMovie': 'Copying Movie...',
+    'admin.movieCopied': 'Movie Copied Successfully',
+    'admin.copyFailed': 'Failed to copy movie',
+    'admin.enterSourceUrl': 'Enter source Google Drive folder URL',
+    'admin.selectDestination': 'Select destination folder',
   },
   vi: {
     // Navbar
@@ -488,6 +498,16 @@ const translations = {
     'admin.description': 'Mô Tả',
     'admin.director': 'Đạo Diễn',
     'admin.cast': 'Diễn Viên',
+    'admin.copyFromDrive': 'Sao Chép từ Drive',
+    'admin.copyMovieDescription': 'Sao chép phim từ thư mục Google Drive công khai đến trang web',
+    'admin.sourceFolderUrl': 'URL Thư Mục Nguồn',
+    'admin.destinationFolder': 'Thư Mục Đích',
+    'admin.copyMovie': 'Sao Chép Phim',
+    'admin.copyingMovie': 'Đang Sao Chép Phim...',
+    'admin.movieCopied': 'Phim Đã Được Sao Chép Thành Công',
+    'admin.copyFailed': 'Không thể sao chép phim',
+    'admin.enterSourceUrl': 'Nhập URL thư mục Google Drive nguồn',
+    'admin.selectDestination': 'Chọn thư mục đích',
   }
 };
 
