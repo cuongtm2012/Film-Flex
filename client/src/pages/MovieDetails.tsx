@@ -5,12 +5,15 @@ import { Play, Plus, Star } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { API_BASE_URL, Movie, formatDuration, getGenreNames } from "@/lib/constants";
 import { convertToDirectStreamingUrl, isGoogleDriveUrl } from "@/lib/googleDriveApi";
+import { getDriveVideoStreamingUrl, isValidDriveFileId, extractDriveFileId } from "@/lib/driveHelper";
 
 const MovieDetails = () => {
   const [, setLocation] = useLocation();
   const [match, params] = useRoute("/movie/:id");
   const movieId = match ? parseInt(params.id) : null;
   const [isPlaying, setIsPlaying] = useState(false);
+  const [videoSrc, setVideoSrc] = useState('');
+  const [isLoadingVideo, setIsLoadingVideo] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   
   // Fetch movie details
@@ -53,26 +56,57 @@ const MovieDetails = () => {
     }
   };
 
-  // Get the highest quality video source
-  const getVideoSource = (movie?: Movie) => {
-    if (!movie?.videoSources || movie.videoSources.length === 0) {
-      return '';
+  // Get video source with Google Drive integration
+  const getVideoSource = async (movie?: Movie) => {
+    // First priority: Check if we have a Google Drive videoUrl
+    if (movie?.videoUrl) {
+      try {
+        // Case 1: Direct Google Drive file ID
+        if (isValidDriveFileId(movie.videoUrl)) {
+          return await getDriveVideoStreamingUrl(movie.videoUrl);
+        }
+        
+        // Case 2: Google Drive URL that needs extraction
+        const fileId = extractDriveFileId(movie.videoUrl);
+        if (fileId) {
+          return await getDriveVideoStreamingUrl(fileId);
+        }
+        
+        // Case 3: Direct video URL (not Google Drive)
+        if (movie.videoUrl.startsWith('http')) {
+          return movie.videoUrl;
+        }
+      } catch (error) {
+        console.error('Error processing Google Drive videoUrl:', error);
+        // Fall through to traditional sources if Google Drive fails
+      }
     }
     
-    // Sort by quality (assuming higher numbers = better quality)
-    const sortedSources = [...movie.videoSources].sort((a, b) => {
-      const qualityA = parseInt(a.quality.replace('p', '')) || 0;
-      const qualityB = parseInt(b.quality.replace('p', '')) || 0;
-      return qualityB - qualityA;
-    });
-    
-    // Convert to direct streaming URL if it's a Google Drive link
-    const sourceUrl = sortedSources[0].url;
-    if (isGoogleDriveUrl(sourceUrl)) {
-      return convertToDirectStreamingUrl(sourceUrl);
+    // Second priority: Check traditional videoSources
+    if (movie?.videoSources && movie.videoSources.length > 0) {
+      try {
+        // Sort by quality (assuming higher numbers = better quality)
+        const sortedSources = [...movie.videoSources].sort((a, b) => {
+          const qualityA = parseInt(a.quality.replace('p', '')) || 0;
+          const qualityB = parseInt(b.quality.replace('p', '')) || 0;
+          return qualityB - qualityA;
+        });
+        
+        // Convert to direct streaming URL if it's a Google Drive link
+        const sourceUrl = sortedSources[0].url;
+        if (isGoogleDriveUrl(sourceUrl)) {
+          return convertToDirectStreamingUrl(sourceUrl);
+        }
+        
+        return sourceUrl;
+      } catch (error) {
+        console.error('Error processing videoSources:', error);
+      }
     }
     
-    return sourceUrl;
+    // Fallback: No valid source found
+    console.warn('No valid video source found for movie:', movie?.title);
+    return '';
   };
 
   if (isLoading) {
