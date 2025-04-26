@@ -1,11 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Play, Plus, Star } from "lucide-react";
+import { Play, Plus, Star, Film } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import GoogleDriveAuth from "@/components/GoogleDriveAuth";
 import { API_BASE_URL, Movie, formatDuration, getGenreNames } from "@/lib/constants";
 import { convertToDirectStreamingUrl, isGoogleDriveUrl } from "@/lib/googleDriveApi";
 import { getDriveVideoStreamingUrl, isValidDriveFileId, extractDriveFileId } from "@/lib/driveHelper";
+import { useToast } from "@/hooks/use-toast";
 
 const MovieDetails = () => {
   const [, setLocation] = useLocation();
@@ -56,10 +58,63 @@ const MovieDetails = () => {
     }
   };
 
+  // Track authentication state
+  const [needsGoogleAuth, setNeedsGoogleAuth] = useState(false);
+  const { toast } = useToast();
+  
+  // Handle Google Drive auth success
+  const handleAuthSuccess = () => {
+    setNeedsGoogleAuth(false);
+    toast({
+      title: "Authentication successful",
+      description: "Loading movie from Google Drive...",
+    });
+    // Reload the video source after authentication
+    if (movie) {
+      loadVideoSource(movie);
+    }
+  };
+  
+  // Load video source function that can be called from multiple places
+  const loadVideoSource = async (movieData: Movie) => {
+    setIsLoadingVideo(true);
+    try {
+      const source = await getVideoSource(movieData);
+      setVideoSrc(source);
+      setNeedsGoogleAuth(false);
+    } catch (error: any) {
+      console.error('Error loading video source:', error);
+      
+      // Check if this is an authentication error
+      if (error.message && error.message.includes('Authentication required')) {
+        setNeedsGoogleAuth(true);
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in with Google to play this movie",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Playback Error",
+          description: "Failed to load video. Please try again later.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsLoadingVideo(false);
+    }
+  };
+  
+  // Load video source when movie data changes
+  useEffect(() => {
+    if (!movie) return;
+    loadVideoSource(movie);
+  }, [movie]);
+  
   // Get video source with Google Drive integration
-  const getVideoSource = async (movie?: Movie) => {
+  const getVideoSource = async (movie: Movie) => {
     // First priority: Check if we have a Google Drive videoUrl
-    if (movie?.videoUrl) {
+    if (movie.videoUrl) {
       try {
         // Case 1: Direct Google Drive file ID
         if (isValidDriveFileId(movie.videoUrl)) {
@@ -83,7 +138,7 @@ const MovieDetails = () => {
     }
     
     // Second priority: Check traditional videoSources
-    if (movie?.videoSources && movie.videoSources.length > 0) {
+    if (movie.videoSources && movie.videoSources.length > 0) {
       try {
         // Sort by quality (assuming higher numbers = better quality)
         const sortedSources = [...movie.videoSources].sort((a, b) => {
@@ -105,7 +160,7 @@ const MovieDetails = () => {
     }
     
     // Fallback: No valid source found
-    console.warn('No valid video source found for movie:', movie?.title);
+    console.warn('No valid video source found for movie:', movie.title);
     return '';
   };
 
@@ -151,17 +206,27 @@ const MovieDetails = () => {
       {/* Video Player */}
       <div className="relative max-w-7xl mx-auto bg-black mb-6">
         <div className="aspect-video w-full relative">
+          {/* Loading state */}
+          {isLoadingVideo && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
+                <p className="text-white">Preparing video stream...</p>
+              </div>
+            </div>
+          )}
+          
           {/* Video element */}
           <video
             ref={videoRef}
             className="w-full h-full object-contain"
-            src={getVideoSource(movie)}
+            src={videoSrc}
             poster={movie.backdropUrl}
             preload="auto"
           />
           
           {/* Play overlay with big centered play button */}
-          {!isPlaying && (
+          {!isPlaying && !isLoadingVideo && (
             <div 
               className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer"
               onClick={togglePlay}
