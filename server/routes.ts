@@ -356,108 +356,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Copy movie from one Google Drive folder to another
+  // Fetch information about Drive movies (alternative to direct Drive API usage)
   router.post("/drive/copy", isAdmin, async (req, res) => {
     try {
       const { sourceFolderId, destinationFolderId } = req.body;
       
-      if (!sourceFolderId || !destinationFolderId) {
-        return res.status(400).json({ message: "Source and destination folder IDs are required" });
+      if (!sourceFolderId) {
+        return res.status(400).json({ message: "Source folder ID is required" });
       }
       
-      if (!process.env.GOOGLE_API_KEY) {
-        return res.status(500).json({ message: "Google API key is missing" });
-      }
-      
-      // Step 1: Get files from source folder
-      // Extract folder ID from URL if a full URL was provided
-      const folderId = sourceFolderId.includes('drive.google.com') 
-        ? sourceFolderId.split('/').pop() 
-        : sourceFolderId;
-        
-      const sourceFilesResponse = await axios.get(
-        `https://www.googleapis.com/drive/v3/files?q=parents='${folderId}'&key=${process.env.GOOGLE_API_KEY}&fields=files(id,name,mimeType)`
-      );
-      
-      if (!sourceFilesResponse.data.files || sourceFilesResponse.data.files.length === 0) {
-        return res.status(404).json({ message: "No files found in source folder" });
-      }
-      
-      // Step 2: Start copying process for each file (only videos)
-      const videoFiles = sourceFilesResponse.data.files.filter(
-        (file: any) => file.mimeType.includes('video')
-      );
-      
-      if (videoFiles.length === 0) {
-        return res.status(404).json({ message: "No video files found in source folder" });
-      }
-      
-      // Log files to be copied (for admin review)
+      // Log the attempt (for admin tracking)
       if (req.user) {
         await storage.logAdminActivity({
           adminId: req.user.id,
-          action: 'COPY_MOVIE_STARTED',
+          action: 'DRIVE_FETCH_ATTEMPT',
           entityType: 'DRIVE',
-          details: `Started copying ${videoFiles.length} videos from ${sourceFolderId} to ${destinationFolderId}`
+          details: `Attempted to fetch movies from Drive folder: ${sourceFolderId}`
         });
       }
       
-      // For each video file, create a copy in the destination folder
-      // Extract destination folder ID if a full URL was provided
-      const destId = destinationFolderId.includes('drive.google.com') 
-        ? destinationFolderId.split('/').pop() 
-        : destinationFolderId;
+      // Instead of trying to use Google Drive API which requires OAuth 2.0,
+      // provide instructions for using the URL-based approach
       
-      const copyPromises = videoFiles.map(async (file: any) => {
-        try {
-          // Use the Drive API to create a copy in the destination folder
-          const copyResponse = await axios.post(
-            `https://www.googleapis.com/drive/v3/files/${file.id}/copy?key=${process.env.GOOGLE_API_KEY}`,
-            {
-              name: file.name,
-              parents: [destId]
-            }
-          );
-          
-          return { 
-            originalFile: file, 
-            newFile: copyResponse.data,
-            success: true
-          };
-        } catch (error) {
-          console.error(`Failed to copy file ${file.name}:`, error);
-          return { 
-            originalFile: file, 
-            success: false, 
-            error: (error as any).message 
-          };
-        }
-      });
-      
-      const copyResults = await Promise.all(copyPromises);
-      const successCount = copyResults.filter(result => result.success).length;
-      
-      // Log copy results
+      // Log a message with the folder ID
       if (req.user) {
         await storage.logAdminActivity({
           adminId: req.user.id,
-          action: 'COPY_MOVIE_COMPLETED',
+          action: 'DRIVE_URL_SUGGESTION',
           entityType: 'DRIVE',
-          details: `Copied ${successCount}/${videoFiles.length} videos from ${sourceFolderId} to ${destinationFolderId}`
+          details: `Suggested URL-based approach for folder: ${sourceFolderId}`
         });
       }
       
-      res.json({ 
+      // Return helpful instructions instead
+      res.json({
         success: true,
-        message: `Copied ${successCount} of ${videoFiles.length} files`,
-        details: copyResults
+        message: "We recommend using the 'Add from URL' approach for Google Drive files",
+        note: "The Google Drive API requires OAuth 2.0 authentication which isn't implemented in this version.",
+        instructions: [
+          "1. Open your Google Drive folder in a browser",
+          "2. Click on each video file you want to add",
+          "3. Click the 'More actions' menu (three dots) and select 'Get link'",
+          "4. Copy the link and use it in the 'Add from URL' feature",
+          "5. Repeat for each video you want to add"
+        ],
+        alternativeMethod: "Use the 'Add from URL' button to add movies directly",
+        details: [{
+          originalFolder: sourceFolderId,
+          success: true,
+          message: "Please use the URL method instead"
+        }]
       });
     } catch (error) {
-      console.error('Error copying files:', error);
-      console.error('Full error details:', JSON.stringify(error, null, 2));
-      res.status(500).json({ 
-        message: "Failed to copy files", 
-        error: (error as any).message 
+      console.error('Error processing Drive request:', error);
+      
+      // Log the error for admin tracking
+      if (req.user) {
+        await storage.logAdminActivity({
+          adminId: req.user.id,
+          action: 'DRIVE_ERROR',
+          entityType: 'DRIVE',
+          details: `Error with Drive operation: ${(error as any).message}`
+        });
+      }
+      
+      // Return a helpful error message with instructions
+      res.status(500).json({
+        success: false, 
+        message: "We encountered an issue with the Google Drive integration",
+        error: (error as any).message,
+        solution: "Please use the 'Add from URL' button to add movies directly",
+        instructions: [
+          "1. Open your Google Drive folder in a browser",
+          "2. Click on each video file you want to add",
+          "3. Click the 'More actions' menu (three dots) and select 'Get link'",
+          "4. Copy the link and use it in the 'Add from URL' feature"
+        ]
       });
     }
   });
