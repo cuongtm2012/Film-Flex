@@ -50,9 +50,18 @@ const Navbar = () => {
             <span className={`${isActive("/genres")} cursor-pointer`}>Genres</span>
           </Link>
           {user && (
-            <Link href="/my-list">
-              <span className={`${isActive("/my-list")} cursor-pointer`}>My List</span>
-            </Link>
+            <>
+              <Link href="/my-list">
+                <span className={`${isActive("/my-list")} cursor-pointer`}>My List</span>
+              </Link>
+              {user.userType === "premium" && (
+                <Link href="/trending">
+                  <span className={`${isActive("/trending")} cursor-pointer flex items-center`}>
+                    <span className="text-yellow-500 mr-1">★</span> Trending
+                  </span>
+                </Link>
+              )}
+            </>
           )}
         </div>
         
