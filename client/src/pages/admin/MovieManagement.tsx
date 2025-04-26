@@ -57,6 +57,7 @@ import {
   CheckCircle2,
   XCircle,
   Copy,
+  Link,
 } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 
@@ -75,6 +76,7 @@ export default function MovieManagement() {
   const [openUploadDialog, setOpenUploadDialog] = useState(false);
   const [openReviewDialog, setOpenReviewDialog] = useState(false);
   const [openCopyDialog, setOpenCopyDialog] = useState(false);
+  const [openAddUrlDialog, setOpenAddUrlDialog] = useState(false);
   
   // Selected items
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
@@ -109,6 +111,19 @@ export default function MovieManagement() {
   const [copyForm, setCopyForm] = useState({
     sourceFolderId: '',
     destinationFolderId: '',
+  });
+  
+  const [urlForm, setUrlForm] = useState({
+    title: '',
+    description: '',
+    releaseYear: new Date().getFullYear(),
+    duration: 120,
+    posterUrl: '',
+    backdropUrl: '',
+    rating: 'PG-13',
+    videoUrl: '',
+    genreIds: [] as number[],
+    director: '',
   });
   
   // Fetch movies
