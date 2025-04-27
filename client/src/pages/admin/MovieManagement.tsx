@@ -979,7 +979,7 @@ export default function MovieManagement() {
                   {isLoadingUploads ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
-                    pendingUploads.filter(upload => upload.status === 'pending').length
+                    pendingUploads.filter(upload => upload.status === 'pending_review').length
                   )}
                 </div>
               </CardContent>
@@ -997,7 +997,7 @@ export default function MovieManagement() {
                   {isLoadingUploads ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
-                    pendingUploads.filter(upload => upload.status === 'approved').length
+                    pendingUploads.filter(upload => upload.status === 'published').length
                   )}
                 </div>
               </CardContent>
@@ -1053,12 +1053,12 @@ export default function MovieManagement() {
                   pendingUploads.map((upload) => (
                     <TableRow key={upload.id}>
                       <TableCell>{upload.id}</TableCell>
-                      <TableCell className="font-medium">{upload.title}</TableCell>
-                      <TableCell>{upload.uploaderId}</TableCell>
-                      <TableCell>{formatDate(upload.createdAt)}</TableCell>
+                      <TableCell className="font-medium">{upload.movieId ? `Movie #${upload.movieId}` : 'N/A'}</TableCell>
+                      <TableCell>{upload.uploadedBy}</TableCell>
+                      <TableCell>{formatDate(upload.uploadedAt.toString())}</TableCell>
                       <TableCell>
                         <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                          upload.status === 'approved' 
+                          upload.status === 'published' 
                             ? 'bg-green-100 text-green-800' 
                             : upload.status === 'rejected'
                             ? 'bg-red-100 text-red-800'
@@ -1073,12 +1073,12 @@ export default function MovieManagement() {
                             variant="ghost" 
                             size="sm" 
                             onClick={() => openUploadReview(upload)}
-                            disabled={upload.status !== 'pending'}
+                            disabled={upload.status !== 'pending_review'}
                           >
-                            {upload.status === 'pending' ? (
+                            {upload.status === 'pending_review' ? (
                               <Eye className="h-4 w-4" />
                             ) : (
-                              upload.status === 'approved' ? (
+                              upload.status === 'published' ? (
                                 <CheckCircle2 className="h-4 w-4 text-green-500" />
                               ) : (
                                 <XCircle className="h-4 w-4 text-red-500" />
