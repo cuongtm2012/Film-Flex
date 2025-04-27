@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, DollarSign, Crown, Shield, Clock } from "lucide-react";
+import { Loader2, DollarSign, Crown, Shield, Clock, ShieldAlert, Users, Film, BarChart4 } from "lucide-react";
 
 // USDT transaction interface
 interface Transaction {
@@ -216,6 +216,11 @@ export default function ProfilePage() {
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="wallet">Wallet</TabsTrigger>
           <TabsTrigger value="premium">Premium</TabsTrigger>
+          {user?.role === "admin" && (
+            <TabsTrigger value="admin" className="bg-purple-500/20">
+              <ShieldAlert className="h-4 w-4 mr-1" /> Admin
+            </TabsTrigger>
+          )}
         </TabsList>
         
         {/* Profile Tab */}
@@ -234,6 +239,15 @@ export default function ProfilePage() {
               <div className="grid gap-2">
                 <Label>Email</Label>
                 <div className="font-medium">{profile?.email || "Not set"}</div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Role</Label>
+                <div className="font-medium">
+                  {user?.role || "No role"} 
+                  {user?.role === "admin" ? 
+                    <Badge className="ml-2 bg-purple-500 hover:bg-purple-600">Admin User</Badge> : null}
+                </div>
               </div>
               
               <div className="grid gap-2">
@@ -432,6 +446,85 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         </TabsContent>
+        
+        {/* Admin Tab */}
+        {user?.role === "admin" && (
+          <TabsContent value="admin" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Admin Dashboard</CardTitle>
+                <CardDescription>Manage website content and users</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Admin Dashboard Card */}
+                  <Card className="bg-purple-900/20 hover:bg-purple-900/30 transition-colors cursor-pointer">
+                    <CardContent className="p-6 flex flex-col items-center text-center">
+                      <ShieldAlert className="h-12 w-12 mb-4 text-purple-500" />
+                      <h3 className="text-lg font-medium mb-2">Admin Dashboard</h3>
+                      <p className="text-sm text-gray-400 mb-4">
+                        Complete admin dashboard with user, content, and financial management
+                      </p>
+                      <Link href="/admin">
+                        <Button className="bg-purple-600 hover:bg-purple-700">
+                          Go to Dashboard
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* User Management Card */}
+                  <Card className="bg-blue-900/20 hover:bg-blue-900/30 transition-colors cursor-pointer">
+                    <CardContent className="p-6 flex flex-col items-center text-center">
+                      <Users className="h-12 w-12 mb-4 text-blue-500" />
+                      <h3 className="text-lg font-medium mb-2">User Management</h3>
+                      <p className="text-sm text-gray-400 mb-4">
+                        Manage users, roles, and permissions
+                      </p>
+                      <Link href="/admin?tab=users">
+                        <Button className="bg-blue-600 hover:bg-blue-700">
+                          Manage Users
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* Content Management Card */}
+                  <Card className="bg-green-900/20 hover:bg-green-900/30 transition-colors cursor-pointer">
+                    <CardContent className="p-6 flex flex-col items-center text-center">
+                      <Film className="h-12 w-12 mb-4 text-green-500" />
+                      <h3 className="text-lg font-medium mb-2">Content Management</h3>
+                      <p className="text-sm text-gray-400 mb-4">
+                        Manage movies, uploads, and content requests
+                      </p>
+                      <Link href="/admin?tab=content">
+                        <Button className="bg-green-600 hover:bg-green-700">
+                          Manage Content
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* Financial Management Card */}
+                  <Card className="bg-yellow-900/20 hover:bg-yellow-900/30 transition-colors cursor-pointer">
+                    <CardContent className="p-6 flex flex-col items-center text-center">
+                      <BarChart4 className="h-12 w-12 mb-4 text-yellow-500" />
+                      <h3 className="text-lg font-medium mb-2">Financial Management</h3>
+                      <p className="text-sm text-gray-400 mb-4">
+                        Track payments, subscriptions, and revenue
+                      </p>
+                      <Link href="/admin?tab=finance">
+                        <Button className="bg-yellow-600 hover:bg-yellow-700 text-white">
+                          Financial Overview
+                        </Button>
+                      </Link>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

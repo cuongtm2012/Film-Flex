@@ -22,7 +22,6 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { LanguageProvider } from "@/hooks/use-language";
 import { AccessibilityProvider } from "@/hooks/use-accessibility";
 import { ProtectedRoute } from "@/lib/protected-route";
-import { AdminRoute } from "@/lib/admin-route";
 import { initializeDriveAPI } from "@/lib/driveHelper";
 import AccessibilityControls from "@/components/AccessibilityControls";
 
@@ -41,7 +40,7 @@ function Router() {
       <ProtectedRoute path="/my-list" component={MyList} />
       <ProtectedRoute path="/profile" component={Profile} />
       <ProtectedRoute path="/trending" component={TrendingMovies} />
-      <AdminRoute path="/admin" component={AdminDashboard} />
+      <Route path="/admin" component={AdminDashboard} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
