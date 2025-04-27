@@ -722,6 +722,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Admin Dashboard Overview
+  adminRouter.get('/dashboard', isAdmin, async (req, res) => {
+    try {
+      // Fetch statistics for dashboard
+      const allUsers = await storage.getAllUsers();
+      const premiumUsers = allUsers.filter(user => user.subscriptionTier === 'premium');
+      const movies = await storage.getAllMovies();
+      
+      // Calculate total income from transactions
+      const recentTransactions = await storage.getAllTransactions(100); // Get last 100 transactions
+      const totalIncome = recentTransactions.reduce((sum, t) => 
+        t.status === 'completed' ? sum + t.amount : sum, 0);
+      
+      // Return dashboard statistics
+      res.json({
+        stats: {
+          totalUsers: allUsers.length,
+          premiumUsers: premiumUsers.length,
+          totalIncome,
+          totalMovies: movies.length
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      res.status(500).json({ error: "Failed to fetch dashboard data" });
+    }
+  });
+  
+  // Import movies from Google Drive
+  adminRouter.post('/movies/import', isAdmin, async (req, res) => {
+    try {
+      const { movies } = req.body;
+      
+      if (!Array.isArray(movies) || movies.length === 0) {
+        return res.status(400).json({ error: "No movies provided for import" });
+      }
+      
+      const adminUser = req.user as any;
+      let importCount = 0;
+      
+      // Process each movie from the request
+      for (const movieData of movies) {
+        const movie = await storage.createMovie({
+          title: movieData.title || 'Untitled Movie',
+          description: movieData.description || '',
+          year: movieData.year || new Date().getFullYear(),
+          director: movieData.director || '',
+          genre: movieData.genre || 'uncategorized',
+          length: movieData.length || 90, // Default to 90 minutes
+          posterUrl: movieData.posterUrl || '',
+          videoUrl: movieData.videoUrl || '',
+          trailerUrl: movieData.trailerUrl || '',
+          featured: movieData.featured || false,
+          premium: movieData.premium || false
+        });
+        
+        if (movie) {
+          importCount++;
+          
+          // Log the admin activity
+          await storage.logAdminActivity({
+            adminId: adminUser.id,
+            action: 'Import Movie',
+            target: `Movie ${movie.id}`,
+            notes: `Imported movie "${movie.title}" from Google Drive`,
+            timestamp: new Date()
+          });
+        }
+      }
+      
+      res.status(201).json({ 
+        success: true, 
+        count: importCount,
+        message: `Successfully imported ${importCount} movies` 
+      });
+    } catch (error) {
+      console.error('Error importing movies:', error);
+      res.status(500).json({ error: "Failed to import movies from Google Drive" });
+    }
+  });
+  
   // Mount admin routes
   app.use("/api/admin", adminRouter);
   
