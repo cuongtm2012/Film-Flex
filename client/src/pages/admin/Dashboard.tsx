@@ -14,8 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Film, Users, DollarSign, Clock, FileText, Activity, Loader2, UserCheck, UserX, PlayCircle, CheckCircle, XCircle, RefreshCw, FilesIcon, FolderIcon } from "lucide-react";
-import { fetchGoogleDriveFiles, createDirectDownloadLink, getThumbnailUrl } from "@/lib/googleDriveApi";
+import { Film, Users, DollarSign, Clock, FileText, Activity, Loader2, UserCheck, UserX, PlayCircle, CheckCircle, XCircle, FilesIcon } from "lucide-react";
 
 // Mock data for financial info (replace with actual API data)
 const financialData = [
@@ -50,18 +49,10 @@ const pendingUploads = [
   { id: 3, title: 'Godzilla x Kong: The New Empire', uploader: 'admin', status: 'Pending', date: '2025-04-25 11:45:00' },
 ];
 
-// Source folder ID
-const DRIVE_SOURCE_FOLDER_ID = "1K9yzITGEGc9sbXWV0NT9Nj8sIdTcO5hN";
-
 export default function AdminDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
-  const [isGDriveModalOpen, setIsGDriveModalOpen] = useState(false);
-  const [selectedGenre, setSelectedGenre] = useState<string>("");
-  const [driveFiles, setDriveFiles] = useState<any[]>([]);
-  const [isLoadingDriveFiles, setIsLoadingDriveFiles] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [isAddMovieModalOpen, setIsAddMovieModalOpen] = useState(false);
   const [isDropboxModalOpen, setIsDropboxModalOpen] = useState(false);
   
@@ -839,183 +830,7 @@ export default function AdminDashboard() {
                     </DialogContent>
                   </Dialog>
                   
-                  {/* Google Drive Integration */}
-                  <Dialog open={isGDriveModalOpen} onOpenChange={setIsGDriveModalOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="secondary" 
-                        onClick={() => {
-                          setIsGDriveModalOpen(true);
-                          setSelectedFiles([]);
-                        }}>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Sync Google Drive
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-3xl">
-                      <DialogHeader>
-                        <DialogTitle>Import Movies from Google Drive</DialogTitle>
-                        <DialogDescription>
-                          Browse and select video files from Google Drive to add to the movie database.
-                        </DialogDescription>
-                      </DialogHeader>
-                      
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="genre">Assign Genre</Label>
-                          <Select value={selectedGenre} onValueChange={setSelectedGenre}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a genre for the imported movies" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="action">Action</SelectItem>
-                              <SelectItem value="adventure">Adventure</SelectItem>
-                              <SelectItem value="animation">Animation</SelectItem>
-                              <SelectItem value="comedy">Comedy</SelectItem>
-                              <SelectItem value="crime">Crime</SelectItem>
-                              <SelectItem value="documentary">Documentary</SelectItem>
-                              <SelectItem value="drama">Drama</SelectItem>
-                              <SelectItem value="family">Family</SelectItem>
-                              <SelectItem value="fantasy">Fantasy</SelectItem>
-                              <SelectItem value="horror">Horror</SelectItem>
-                              <SelectItem value="sci-fi">Sci-Fi</SelectItem>
-                              <SelectItem value="thriller">Thriller</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div className="pt-2">
-                          <Button 
-                            onClick={async () => {
-                              setIsLoadingDriveFiles(true);
-                              try {
-                                const files = await fetchGoogleDriveFiles(DRIVE_SOURCE_FOLDER_ID);
-                                setDriveFiles(files);
-                              } catch (error) {
-                                console.error('Error loading Drive files:', error);
-                                toast({
-                                  title: "Error loading files",
-                                  description: "Could not load files from Google Drive. Please try again.",
-                                  variant: "destructive"
-                                });
-                              } finally {
-                                setIsLoadingDriveFiles(false);
-                              }
-                            }}
-                            disabled={isLoadingDriveFiles}
-                            className="w-full"
-                          >
-                            {isLoadingDriveFiles ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <FolderIcon className="h-4 w-4 mr-2" />
-                            )}
-                            Browse Google Drive Folder
-                          </Button>
-                        </div>
-                        
-                        {driveFiles.length > 0 && (
-                          <div className="border rounded-lg overflow-hidden mt-4">
-                            <div className="bg-zinc-800 px-4 py-2 font-medium">
-                              Available Video Files ({driveFiles.length})
-                            </div>
-                            <div className="max-h-[300px] overflow-y-auto">
-                              <table className="w-full">
-                                <thead className="bg-zinc-800/50">
-                                  <tr>
-                                    <th className="py-2 px-4 text-left">Select</th>
-                                    <th className="py-2 px-4 text-left">File Name</th>
-                                    <th className="py-2 px-4 text-left">Size</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {driveFiles.map((file) => (
-                                    <tr key={file.id} className="border-t border-zinc-700">
-                                      <td className="py-2 px-4">
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedFiles.includes(file.id)}
-                                          onChange={(e) => {
-                                            if (e.target.checked) {
-                                              setSelectedFiles([...selectedFiles, file.id]);
-                                            } else {
-                                              setSelectedFiles(selectedFiles.filter(id => id !== file.id));
-                                            }
-                                          }}
-                                          className="w-4 h-4 rounded border-gray-600 bg-gray-800"
-                                        />
-                                      </td>
-                                      <td className="py-2 px-4">{file.name}</td>
-                                      <td className="py-2 px-4">
-                                        {file.size ? `${(parseInt(file.size) / (1024 * 1024)).toFixed(2)} MB` : 'Unknown'}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsGDriveModalOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button 
-                          disabled={selectedFiles.length === 0 || !selectedGenre}
-                          onClick={async () => {
-                            try {
-                              // Create a list of movies to add
-                              const moviesToAdd = selectedFiles.map(fileId => {
-                                const file = driveFiles.find(f => f.id === fileId);
-                                return {
-                                  title: file?.name?.replace(/\.[^/.]+$/, '') || 'Unknown Title',
-                                  description: `Imported from Google Drive: ${file?.name}`,
-                                  year: new Date().getFullYear(), // Default to current year
-                                  genre: selectedGenre,
-                                  posterUrl: getThumbnailUrl(fileId),
-                                  videoUrl: createDirectDownloadLink(fileId),
-                                  featured: false,
-                                  premium: false
-                                };
-                              });
-                              
-                              // Send the request to add movies
-                              const res = await apiRequest("POST", "/api/admin/movies/import", {
-                                movies: moviesToAdd
-                              });
-                              
-                              const result = await res.json();
-                              
-                              // Success notification
-                              toast({
-                                title: "Movies Imported",
-                                description: `Successfully imported ${result.count} movies from Google Drive.`,
-                              });
-                              
-                              // Close the dialog and reset selections
-                              setIsGDriveModalOpen(false);
-                              setSelectedFiles([]);
-                              setSelectedGenre("");
-                              
-                              // Refresh movie list
-                              queryClient.invalidateQueries({ queryKey: ["/api/movies"] });
-                              
-                            } catch (error) {
-                              console.error('Error importing movies:', error);
-                              toast({
-                                title: "Import Failed",
-                                description: "There was an error importing movies. Please try again.",
-                                variant: "destructive"
-                              });
-                            }
-                          }}
-                        >
-                          Import Selected Movies
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+
                 </div>
               </div>
               
