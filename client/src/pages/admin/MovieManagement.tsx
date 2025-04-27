@@ -1537,23 +1537,23 @@ export default function MovieManagement() {
             <form onSubmit={handleReviewUpload}>
               <div className="space-y-4 py-4">
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">{t('admin.title')}</Label>
-                  <p>{selectedUpload.title}</p>
+                  <Label className="text-sm font-medium">{t('admin.movieId')}</Label>
+                  <p>{selectedUpload.movieId}</p>
                 </div>
                 
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">{t('admin.description')}</Label>
-                  <p className="text-sm">{selectedUpload.description || t('admin.noDescription')}</p>
+                  <Label className="text-sm font-medium">{t('admin.uploadedBy')}</Label>
+                  <p className="text-sm">{selectedUpload.uploadedBy}</p>
                 </div>
                 
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">{t('admin.videoUrl')}</Label>
-                  <p className="text-sm break-all">{selectedUpload.videoUrl}</p>
+                  <Label className="text-sm font-medium">{t('admin.status')}</Label>
+                  <p className="text-sm break-all">{selectedUpload.status}</p>
                 </div>
                 
                 <div className="space-y-1">
-                  <Label className="text-sm font-medium">{t('admin.submissionNotes')}</Label>
-                  <p className="text-sm">{selectedUpload.submissionNotes || t('admin.noNotes')}</p>
+                  <Label className="text-sm font-medium">{t('admin.reviewNotes')}</Label>
+                  <p className="text-sm">{selectedUpload.reviewNotes || t('admin.noNotes')}</p>
                 </div>
                 
                 <div className="space-y-2 pt-2 border-t">
