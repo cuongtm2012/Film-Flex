@@ -9,6 +9,7 @@ import Home from "@/pages/Home";
 import NewHomePage from "@/pages/NewHomePage";
 import MovieDetails from "@/pages/MovieDetails";
 import WatchMovie from "@/pages/WatchMovie";
+import MovieStreamingPage from "@/pages/MovieStreamingPage";
 import Search from "@/pages/Search";
 import GenreMovies from "@/pages/GenreMovies";
 import MyList from "@/pages/MyList";
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/old-home" component={Home} />
       <Route path="/movie/:id" component={MovieDetails} />
       <Route path="/watch/:id" component={WatchMovie} />
+      <Route path="/movie-stream/:id" component={MovieStreamingPage} />
       <Route path="/search" component={Search} />
       <Route path="/genre/:id" component={GenreMovies} />
       <Route path="/genres" component={GenreMovies} />
