@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Film, Users, DollarSign, Clock, FileText, Activity, Loader2, UserCheck, UserX, PlayCircle, CheckCircle, XCircle, FilesIcon } from "lucide-react";
+import { Film, Users, DollarSign, Clock, FileText, Activity, Loader2, UserCheck, UserX, PlayCircle, CheckCircle, XCircle, FilesIcon, AlertOctagon, Trash2, Edit } from "lucide-react";
 
 // Mock data for financial info (replace with actual API data)
 const financialData = [
@@ -55,6 +55,15 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [isAddMovieModalOpen, setIsAddMovieModalOpen] = useState(false);
   const [isDropboxModalOpen, setIsDropboxModalOpen] = useState(false);
+  const [isEditMovieModalOpen, setIsEditMovieModalOpen] = useState(false);
+  const [isDeleteMovieModalOpen, setIsDeleteMovieModalOpen] = useState(false);
+  const [selectedMovie, setSelectedMovie] = useState<any>(null);
+  
+  // Fetch all movies for the admin panel
+  const { data: moviesData } = useQuery({
+    queryKey: ["/api/movies"],
+    staleTime: 30 * 1000, // 30 seconds
+  });
   
   // Add movie mutation
   const addMovieMutation = useMutation({
@@ -75,6 +84,56 @@ export default function AdminDashboard() {
       toast({
         title: "Error Creating Movie",
         description: error.message || "Failed to create movie. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Edit movie mutation
+  const editMovieMutation = useMutation({
+    mutationFn: async (movieData: any) => {
+      const res = await apiRequest("PATCH", `/api/admin/movies/${movieData.id}`, movieData);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Movie Updated",
+        description: "The movie has been successfully updated.",
+      });
+      setIsEditMovieModalOpen(false);
+      setSelectedMovie(null);
+      // Refresh movies list
+      queryClient.invalidateQueries({ queryKey: ["/api/movies"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error Updating Movie",
+        description: error.message || "Failed to update movie. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Delete movie mutation
+  const deleteMovieMutation = useMutation({
+    mutationFn: async (movieId: number) => {
+      const res = await apiRequest("DELETE", `/api/admin/movies/${movieId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Movie Deleted",
+        description: "The movie has been successfully deleted.",
+      });
+      setIsDeleteMovieModalOpen(false);
+      setSelectedMovie(null);
+      // Refresh movies list
+      queryClient.invalidateQueries({ queryKey: ["/api/movies"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error Deleting Movie",
+        description: error.message || "Failed to delete movie. Please try again.",
         variant: "destructive",
       });
     },
@@ -851,128 +910,354 @@ export default function AdminDashboard() {
                         <th className="text-left py-3 px-4 text-xs uppercase text-gray-400 font-semibold">Release Year</th>
                         <th className="text-left py-3 px-4 text-xs uppercase text-gray-400 font-semibold">Genres</th>
                         <th className="text-left py-3 px-4 text-xs uppercase text-gray-400 font-semibold">Status</th>
-                        <th className="text-left py-3 px-4 text-xs uppercase text-gray-400 font-semibold">Views</th>
+                        <th className="text-left py-3 px-4 text-xs uppercase text-gray-400 font-semibold">Source Type</th>
                         <th className="text-left py-3 px-4 text-xs uppercase text-gray-400 font-semibold">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {/* Sample movies - to be replaced with actual data */}
-                      <tr className="border-b border-zinc-700">
-                        <td className="py-3 px-4">1</td>
-                        <td className="py-3 px-4">Kung Fu Panda</td>
-                        <td className="py-3 px-4">2008</td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-wrap gap-1">
-                            <Badge variant="outline" className="text-xs">Animation</Badge>
-                            <Badge variant="outline" className="text-xs">Action</Badge>
-                            <Badge variant="outline" className="text-xs">Comedy</Badge>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge className="bg-green-500/20 text-green-500 hover:bg-green-500/30 border-green-500/50">
-                            Active
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">2,500</td>
-                        <td className="py-3 px-4">
-                          <div className="flex space-x-2">
-                            <Button size="sm" variant="outline" className="h-8">
-                              Edit
-                            </Button>
-                            <Button size="sm" variant="destructive" className="h-8">
-                              Delete
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr className="border-b border-zinc-700">
-                        <td className="py-3 px-4">2</td>
-                        <td className="py-3 px-4">The Dark Knight</td>
-                        <td className="py-3 px-4">2008</td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-wrap gap-1">
-                            <Badge variant="outline" className="text-xs">Action</Badge>
-                            <Badge variant="outline" className="text-xs">Crime</Badge>
-                            <Badge variant="outline" className="text-xs">Drama</Badge>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge className="bg-green-500/20 text-green-500 hover:bg-green-500/30 border-green-500/50">
-                            Active
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">3,200</td>
-                        <td className="py-3 px-4">
-                          <div className="flex space-x-2">
-                            <Button size="sm" variant="outline" className="h-8">
-                              Edit
-                            </Button>
-                            <Button size="sm" variant="destructive" className="h-8">
-                              Delete
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr className="border-b border-zinc-700">
-                        <td className="py-3 px-4">3</td>
-                        <td className="py-3 px-4">Inception</td>
-                        <td className="py-3 px-4">2010</td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-wrap gap-1">
-                            <Badge variant="outline" className="text-xs">Action</Badge>
-                            <Badge variant="outline" className="text-xs">Adventure</Badge>
-                            <Badge variant="outline" className="text-xs">Sci-Fi</Badge>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge className="bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30 border-yellow-500/50">
-                            Premium
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">4,100</td>
-                        <td className="py-3 px-4">
-                          <div className="flex space-x-2">
-                            <Button size="sm" variant="outline" className="h-8">
-                              Edit
-                            </Button>
-                            <Button size="sm" variant="destructive" className="h-8">
-                              Delete
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="py-3 px-4">4</td>
-                        <td className="py-3 px-4">Interstellar</td>
-                        <td className="py-3 px-4">2014</td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-wrap gap-1">
-                            <Badge variant="outline" className="text-xs">Adventure</Badge>
-                            <Badge variant="outline" className="text-xs">Drama</Badge>
-                            <Badge variant="outline" className="text-xs">Sci-Fi</Badge>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge className="bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30 border-yellow-500/50">
-                            Premium
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">3,800</td>
-                        <td className="py-3 px-4">
-                          <div className="flex space-x-2">
-                            <Button size="sm" variant="outline" className="h-8">
-                              Edit
-                            </Button>
-                            <Button size="sm" variant="destructive" className="h-8">
-                              Delete
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
+                      {moviesData && moviesData.length > 0 ? (
+                        moviesData.map((movie: any) => (
+                          <tr key={movie.id} className="border-b border-zinc-700">
+                            <td className="py-3 px-4">{movie.id}</td>
+                            <td className="py-3 px-4">{movie.title}</td>
+                            <td className="py-3 px-4">{movie.releaseYear}</td>
+                            <td className="py-3 px-4">
+                              <div className="flex flex-wrap gap-1">
+                                {movie.genreIds && movie.genreIds.map((genreId: number) => (
+                                  <Badge key={genreId} variant="outline" className="text-xs">
+                                    {genreId === 1 ? 'Action' : 
+                                     genreId === 2 ? 'Adventure' : 
+                                     genreId === 3 ? 'Animation' : 
+                                     genreId === 4 ? 'Comedy' : 
+                                     genreId === 5 ? 'Crime' : 
+                                     genreId === 6 ? 'Documentary' : 
+                                     genreId === 7 ? 'Drama' : 
+                                     genreId === 8 ? 'Fantasy' : 
+                                     genreId === 9 ? 'Horror' : 
+                                     genreId === 10 ? 'Sci-Fi' : 'Other'}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              {movie.premium ? (
+                                <Badge className="bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30 border-yellow-500/50">
+                                  Premium
+                                </Badge>
+                              ) : movie.featured ? (
+                                <Badge className="bg-blue-500/20 text-blue-500 hover:bg-blue-500/30 border-blue-500/50">
+                                  Featured
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-green-500/20 text-green-500 hover:bg-green-500/30 border-green-500/50">
+                                  Active
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              {movie.sourceType || 
+                               (movie.videoUrl && movie.videoUrl.includes('drive.google.com') ? 'googledrive' : 
+                               movie.videoUrl && movie.videoUrl.includes('dropbox') ? 'dropbox' : 'direct')}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex space-x-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="h-8"
+                                  onClick={() => {
+                                    setSelectedMovie(movie);
+                                    setIsEditMovieModalOpen(true);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Edit
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive" 
+                                  className="h-8"
+                                  onClick={() => {
+                                    setSelectedMovie(movie);
+                                    setIsDeleteMovieModalOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Delete
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={7} className="py-6 text-center text-gray-500">
+                            {moviesData ? 'No movies found' : 'Loading movies...'}
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
+              
+              {/* Edit Movie Modal */}
+              <Dialog open={isEditMovieModalOpen} onOpenChange={setIsEditMovieModalOpen}>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>Edit Movie</DialogTitle>
+                    <DialogDescription>
+                      Update movie information
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  {selectedMovie && (
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      const formData = new FormData(e.currentTarget);
+                      
+                      let videoUrl = formData.get('videoUrl') as string;
+                      const sourceType = formData.get('sourceType') as string;
+                      
+                      // Process URL based on source type
+                      if (sourceType === 'googledrive' && videoUrl.includes('drive.google.com')) {
+                        const fileId = videoUrl.match(/[-\w]{25,}/);
+                        if (fileId && fileId[0]) {
+                          videoUrl = `https://drive.google.com/uc?export=download&id=${fileId[0]}`;
+                        }
+                      }
+                      
+                      // Convert Dropbox URL if needed
+                      if (sourceType === 'dropbox' && videoUrl.includes('dropbox.com')) {
+                        videoUrl = videoUrl.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+                        videoUrl = videoUrl.replace('?dl=0', '').replace('?dl=1', '');
+                      }
+                      
+                      const genreId = parseInt(formData.get('genreId') as string) || 1;
+                      
+                      const movieData = {
+                        id: selectedMovie.id,
+                        title: formData.get('title') as string,
+                        description: formData.get('description') as string || `Watch ${formData.get('title')} on FilmFlex`,
+                        releaseYear: parseInt(formData.get('releaseYear') as string) || new Date().getFullYear(),
+                        duration: parseInt(formData.get('duration') as string) || 90,
+                        posterUrl: formData.get('posterUrl') as string || selectedMovie.posterUrl,
+                        backdropUrl: formData.get('posterUrl') as string || selectedMovie.backdropUrl,
+                        rating: formData.get('rating') as string || 'PG-13',
+                        featured: formData.get('featured') === 'on',
+                        premium: formData.get('premium') === 'on',
+                        genreIds: [genreId],
+                        videoSources: [
+                          {
+                            quality: 'HD',
+                            url: videoUrl
+                          }
+                        ],
+                        sourceType: sourceType
+                      };
+                      
+                      // Call API to update movie
+                      editMovieMutation.mutate(movieData);
+                    }}>
+                      <input 
+                        type="hidden" 
+                        name="sourceType" 
+                        id="editSourceType" 
+                        value={selectedMovie.sourceType || 
+                              (selectedMovie.videoUrl && selectedMovie.videoUrl.includes('drive.google.com') ? 'googledrive' : 
+                               selectedMovie.videoUrl && selectedMovie.videoUrl.includes('dropbox') ? 'dropbox' : 'direct')} 
+                      />
+                      
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="videoUrl">Video URL</Label>
+                          <Input
+                            id="videoUrl"
+                            name="videoUrl"
+                            defaultValue={selectedMovie.videoSources && selectedMovie.videoSources[0] ? selectedMovie.videoSources[0].url : selectedMovie.videoUrl}
+                            placeholder="https://example.com/video.mp4"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">
+                            Enter the video URL (Direct link, Google Drive, or Dropbox)
+                          </p>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="title">Title *</Label>
+                            <Input
+                              id="title"
+                              name="title"
+                              defaultValue={selectedMovie.title}
+                              required
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="genreId">Genre</Label>
+                            <Select 
+                              name="genreId" 
+                              defaultValue={selectedMovie.genreIds && selectedMovie.genreIds.length > 0 ? 
+                                           selectedMovie.genreIds[0].toString() : "1"}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select genre" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="1">Action</SelectItem>
+                                <SelectItem value="2">Adventure</SelectItem>
+                                <SelectItem value="3">Animation</SelectItem>
+                                <SelectItem value="4">Comedy</SelectItem>
+                                <SelectItem value="5">Crime</SelectItem>
+                                <SelectItem value="6">Documentary</SelectItem>
+                                <SelectItem value="7">Drama</SelectItem>
+                                <SelectItem value="8">Fantasy</SelectItem>
+                                <SelectItem value="9">Horror</SelectItem>
+                                <SelectItem value="10">Sci-Fi</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="releaseYear">Release Year</Label>
+                            <Input
+                              id="releaseYear"
+                              name="releaseYear"
+                              type="number"
+                              defaultValue={selectedMovie.releaseYear}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="duration">Duration (min)</Label>
+                            <Input
+                              id="duration"
+                              name="duration"
+                              type="number"
+                              defaultValue={selectedMovie.duration}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="rating">Rating</Label>
+                            <Select name="rating" defaultValue={selectedMovie.rating || "PG-13"}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select rating" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="G">G</SelectItem>
+                                <SelectItem value="PG">PG</SelectItem>
+                                <SelectItem value="PG-13">PG-13</SelectItem>
+                                <SelectItem value="R">R</SelectItem>
+                                <SelectItem value="NC-17">NC-17</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="description">Description</Label>
+                          <Textarea
+                            id="description"
+                            name="description"
+                            rows={3}
+                            defaultValue={selectedMovie.description}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="posterUrl">Poster URL</Label>
+                          <Input
+                            id="posterUrl"
+                            name="posterUrl"
+                            placeholder="https://example.com/poster.jpg"
+                            defaultValue={selectedMovie.posterUrl}
+                          />
+                          <p className="text-xs text-gray-400 mt-1">
+                            URL to movie poster image. Leave as is to keep the current poster.
+                          </p>
+                        </div>
+                        
+                        <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-4 mt-2">
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox" 
+                              id="featured" 
+                              name="featured"
+                              className="w-4 h-4 rounded border-gray-600 bg-gray-800"
+                              defaultChecked={selectedMovie.featured}
+                            />
+                            <Label htmlFor="featured">Featured on homepage</Label>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox" 
+                              id="premium" 
+                              name="premium"
+                              className="w-4 h-4 rounded border-gray-600 bg-gray-800"
+                              defaultChecked={selectedMovie.premium}
+                            />
+                            <Label htmlFor="premium">Premium content</Label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <DialogFooter>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setIsEditMovieModalOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={editMovieMutation.isPending}>
+                          {editMovieMutation.isPending && (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          )}
+                          Save Changes
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  )}
+                </DialogContent>
+              </Dialog>
+              
+              {/* Delete Movie Confirmation Modal */}
+              <Dialog open={isDeleteMovieModalOpen} onOpenChange={setIsDeleteMovieModalOpen}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center text-red-500">
+                      <AlertOctagon className="h-5 w-5 mr-2" />
+                      Confirm Delete
+                    </DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to delete the movie <span className="font-bold">{selectedMovie?.title}</span>? This action cannot be undone.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <DialogFooter className="mt-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsDeleteMovieModalOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      onClick={() => deleteMovieMutation.mutate(selectedMovie?.id)}
+                      disabled={deleteMovieMutation.isPending}
+                    >
+                      {deleteMovieMutation.isPending && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Delete Movie
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
             <CardFooter className="flex justify-between border-t border-zinc-800 py-4">
               <div className="text-sm text-gray-400">

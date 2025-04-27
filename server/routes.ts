@@ -693,9 +693,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
   adminRouter.post('/movies', isAdmin, async (req, res) => {
     try {
       const movie = await storage.createMovie(req.body);
+      
+      // Log the activity
+      await storage.logAdminActivity({
+        adminId: req.user!.id,
+        action: 'CREATE_MOVIE',
+        entityId: movie.id,
+        entityType: 'MOVIE',
+        details: `Created new movie '${movie.title}'`
+      });
+      
       res.status(201).json(movie);
     } catch (error) {
       res.status(500).json({ error: "Failed to create movie" });
+    }
+  });
+  
+  // Update movie
+  adminRouter.patch('/movies/:id', isAdmin, async (req, res) => {
+    try {
+      const movieId = parseInt(req.params.id);
+      
+      // Get the existing movie first
+      const existingMovie = await storage.getMovie(movieId);
+      
+      if (!existingMovie) {
+        return res.status(404).json({ error: "Movie not found" });
+      }
+      
+      // Update the movie
+      const updatedMovie = await storage.updateMovie(movieId, req.body);
+      
+      // Log the activity
+      await storage.logAdminActivity({
+        adminId: req.user!.id,
+        action: 'UPDATE_MOVIE',
+        entityId: movieId,
+        entityType: 'MOVIE',
+        details: `Updated movie '${updatedMovie.title}'`
+      });
+      
+      res.json(updatedMovie);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update movie" });
+    }
+  });
+  
+  // Delete movie
+  adminRouter.delete('/movies/:id', isAdmin, async (req, res) => {
+    try {
+      const movieId = parseInt(req.params.id);
+      
+      // Get the movie first for logging
+      const movie = await storage.getMovie(movieId);
+      
+      if (!movie) {
+        return res.status(404).json({ error: "Movie not found" });
+      }
+      
+      // Delete the movie
+      await storage.deleteMovie(movieId);
+      
+      // Log the activity
+      await storage.logAdminActivity({
+        adminId: req.user!.id,
+        action: 'DELETE_MOVIE',
+        entityId: movieId,
+        entityType: 'MOVIE',
+        details: `Deleted movie '${movie.title}'`
+      });
+      
+      res.json({ success: true, message: "Movie deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete movie" });
     }
   });
   
@@ -763,25 +833,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  adminRouter.patch('/movies/:id', isAdmin, async (req, res) => {
-    try {
-      const movieId = parseInt(req.params.id);
-      const updatedMovie = await storage.updateMovie(movieId, req.body);
-      res.json(updatedMovie);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update movie" });
-    }
-  });
-  
-  adminRouter.delete('/movies/:id', isAdmin, async (req, res) => {
-    try {
-      const movieId = parseInt(req.params.id);
-      await storage.deleteMovie(movieId);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete movie" });
-    }
-  });
+  // These routes are already defined above with proper logging
   
   // Admin Financial Routes
   adminRouter.get('/transactions', isAdmin, async (req, res) => {
