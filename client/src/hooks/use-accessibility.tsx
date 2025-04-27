@@ -86,19 +86,29 @@ export const AccessibilityProvider = ({ children }: { children: ReactNode }) => 
     return () => clearTimeout(timeoutId);
   }, [announcement, isScreenReaderActive]);
   
-  // Toggle functions
-  const toggleScreenReader = () => setIsScreenReaderActive(prev => !prev);
-  const toggleHighContrast = () => setIsHighContrastActive(prev => !prev);
-  const toggleLargeText = () => setIsLargeTextActive(prev => !prev);
-  const toggleVoiceControl = (value?: boolean) => 
+  // Toggle functions - memoized with useCallback to prevent infinite rerenders
+  const toggleScreenReader = React.useCallback(() => {
+    setIsScreenReaderActive(prev => !prev);
+  }, []);
+  
+  const toggleHighContrast = React.useCallback(() => {
+    setIsHighContrastActive(prev => !prev);
+  }, []);
+  
+  const toggleLargeText = React.useCallback(() => {
+    setIsLargeTextActive(prev => !prev);
+  }, []);
+  
+  const toggleVoiceControl = React.useCallback((value?: boolean) => {
     setIsVoiceControlActive(prev => typeof value === 'boolean' ? value : !prev);
+  }, []);
   
   // Announce message to screen reader
-  const announceToScreenReader = (message: string) => {
+  const announceToScreenReader = React.useCallback((message: string) => {
     if (isScreenReaderActive) {
       setAnnouncement(message);
     }
-  };
+  }, [isScreenReaderActive]);
   
   return (
     <AccessibilityContext.Provider
