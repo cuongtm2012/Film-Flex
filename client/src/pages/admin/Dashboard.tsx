@@ -550,9 +550,91 @@ export default function AdminDashboard() {
                   <Button variant="outline">
                     Search
                   </Button>
-                  <Button>
-                    Add New Movie
-                  </Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button>
+                        Add New Movie
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Add New Movie</DialogTitle>
+                        <DialogDescription>
+                          Fill in the movie information below.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <form>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="title">Title *</Label>
+                              <Input
+                                id="title"
+                                name="title"
+                                required
+                              />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="releaseYear">Release Year</Label>
+                                <Input
+                                  id="releaseYear"
+                                  name="releaseYear"
+                                  type="number"
+                                  defaultValue={new Date().getFullYear()}
+                                />
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor="duration">Duration (min)</Label>
+                                <Input
+                                  id="duration"
+                                  name="duration"
+                                  type="number"
+                                  defaultValue={90}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="description">Description</Label>
+                            <Textarea
+                              id="description"
+                              name="description"
+                              rows={3}
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="posterUrl">Poster URL</Label>
+                              <Input
+                                id="posterUrl"
+                                name="posterUrl"
+                                placeholder="https://example.com/poster.jpg"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="videoUrl">Video URL</Label>
+                              <Input
+                                id="videoUrl"
+                                name="videoUrl"
+                                placeholder="https://drive.google.com/file/d/..."
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button type="submit">
+                            Create Movie
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
                   <Dialog open={isGDriveModalOpen} onOpenChange={setIsGDriveModalOpen}>
                     <DialogTrigger asChild>
                       <Button variant="secondary" 
