@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Film, Users, DollarSign, Clock, FileText, Activity, Loader2, UserCheck, UserX, PlayCircle, CheckCircle, XCircle, FilesIcon, AlertOctagon, Trash2, Edit } from "lucide-react";
+import { Film, Users, DollarSign, Clock, FileText, Activity, Loader2, UserCheck, UserX, PlayCircle, CheckCircle, XCircle, FilesIcon, AlertOctagon, Trash2, Edit, Home } from "lucide-react";
 
 // Mock data for financial info (replace with actual API data)
 const financialData = [
@@ -182,11 +182,19 @@ export default function AdminDashboard() {
   
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
-        <p className="text-gray-400">
-          Welcome back, Administrator. Here's your overview of the FilmFlex platform.
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
+          <p className="text-gray-400">
+            Welcome back, Administrator. Here's your overview of the FilmFlex platform.
+          </p>
+        </div>
+        <a href="/">
+          <Button variant="outline" className="flex gap-2 items-center">
+            <Home className="h-4 w-4" />
+            Back to Homepage
+          </Button>
+        </a>
       </div>
       
       {/* Stats Overview */}
