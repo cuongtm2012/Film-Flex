@@ -29,7 +29,7 @@ const MovieCard = ({ movie }: MovieCardProps) => {
     e.stopPropagation();
     // Only navigate if the movie exists
     if (validMovie) {
-      setLocation(`/watch/${movie.id}`);
+      setLocation(`/movie/${movie.id}`);
     }
   };
 

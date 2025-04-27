@@ -31,9 +31,7 @@ function Router() {
     <Switch>
       <Route path="/" component={NewHomePage} />
       <Route path="/old-home" component={Home} />
-      <Route path="/movie/:id" component={MovieDetails} />
-      <Route path="/watch/:id" component={WatchMovie} />
-      <Route path="/movie-stream/:id" component={MovieStreamingPage} />
+      <Route path="/movie/:id" component={MovieStreamingPage} />
       <Route path="/search" component={Search} />
       <Route path="/genre/:id" component={GenreMovies} />
       <Route path="/genres" component={GenreMovies} />

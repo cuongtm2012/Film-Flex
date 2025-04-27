@@ -54,7 +54,7 @@ const comments = [
 
 const MovieStreamingPage = () => {
   const [, setLocation] = useLocation();
-  const [match, params] = useRoute("/movie-stream/:id");
+  const [match, params] = useRoute("/movie/:id");
   const movieId = match ? parseInt(params.id) : null;
   const { language } = useLanguage();
   const { user } = useAuth();
@@ -679,12 +679,12 @@ const MovieStreamingPage = () => {
             
             <div className="flex flex-col md:flex-row md:space-x-12">
               <div className="mb-4 md:mb-0">
-                <h3 className="text-gray-400 font-medium mb-2">Status</h3>
-                <p className="text-white">{movie.status || 'Available'}</p>
-              </div>
-              <div className="mb-4 md:mb-0">
                 <h3 className="text-gray-400 font-medium mb-2">Release Year</h3>
                 <p className="text-white">{movie.releaseYear || 'Unknown'}</p>
+              </div>
+              <div className="mb-4 md:mb-0">
+                <h3 className="text-gray-400 font-medium mb-2">Duration</h3>
+                <p className="text-white">{movie.duration ? `${movie.duration} min` : 'Unknown'}</p>
               </div>
               <div>
                 <h3 className="text-gray-400 font-medium mb-2">Genre IDs</h3>
