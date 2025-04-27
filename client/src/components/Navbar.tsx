@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
-import { Search, LogOut, User, Wallet, Bookmark, ShieldAlert } from "lucide-react";
+import { Search, LogOut, User, Wallet, Bookmark, ShieldAlert, Crown } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -131,6 +131,13 @@ const Navbar = () => {
                   </Link>
                 )}
                 <DropdownMenuSeparator />
+                <Link href="/premium" className="w-full">
+                  <DropdownMenuItem>
+                    <Crown className="mr-2 h-4 w-4 text-yellow-500" />
+                    <span>{user.userType === "premium" ? t('premium.status') : t('premium.upgrade')}</span>
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>{t('nav.logout')}</span>
@@ -138,11 +145,19 @@ const Navbar = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Link href="/auth">
-              <Button variant="outline" size="sm" className="text-white border-red-600 bg-transparent hover:bg-red-600/20">
-                {t('nav.login')}
-              </Button>
-            </Link>
+            <div className="flex items-center space-x-2">
+              <Link href="/premium">
+                <Button size="sm" className="text-black border-yellow-500 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600">
+                  <Crown className="h-4 w-4 mr-1" />
+                  {t('premium.upgrade')}
+                </Button>
+              </Link>
+              <Link href="/auth">
+                <Button variant="outline" size="sm" className="text-white border-red-600 bg-transparent hover:bg-red-600/20">
+                  {t('nav.login')}
+                </Button>
+              </Link>
+            </div>
           )}
         </div>
       </div>

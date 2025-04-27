@@ -765,7 +765,7 @@ export default function AdminDashboard() {
                         <td className="py-3 px-4">2025-04-26 10:45:00</td>
                         <td className="py-3 px-4">
                           <div className="flex space-x-2">
-                            <Button size="sm" variant="success" className="h-8 bg-green-600 hover:bg-green-700 text-white">
+                            <Button size="sm" className="h-8 bg-green-600 hover:bg-green-700 text-white">
                               Approve
                             </Button>
                             <Button size="sm" variant="destructive" className="h-8">
@@ -782,7 +782,7 @@ export default function AdminDashboard() {
                         <td className="py-3 px-4">2025-04-26 09:30:00</td>
                         <td className="py-3 px-4">
                           <div className="flex space-x-2">
-                            <Button size="sm" variant="success" className="h-8 bg-green-600 hover:bg-green-700 text-white">
+                            <Button size="sm" className="h-8 bg-green-600 hover:bg-green-700 text-white">
                               Approve
                             </Button>
                             <Button size="sm" variant="destructive" className="h-8">
@@ -799,7 +799,7 @@ export default function AdminDashboard() {
                         <td className="py-3 px-4">2025-04-26 08:15:00</td>
                         <td className="py-3 px-4">
                           <div className="flex space-x-2">
-                            <Button size="sm" variant="success" className="h-8 bg-green-600 hover:bg-green-700 text-white">
+                            <Button size="sm" className="h-8 bg-green-600 hover:bg-green-700 text-white">
                               Approve
                             </Button>
                             <Button size="sm" variant="destructive" className="h-8">
