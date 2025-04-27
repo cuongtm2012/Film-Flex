@@ -444,7 +444,7 @@ const MovieDetails = () => {
               <button
                 onClick={() => {
                   console.log('Navigating to enhanced player, movie ID:', movie.id);
-                  setLocation(`/watch/${movie.id}`);
+                  setLocation(`/movie-stream/${movie.id}`);
                 }}
                 className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-lg transition-colors"
               >
