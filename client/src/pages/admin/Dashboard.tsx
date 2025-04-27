@@ -62,6 +62,32 @@ export default function AdminDashboard() {
   const [driveFiles, setDriveFiles] = useState<any[]>([]);
   const [isLoadingDriveFiles, setIsLoadingDriveFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [isAddMovieModalOpen, setIsAddMovieModalOpen] = useState(false);
+  const [isDropboxModalOpen, setIsDropboxModalOpen] = useState(false);
+  
+  // Add movie mutation
+  const addMovieMutation = useMutation({
+    mutationFn: async (movieData: any) => {
+      const res = await apiRequest("POST", "/api/admin/movies", movieData);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Movie Created",
+        description: "The movie has been successfully added to the database.",
+      });
+      setIsAddMovieModalOpen(false);
+      // Refresh movies list
+      queryClient.invalidateQueries({ queryKey: ["/api/movies"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error Creating Movie",
+        description: error.message || "Failed to create movie. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
   
   // Redirect if not an admin
   if (!user || user.role !== "admin") {
@@ -551,9 +577,9 @@ export default function AdminDashboard() {
                   <Button variant="outline">
                     Search
                   </Button>
-                  <Dialog>
+                  <Dialog open={isAddMovieModalOpen} onOpenChange={setIsAddMovieModalOpen}>
                     <DialogTrigger asChild>
-                      <Button>
+                      <Button onClick={() => setIsAddMovieModalOpen(true)}>
                         Add New Movie
                       </Button>
                     </DialogTrigger>
@@ -564,7 +590,30 @@ export default function AdminDashboard() {
                           Fill in the movie information below.
                         </DialogDescription>
                       </DialogHeader>
-                      <form>
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.currentTarget);
+                        const movieData = {
+                          title: formData.get('title') as string,
+                          description: formData.get('description') as string,
+                          releaseYear: parseInt(formData.get('releaseYear') as string),
+                          duration: parseInt(formData.get('duration') as string),
+                          posterUrl: formData.get('posterUrl') as string || 'https://via.placeholder.com/300x450?text=No+Poster',
+                          backdropUrl: formData.get('posterUrl') as string || 'https://via.placeholder.com/1280x720?text=No+Backdrop',
+                          rating: formData.get('rating') as string || 'PG-13',
+                          videoUrl: formData.get('videoUrl') as string,
+                          genreIds: [1], // Default to first genre
+                          videoSources: [
+                            {
+                              quality: 'HD',
+                              url: formData.get('videoUrl') as string
+                            }
+                          ]
+                        };
+                        
+                        // Call API to create movie
+                        addMovieMutation.mutate(movieData);
+                      }}>
                         <div className="grid gap-4 py-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -619,23 +668,178 @@ export default function AdminDashboard() {
                             </div>
                             
                             <div className="space-y-2">
-                              <Label htmlFor="videoUrl">Video URL</Label>
-                              <Input
-                                id="videoUrl"
-                                name="videoUrl"
-                                placeholder="https://drive.google.com/file/d/..."
-                              />
+                              <Label htmlFor="rating">Rating</Label>
+                              <Select name="rating" defaultValue="PG-13">
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select rating" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="G">G</SelectItem>
+                                  <SelectItem value="PG">PG</SelectItem>
+                                  <SelectItem value="PG-13">PG-13</SelectItem>
+                                  <SelectItem value="R">R</SelectItem>
+                                  <SelectItem value="NC-17">NC-17</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="videoUrl">Video URL</Label>
+                            <Input
+                              id="videoUrl"
+                              name="videoUrl"
+                              placeholder="https://drive.google.com/file/d/..."
+                            />
+                            <p className="text-xs text-gray-400 mt-1">
+                              Supports Google Drive, Dropbox, or any direct video URL
+                            </p>
                           </div>
                         </div>
                         <DialogFooter>
-                          <Button type="submit">
+                          <Button type="submit" disabled={addMovieMutation.isPending}>
+                            {addMovieMutation.isPending && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
                             Create Movie
                           </Button>
                         </DialogFooter>
                       </form>
                     </DialogContent>
                   </Dialog>
+                  {/* Dropbox Integration */}
+                  <Dialog open={isDropboxModalOpen} onOpenChange={setIsDropboxModalOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" 
+                        onClick={() => setIsDropboxModalOpen(true)}>
+                        <FilesIcon className="h-4 w-4 mr-2" />
+                        Add from Dropbox
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Add Movie from Dropbox</DialogTitle>
+                        <DialogDescription>
+                          Provide the Dropbox file link to add a new movie
+                        </DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.currentTarget);
+                        const videoUrl = formData.get('dropboxUrl') as string;
+                        
+                        if (!videoUrl) {
+                          toast({
+                            title: "Missing Video URL",
+                            description: "Please provide a Dropbox video URL",
+                            variant: "destructive"
+                          });
+                          return;
+                        }
+                        
+                        // Convert Dropbox URL to direct link if needed
+                        let directUrl = videoUrl;
+                        if (videoUrl.includes('dropbox.com')) {
+                          // Convert from share link to direct link
+                          directUrl = videoUrl.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+                          directUrl = directUrl.replace('?dl=0', '').replace('?dl=1', '');
+                        }
+                        
+                        const movieData = {
+                          title: formData.get('title') as string,
+                          description: formData.get('description') as string || `Watch ${formData.get('title')} on FilmFlex`,
+                          releaseYear: parseInt(formData.get('releaseYear') as string) || new Date().getFullYear(),
+                          duration: parseInt(formData.get('duration') as string) || 90,
+                          posterUrl: formData.get('posterUrl') as string || 'https://via.placeholder.com/300x450?text=No+Poster',
+                          backdropUrl: formData.get('posterUrl') as string || 'https://via.placeholder.com/1280x720?text=No+Backdrop',
+                          rating: formData.get('rating') as string || 'PG-13',
+                          genreIds: [1], // Default genre
+                          videoSources: [
+                            {
+                              quality: 'HD',
+                              url: directUrl
+                            }
+                          ]
+                        };
+                        
+                        addMovieMutation.mutate(movieData);
+                      }}>
+                        <div className="grid gap-4 py-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="dropboxUrl">Dropbox Video URL *</Label>
+                            <Input
+                              id="dropboxUrl"
+                              name="dropboxUrl"
+                              placeholder="https://www.dropbox.com/s/..."
+                              required
+                            />
+                            <p className="text-xs text-gray-400 mt-1">
+                              Paste your Dropbox share link here. It will be automatically converted to a direct link.
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="title">Movie Title *</Label>
+                            <Input
+                              id="title"
+                              name="title"
+                              required
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="releaseYear">Release Year</Label>
+                              <Input
+                                id="releaseYear"
+                                name="releaseYear"
+                                type="number"
+                                defaultValue={new Date().getFullYear()}
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="duration">Duration (min)</Label>
+                              <Input
+                                id="duration"
+                                name="duration"
+                                type="number"
+                                defaultValue={90}
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="description">Description</Label>
+                            <Textarea
+                              id="description"
+                              name="description"
+                              rows={3}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="posterUrl">Poster URL</Label>
+                            <Input
+                              id="posterUrl"
+                              name="posterUrl"
+                              placeholder="https://example.com/poster.jpg"
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button type="submit" disabled={addMovieMutation.isPending}>
+                            {addMovieMutation.isPending && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            Add Movie
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                  
+                  {/* Google Drive Integration */}
                   <Dialog open={isGDriveModalOpen} onOpenChange={setIsGDriveModalOpen}>
                     <DialogTrigger asChild>
                       <Button variant="secondary" 
