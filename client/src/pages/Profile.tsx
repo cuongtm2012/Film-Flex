@@ -20,7 +20,7 @@ interface Transaction {
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, logoutMutation } = useAuth();
   const queryClient = useQueryClient();
   
   const [walletAddress, setWalletAddress] = useState("");
@@ -188,9 +188,28 @@ export default function ProfilePage() {
     );
   }
   
+  // Handle logout
+  const handleLogout = () => {
+    logoutMutation.mutate();
+    // The redirect will happen automatically from the auth hook
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-6">My Profile</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">My Profile</h1>
+        <Button 
+          onClick={handleLogout}
+          variant="destructive"
+          disabled={logoutMutation.isPending}
+          className="flex items-center gap-2"
+        >
+          {logoutMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : null}
+          Sign Out
+        </Button>
+      </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="mb-6">
