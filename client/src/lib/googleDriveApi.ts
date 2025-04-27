@@ -3,6 +3,46 @@
  * This file provides functions to interact with Google Drive API for video playback
  */
 
+import { getGapiClient } from './driveHelper';
+
+/**
+ * Fetch files from a Google Drive folder
+ * 
+ * @param folderId The ID of the Google Drive folder
+ * @returns Promise with an array of file objects
+ */
+export async function fetchGoogleDriveFiles(folderId: string): Promise<any[]> {
+  try {
+    const gapi = await getGapiClient();
+    if (!gapi) {
+      console.error('Google API client not initialized');
+      return [];
+    }
+
+    const response = await gapi.client.drive.files.list({
+      q: `'${folderId}' in parents and mimeType contains 'video/' and trashed = false`,
+      fields: 'files(id, name, mimeType, size, thumbnailLink, webContentLink)',
+      orderBy: 'name'
+    });
+
+    return response.result.files || [];
+  } catch (error) {
+    console.error('Error fetching Google Drive files:', error);
+    return [];
+  }
+}
+
+/**
+ * Create a direct download link for a Google Drive file
+ * Uses the export=download parameter
+ * 
+ * @param fileId Google Drive file ID
+ * @returns Direct download URL
+ */
+export function createDirectDownloadLink(fileId: string): string {
+  return `https://drive.google.com/uc?export=download&id=${fileId}`;
+}
+
 /**
  * Get a Direct Streaming URL for a Google Drive file
  * Uses the exportDownload method for reliable streaming

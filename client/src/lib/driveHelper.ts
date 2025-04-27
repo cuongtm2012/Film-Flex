@@ -371,3 +371,110 @@ export function getCurrentDriveUser(): gapi.auth2.GoogleUser | null {
   }
   return googleDriveService.getCurrentUser();
 }
+
+/**
+ * Get the gapi client instance for direct API calls
+ * This is used for admin operations like file listing
+ * 
+ * @returns The gapi client or null if not available
+ */
+export async function getGapiClient(): Promise<any> {
+  // In development mode, return a mock api that returns sample files
+  if (isDevelopmentMode) {
+    console.log('Development mode: Providing mock gapi client');
+    // Return a mock gapi client with the drive.files.list method
+    return {
+      client: {
+        drive: {
+          files: {
+            list: async () => ({
+              result: {
+                files: [
+                  {
+                    id: 'sample-video-1',
+                    name: 'Big Buck Bunny.mp4',
+                    mimeType: 'video/mp4',
+                    thumbnailLink: 'https://i.vimeocdn.com/video/21921_640x360.jpg',
+                    size: '158589749',
+                    webContentLink: 'https://drive.google.com/uc?export=download&id=sample-video-1'
+                  },
+                  {
+                    id: 'sample-video-2',
+                    name: 'Sintel Trailer.mp4',
+                    mimeType: 'video/mp4',
+                    thumbnailLink: 'https://durian.blender.org/wp-content/uploads/2010/05/sintel_trailer_1080.jpg',
+                    size: '52301149',
+                    webContentLink: 'https://drive.google.com/uc?export=download&id=sample-video-2'
+                  },
+                  {
+                    id: 'sample-video-3',
+                    name: 'Tears of Steel.mp4',
+                    mimeType: 'video/mp4',
+                    thumbnailLink: 'https://mango.blender.org/wp-content/uploads/2013/05/01_thom_celia_bridge.jpg',
+                    size: '75481997',
+                    webContentLink: 'https://drive.google.com/uc?export=download&id=sample-video-3'
+                  }
+                ]
+              }
+            })
+          }
+        }
+      }
+    };
+  }
+  
+  try {
+    if (!googleDriveService.isUserAuthenticated()) {
+      const authSuccess = await authenticateDrive();
+      if (!authSuccess) {
+        throw new Error('Authentication required to use gapi client');
+      }
+    }
+    
+    // Get the gapi client from the service
+    return await googleDriveService.getGapiInstance();
+  } catch (error) {
+    console.error('Error getting gapi client:', error);
+    
+    // If we hit an error getting the gapi client, try to switch to development mode
+    authenticationErrorCount++;
+    if (authenticationErrorCount >= MAX_AUTH_ERRORS) {
+      console.log('Switching to development mode after gapi client error');
+      isDevelopmentMode = true;
+      
+      // Return the mock client
+      return {
+        client: {
+          drive: {
+            files: {
+              list: async () => ({
+                result: {
+                  files: [
+                    {
+                      id: 'sample-video-1',
+                      name: 'Big Buck Bunny.mp4',
+                      mimeType: 'video/mp4',
+                      thumbnailLink: 'https://i.vimeocdn.com/video/21921_640x360.jpg',
+                      size: '158589749',
+                      webContentLink: 'https://drive.google.com/uc?export=download&id=sample-video-1'
+                    },
+                    {
+                      id: 'sample-video-2',
+                      name: 'Sintel Trailer.mp4',
+                      mimeType: 'video/mp4',
+                      thumbnailLink: 'https://durian.blender.org/wp-content/uploads/2010/05/sintel_trailer_1080.jpg',
+                      size: '52301149',
+                      webContentLink: 'https://drive.google.com/uc?export=download&id=sample-video-2'
+                    }
+                  ]
+                }
+              })
+            }
+          }
+        }
+      };
+    }
+    
+    return null;
+  }
+}

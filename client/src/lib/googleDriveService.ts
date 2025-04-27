@@ -242,6 +242,27 @@ export function getCurrentUser(): gapi.auth2.GoogleUser | null {
   return currentUser;
 }
 
+/**
+ * Get the gapi instance for direct API calls
+ * This is used for advanced operations from admin interfaces
+ * 
+ * @returns The gapi instance when initialized and authenticated, otherwise null
+ */
+export async function getGapiInstance(): Promise<any> {
+  if (!isInitialized) {
+    await initGoogleDriveAPI();
+  }
+  
+  if (!isAuthenticated) {
+    const authSuccess = await authenticateWithGoogleDrive();
+    if (!authSuccess) {
+      throw new Error("Authentication required to access Google Drive API");
+    }
+  }
+  
+  return gapi;
+}
+
 // Export a default object for easier imports
 export default {
   initGoogleDriveAPI,
@@ -252,5 +273,6 @@ export default {
   copyFileToDriveFolder,
   getThumbnailUrl,
   isUserAuthenticated,
-  getCurrentUser
+  getCurrentUser,
+  getGapiInstance
 };
