@@ -206,35 +206,54 @@ const MovieDetails = () => {
   
   // Get video source with Google Drive integration
   const getVideoSource = async (movie: Movie) => {
+    console.log('Getting video source for movie:', movie.title, 'videoUrl:', movie.videoUrl);
+    
     // Try with development mode helper function first, which will handle all the authentication for us
     try {
       // This will handle authentication and return a valid URL in development mode
-      // Pass an empty string for a fallback since we'll provide a backup later if all fails
       if (movie.videoUrl) {
         // Case 1: Direct Google Drive file ID
         if (isValidDriveFileId(movie.videoUrl)) {
-          return await getDriveVideoStreamingUrl(movie.videoUrl);
+          console.log('Detected valid Drive file ID:', movie.videoUrl);
+          const url = await getDriveVideoStreamingUrl(movie.videoUrl);
+          console.log('Got streaming URL from Drive file ID:', url);
+          return url;
         }
         
         // Case 2: Google Drive URL that needs extraction
         const fileId = extractDriveFileId(movie.videoUrl);
         if (fileId) {
-          return await getDriveVideoStreamingUrl(fileId);
+          console.log('Extracted Drive file ID from URL:', fileId);
+          const url = await getDriveVideoStreamingUrl(fileId);
+          console.log('Got streaming URL from extracted file ID:', url);
+          return url;
         }
         
         // Case 3: Direct video URL (not Google Drive)
         if (movie.videoUrl.startsWith('http')) {
+          console.log('Using direct HTTP URL:', movie.videoUrl);
           return movie.videoUrl;
         }
+        
+        console.log('videoUrl exists but does not match any expected format:', movie.videoUrl);
+      } else {
+        console.log('No videoUrl found in movie data');
       }
     } catch (error) {
       console.error('Error processing Google Drive videoUrl:', error);
+      // Show error in toast
+      toast({
+        title: "Video Loading Error",
+        description: "Could not process the video URL. You may need to sign in.",
+        variant: "destructive",
+      });
       // Fall through to traditional sources if Google Drive fails
     }
     
     // Second priority: Check traditional videoSources
     if (movie.videoSources && movie.videoSources.length > 0) {
       try {
+        console.log('Falling back to videoSources array');
         // Sort by quality (assuming higher numbers = better quality)
         const sortedSources = [...movie.videoSources].sort((a, b) => {
           const qualityA = parseInt(a.quality.replace('p', '')) || 0;
@@ -249,7 +268,10 @@ const MovieDetails = () => {
             // Use our development-mode friendly function for Google Drive URLs
             const fileId = extractDriveFileId(sourceUrl);
             if (fileId) {
-              return await getDriveVideoStreamingUrl(fileId);
+              console.log('Extracted file ID from videoSources URL:', fileId);
+              const url = await getDriveVideoStreamingUrl(fileId);
+              console.log('Got streaming URL from videoSources file ID:', url);
+              return url;
             }
             return convertToDirectStreamingUrl(sourceUrl);
           } catch (e) {
@@ -262,18 +284,31 @@ const MovieDetails = () => {
       } catch (error) {
         console.error('Error processing videoSources:', error);
       }
+    } else {
+      console.log('No videoSources array or it is empty');
     }
     
     // Ultimate fallback for development mode: use the BigBuckBunny sample
     try {
+      console.log('Using development fallback video');
       // Get a sample URL from the development mode helper
-      return await getDriveVideoStreamingUrl('development-fallback');
+      const url = await getDriveVideoStreamingUrl('development-fallback');
+      console.log('Got development fallback URL:', url);
+      return url;
     } catch (e) {
-      console.warn('Failed to get development fallback video');
+      console.warn('Failed to get development fallback video:', e);
     }
     
     // Fallback: No valid source found
     console.warn('No valid video source found for movie:', movie.title);
+    
+    // Show error to user
+    toast({
+      title: "Video Unavailable",
+      description: "Could not find a valid video source for this movie.",
+      variant: "destructive",
+    });
+    
     return '';
   };
 
@@ -404,15 +439,24 @@ const MovieDetails = () => {
           )}
           
           {/* Enhanced Watch Button */}
-          {videoSrc && (
+          {videoSrc ? (
             <div className="absolute bottom-4 right-4 z-10">
               <button
-                onClick={() => setLocation(`/watch/${movie.id}`)}
+                onClick={() => {
+                  console.log('Navigating to enhanced player, movie ID:', movie.id);
+                  setLocation(`/watch/${movie.id}`);
+                }}
                 className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-lg transition-colors"
               >
                 <Play className="h-5 w-5" />
                 <span>Watch with Enhanced Player</span>
               </button>
+            </div>
+          ) : (
+            <div className="absolute bottom-4 right-4 z-10">
+              <div className="text-white bg-black/50 px-4 py-2 rounded-md shadow-lg">
+                Video source not available
+              </div>
             </div>
           )}
         </div>
