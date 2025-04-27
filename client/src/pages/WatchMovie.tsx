@@ -617,19 +617,25 @@ const WatchMovie = () => {
         </div>
         
         <div className="p-4">
-          {mockTranscript.map(entry => (
-            <div 
-              key={entry.id} 
-              className={`mb-4 p-3 rounded ${currentTime >= entry.time && currentTime < entry.time + 15 ? 'bg-red-600/20 border-l-2 border-red-600' : 'hover:bg-zinc-800'} cursor-pointer`}
-              onClick={() => videoRef.current && (videoRef.current.currentTime = entry.time)}
-            >
-              <div className="flex justify-between text-xs text-gray-400 mb-1">
-                <span>{entry.speaker}</span>
-                <span>{formatTime(entry.time)}</span>
-              </div>
-              <p className="text-sm">{entry.text}</p>
+          {transcriptData.length === 0 ? (
+            <div className="text-center text-gray-400 py-10">
+              No transcript available for this movie yet
             </div>
-          ))}
+          ) : (
+            transcriptData.map(entry => (
+              <div 
+                key={entry.id} 
+                className={`mb-4 p-3 rounded ${currentTime >= entry.time && currentTime < entry.time + 15 ? 'bg-red-600/20 border-l-2 border-red-600' : 'hover:bg-zinc-800'} cursor-pointer`}
+                onClick={() => videoRef.current && (videoRef.current.currentTime = entry.time)}
+              >
+                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <span>{entry.speaker}</span>
+                  <span>{formatTime(entry.time)}</span>
+                </div>
+                <p className="text-sm">{entry.text}</p>
+              </div>
+            ))
+          )}
         </div>
       </div>
       

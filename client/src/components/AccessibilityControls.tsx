@@ -21,6 +21,8 @@ export default function AccessibilityControls() {
   // Memoized command handlers to avoid recreating on each render
   const handleScreenReaderToggle = useCallback(() => {
     toggleScreenReader();
+    // Only announce when turning ON the screen reader
+    // We don't announce when turning it off since it's already off
     if (!isScreenReaderActive) {
       announceToScreenReader("Screen reader activated");
     }
