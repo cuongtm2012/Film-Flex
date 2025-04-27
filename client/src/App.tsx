@@ -16,11 +16,13 @@ import AuthPage from "@/pages/auth-page";
 import Profile from "@/pages/Profile";
 import TrendingMovies from "@/pages/TrendingMovies";
 import DriveMovies from "@/pages/DriveMovies";
-import AdminDashboard from "@/pages/AdminDashboard";
+import PremiumComparison from "@/pages/PremiumComparison";
+import AdminDashboard from "@/pages/admin/Dashboard";
 import { AuthProvider } from "@/hooks/use-auth";
 import { LanguageProvider } from "@/hooks/use-language";
 import { AccessibilityProvider } from "@/hooks/use-accessibility";
 import { ProtectedRoute } from "@/lib/protected-route";
+import { AdminRoute } from "@/lib/admin-route";
 import { initializeDriveAPI } from "@/lib/driveHelper";
 import AccessibilityControls from "@/components/AccessibilityControls";
 
@@ -35,10 +37,11 @@ function Router() {
       <Route path="/genre/:id" component={GenreMovies} />
       <Route path="/genres" component={GenreMovies} />
       <Route path="/drive-movies" component={DriveMovies} />
+      <Route path="/premium" component={PremiumComparison} />
       <ProtectedRoute path="/my-list" component={MyList} />
       <ProtectedRoute path="/profile" component={Profile} />
       <ProtectedRoute path="/trending" component={TrendingMovies} />
-      <ProtectedRoute path="/admin" component={AdminDashboard} />
+      <AdminRoute path="/admin" component={AdminDashboard} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
