@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
+import NewHomePage from "@/pages/NewHomePage";
 import MovieDetails from "@/pages/MovieDetails";
 import WatchMovie from "@/pages/WatchMovie";
 import Search from "@/pages/Search";
@@ -26,7 +27,8 @@ import AccessibilityControls from "@/components/AccessibilityControls";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/" component={NewHomePage} />
+      <Route path="/old-home" component={Home} />
       <Route path="/movie/:id" component={MovieDetails} />
       <Route path="/watch/:id" component={WatchMovie} />
       <Route path="/search" component={Search} />
