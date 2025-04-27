@@ -80,10 +80,17 @@ export default function MovieManagement() {
   const [openReviewDialog, setOpenReviewDialog] = useState(false);
   const [openCopyDialog, setOpenCopyDialog] = useState(false);
   const [openAddUrlDialog, setOpenAddUrlDialog] = useState(false);
+  const [openImportDialog, setOpenImportDialog] = useState(false);
   
   // Selected items
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [selectedUpload, setSelectedUpload] = useState<MovieUpload | null>(null);
+  
+  // Google Drive related state
+  const [driveFiles, setDriveFiles] = useState<any[]>([]);
+  const [selectedDriveFiles, setSelectedDriveFiles] = useState<any[]>([]);
+  const [isLoadingDriveFiles, setIsLoadingDriveFiles] = useState(false);
+  const [driveFolderId, setDriveFolderId] = useState('1K9yzITGEGc9sbXWV0NT9Nj8sIdTcO5hN');
   
   // Form state
   const [movieForm, setMovieForm] = useState({
@@ -412,6 +419,51 @@ export default function MovieManagement() {
     }
   });
   
+  // Fetch Google Drive files
+  const fetchDriveFilesMutation = useMutation({
+    mutationFn: async (folderId: string) => {
+      const res = await apiRequest('GET', `/api/drive/files?folderId=${folderId}`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setDriveFiles(data.files || []);
+      setIsLoadingDriveFiles(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('admin.error'),
+        description: error.message || t('admin.failedToFetchDriveFiles'),
+        variant: 'destructive',
+      });
+      setIsLoadingDriveFiles(false);
+    }
+  });
+  
+  // Import movies from Google Drive
+  const importDriveMoviesMutation = useMutation({
+    mutationFn: async (movies: any[]) => {
+      const res = await apiRequest('POST', '/api/admin/movies/import', { movies });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: t('admin.moviesImported'),
+        description: t('admin.moviesImportedSuccess').replace('{count}', data.count.toString()),
+      });
+      setOpenImportDialog(false);
+      setSelectedDriveFiles([]);
+      queryClient.invalidateQueries({ queryKey: ['/api/movies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/movies'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('admin.error'),
+        description: error.message || t('admin.failedToImportMovies'),
+        variant: 'destructive',
+      });
+    }
+  });
+  
   // Format date
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
@@ -593,6 +645,83 @@ export default function MovieManagement() {
     });
   };
   
+  // Handle Google Drive import dialog open
+  const openImportFromDrive = () => {
+    setDriveFiles([]);
+    setSelectedDriveFiles([]);
+    setIsLoadingDriveFiles(true);
+    setOpenImportDialog(true);
+    fetchDriveFilesMutation.mutate(driveFolderId);
+  };
+  
+  // Handle Drive folder ID change
+  const handleDriveFolderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDriveFolderId(e.target.value);
+  };
+  
+  // Handle fetching files from a Google Drive folder
+  const handleFetchDriveFiles = () => {
+    setIsLoadingDriveFiles(true);
+    fetchDriveFilesMutation.mutate(driveFolderId);
+  };
+  
+  // Toggle selection of a Drive file
+  const toggleFileSelection = (file: any) => {
+    // Check if file is already selected
+    const isSelected = selectedDriveFiles.some(selected => selected.id === file.id);
+    
+    if (isSelected) {
+      // Remove from selection
+      setSelectedDriveFiles(selectedDriveFiles.filter(selected => selected.id !== file.id));
+    } else {
+      // Add to selection with default metadata
+      const fileWithMetadata = {
+        ...file,
+        title: file.name.replace(/\.\w+$/, ''), // Remove file extension
+        description: '',
+        releaseYear: new Date().getFullYear(),
+        duration: 90,
+        rating: 'PG-13',
+        posterUrl: file.thumbnailLink || 'https://via.placeholder.com/300x450?text=No+Poster',
+        backdropUrl: 'https://via.placeholder.com/1280x720?text=No+Backdrop',
+        videoUrl: file.webContentLink || file.id,
+        videoSources: [
+          {
+            quality: 'HD',
+            url: file.webContentLink || file.id
+          }
+        ],
+        genreIds: [1] // Default to first genre
+      };
+      
+      setSelectedDriveFiles([...selectedDriveFiles, fileWithMetadata]);
+    }
+  };
+  
+  // Update metadata for a selected file
+  const updateFileMetadata = (fileId: string, field: string, value: any) => {
+    setSelectedDriveFiles(selectedDriveFiles.map(file => {
+      if (file.id === fileId) {
+        return { ...file, [field]: value };
+      }
+      return file;
+    }));
+  };
+  
+  // Import selected Drive files as movies
+  const handleImportDriveMovies = () => {
+    if (selectedDriveFiles.length === 0) {
+      toast({
+        title: t('admin.error'),
+        description: t('admin.noFilesSelected'),
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    importDriveMoviesMutation.mutate(selectedDriveFiles);
+  };
+  
   // Handle adding movie from URL
   const handleAddMovieFromUrl = (e: React.FormEvent) => {
     e.preventDefault();
@@ -655,6 +784,10 @@ export default function MovieManagement() {
               )}
             </div>
             <div className="flex gap-2">
+              <Button variant="outline" onClick={openImportFromDrive}>
+                <FileVideo className="mr-2 h-4 w-4" />
+                {t('admin.importFromDrive') || 'Import From Drive'}
+              </Button>
               <Button variant="outline" onClick={() => setOpenCopyDialog(true)}>
                 <Copy className="mr-2 h-4 w-4" />
                 {t('admin.copyFromDrive')}
@@ -1475,6 +1608,204 @@ export default function MovieManagement() {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Google Drive Import Dialog */}
+      <Dialog open={openImportDialog} onOpenChange={setOpenImportDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('admin.importFromDrive') || 'Import Movies from Google Drive'}</DialogTitle>
+            <DialogDescription>
+              Select movies from your Google Drive to import into FilmFlex.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            {/* Drive folder selector */}
+            <div className="flex gap-2 items-center">
+              <Label htmlFor="driveFolderId" className="w-auto whitespace-nowrap">Drive Folder ID:</Label>
+              <Input 
+                id="driveFolderId" 
+                className="flex-1"
+                value={driveFolderId} 
+                onChange={handleDriveFolderChange}
+                placeholder="1K9yzITGEGc9sbXWV0NT9Nj8sIdTcO5hN" 
+              />
+              <Button onClick={handleFetchDriveFiles} disabled={isLoadingDriveFiles}>
+                {isLoadingDriveFiles ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <FileVideo className="h-4 w-4 mr-2" />
+                )}
+                Fetch Files
+              </Button>
+            </div>
+            
+            {/* File selection area */}
+            <div className="border rounded-md p-2 min-h-[200px]">
+              {isLoadingDriveFiles ? (
+                <div className="h-48 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin mr-2" />
+                  <span>Loading files from Google Drive...</span>
+                </div>
+              ) : driveFiles.length === 0 ? (
+                <div className="h-48 flex items-center justify-center text-muted-foreground">
+                  <p>No files found. Please check the folder ID and try again.</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <div className="grid grid-cols-[auto_1fr_80px_80px] gap-2 py-2 px-3 bg-muted font-medium text-sm">
+                    <div></div>
+                    <div>Filename</div>
+                    <div>Type</div>
+                    <div>Size</div>
+                  </div>
+                  
+                  {driveFiles.map(file => {
+                    const isSelected = selectedDriveFiles.some(f => f.id === file.id);
+                    const isVideo = file.mimeType?.includes('video') || 
+                                   /\.(mp4|webm|mkv|avi|mov)$/i.test(file.name);
+                    
+                    if (!isVideo) return null;
+                    
+                    return (
+                      <div 
+                        key={file.id}
+                        className={`grid grid-cols-[auto_1fr_80px_80px] gap-2 items-center py-2 px-3 rounded hover:bg-muted cursor-pointer ${isSelected ? 'bg-primary/10' : ''}`}
+                        onClick={() => toggleFileSelection(file)}
+                      >
+                        <div>
+                          {isSelected ? (
+                            <CheckCircle2 className="h-5 w-5 text-primary" />
+                          ) : (
+                            <div className="h-5 w-5 rounded-full border border-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="font-medium truncate">{file.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {file.mimeType?.replace('video/', '') || 'Video'}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {file.size ? `${Math.round(parseInt(file.size) / (1024 * 1024))} MB` : 'N/A'}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            
+            {/* Selected files preview */}
+            {selectedDriveFiles.length > 0 && (
+              <div className="border-t pt-4">
+                <h3 className="font-medium mb-2">Selected Files ({selectedDriveFiles.length})</h3>
+                <div className="space-y-4">
+                  {selectedDriveFiles.map(file => (
+                    <div key={file.id} className="border rounded-md p-3 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-medium text-primary">{file.name}</h4>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFileSelection(file);
+                          }}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor={`title-${file.id}`}>Title</Label>
+                          <Input 
+                            id={`title-${file.id}`}
+                            value={file.title || ''}
+                            onChange={(e) => updateFileMetadata(file.id, 'title', e.target.value)}
+                            placeholder="Movie title"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor={`releaseYear-${file.id}`}>Release Year</Label>
+                          <Input 
+                            id={`releaseYear-${file.id}`}
+                            type="number"
+                            value={file.releaseYear || new Date().getFullYear()}
+                            onChange={(e) => updateFileMetadata(file.id, 'releaseYear', parseInt(e.target.value))}
+                            placeholder="Release year"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2 col-span-2">
+                          <Label htmlFor={`description-${file.id}`}>Description</Label>
+                          <Textarea 
+                            id={`description-${file.id}`}
+                            value={file.description || ''}
+                            onChange={(e) => updateFileMetadata(file.id, 'description', e.target.value)}
+                            placeholder="Movie description"
+                            rows={2}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor={`duration-${file.id}`}>Duration (minutes)</Label>
+                          <Input 
+                            id={`duration-${file.id}`}
+                            type="number"
+                            value={file.duration || 90}
+                            onChange={(e) => updateFileMetadata(file.id, 'duration', parseInt(e.target.value))}
+                            placeholder="Duration"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor={`rating-${file.id}`}>Rating</Label>
+                          <Select 
+                            value={file.rating || 'PG-13'} 
+                            onValueChange={(value) => updateFileMetadata(file.id, 'rating', value)}
+                          >
+                            <SelectTrigger id={`rating-${file.id}`}>
+                              <SelectValue placeholder="Select rating" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="G">G</SelectItem>
+                              <SelectItem value="PG">PG</SelectItem>
+                              <SelectItem value="PG-13">PG-13</SelectItem>
+                              <SelectItem value="R">R</SelectItem>
+                              <SelectItem value="NC-17">NC-17</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setOpenImportDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleImportDriveMovies}
+              disabled={selectedDriveFiles.length === 0 || importDriveMoviesMutation.isPending}
+            >
+              {importDriveMoviesMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <FileVideo className="h-4 w-4 mr-2" />
+              )}
+              Import {selectedDriveFiles.length} Movies
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       
