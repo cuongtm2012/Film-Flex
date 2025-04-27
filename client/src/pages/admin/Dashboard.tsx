@@ -574,259 +574,266 @@ export default function AdminDashboard() {
                         Add New Movie
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-2xl">
+                    <DialogContent className="max-w-3xl">
                       <DialogHeader>
                         <DialogTitle>Add New Movie</DialogTitle>
                         <DialogDescription>
-                          Fill in the movie information below.
+                          Fill in the movie information and choose your video source
                         </DialogDescription>
                       </DialogHeader>
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const formData = new FormData(e.currentTarget);
-                        const movieData = {
-                          title: formData.get('title') as string,
-                          description: formData.get('description') as string,
-                          releaseYear: parseInt(formData.get('releaseYear') as string),
-                          duration: parseInt(formData.get('duration') as string),
-                          posterUrl: formData.get('posterUrl') as string || 'https://via.placeholder.com/300x450?text=No+Poster',
-                          backdropUrl: formData.get('posterUrl') as string || 'https://via.placeholder.com/1280x720?text=No+Backdrop',
-                          rating: formData.get('rating') as string || 'PG-13',
-                          videoUrl: formData.get('videoUrl') as string,
-                          genreIds: [1], // Default to first genre
-                          videoSources: [
-                            {
-                              quality: 'HD',
-                              url: formData.get('videoUrl') as string
-                            }
-                          ]
-                        };
+                      <Tabs defaultValue="direct" className="mt-4">
+                        <TabsList className="grid w-full grid-cols-3">
+                          <TabsTrigger value="direct">Direct URL</TabsTrigger>
+                          <TabsTrigger value="googledrive">Google Drive</TabsTrigger>
+                          <TabsTrigger value="dropbox">Dropbox</TabsTrigger>
+                        </TabsList>
                         
-                        // Call API to create movie
-                        addMovieMutation.mutate(movieData);
-                      }}>
-                        <div className="grid gap-4 py-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="title">Title *</Label>
-                              <Input
-                                id="title"
-                                name="title"
-                                required
-                              />
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4">
+                        <form onSubmit={(e) => {
+                          e.preventDefault();
+                          const formData = new FormData(e.currentTarget);
+                          const sourceType = formData.get('sourceType') as string;
+                          let videoUrl = formData.get('videoUrl') as string;
+                          
+                          // Process URL based on source type
+                          if (!videoUrl) {
+                            toast({
+                              title: "Missing Video URL",
+                              description: "Please provide a video URL",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          
+                          // Convert Google Drive URL if needed
+                          if (sourceType === 'googledrive' && videoUrl.includes('drive.google.com')) {
+                            const fileId = videoUrl.match(/[-\w]{25,}/);
+                            if (fileId && fileId[0]) {
+                              videoUrl = `https://drive.google.com/uc?export=download&id=${fileId[0]}`;
+                            }
+                          }
+                          
+                          // Convert Dropbox URL if needed
+                          if (sourceType === 'dropbox' && videoUrl.includes('dropbox.com')) {
+                            videoUrl = videoUrl.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+                            videoUrl = videoUrl.replace('?dl=0', '').replace('?dl=1', '');
+                          }
+                          
+                          const genreId = parseInt(formData.get('genreId') as string) || 1;
+                          
+                          const movieData = {
+                            title: formData.get('title') as string,
+                            description: formData.get('description') as string || `Watch ${formData.get('title')} on FilmFlex`,
+                            releaseYear: parseInt(formData.get('releaseYear') as string) || new Date().getFullYear(),
+                            duration: parseInt(formData.get('duration') as string) || 90,
+                            posterUrl: formData.get('posterUrl') as string || 'https://via.placeholder.com/300x450?text=No+Poster',
+                            backdropUrl: formData.get('posterUrl') as string || 'https://via.placeholder.com/1280x720?text=No+Backdrop',
+                            rating: formData.get('rating') as string || 'PG-13',
+                            featured: formData.get('featured') === 'on',
+                            premium: formData.get('premium') === 'on',
+                            genreIds: [genreId],
+                            videoSources: [
+                              {
+                                quality: 'HD',
+                                url: videoUrl
+                              }
+                            ],
+                            sourceType: sourceType // Additional metadata
+                          };
+                          
+                          // Call API to create movie
+                          addMovieMutation.mutate(movieData);
+                        }}>
+                          <input type="hidden" name="sourceType" id="sourceType" value="direct" />
+                          
+                          <TabsContent value="direct" className="mt-4">
+                            <div className="space-y-4">
                               <div className="space-y-2">
-                                <Label htmlFor="releaseYear">Release Year</Label>
+                                <Label htmlFor="videoUrl">Video URL *</Label>
                                 <Input
-                                  id="releaseYear"
-                                  name="releaseYear"
-                                  type="number"
-                                  defaultValue={new Date().getFullYear()}
+                                  id="videoUrl"
+                                  name="videoUrl"
+                                  placeholder="https://example.com/video.mp4"
+                                  required
+                                  onChange={() => {
+                                    document.getElementById('sourceType')!.value = 'direct';
+                                  }}
+                                />
+                                <p className="text-xs text-gray-400 mt-1">
+                                  Enter any direct video URL that can be played with HTML5 video player
+                                </p>
+                              </div>
+                            </div>
+                          </TabsContent>
+                          
+                          <TabsContent value="googledrive" className="mt-4">
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="videoUrl">Google Drive URL *</Label>
+                                <Input
+                                  id="videoUrl"
+                                  name="videoUrl"
+                                  placeholder="https://drive.google.com/file/d/..."
+                                  required
+                                  onChange={() => {
+                                    document.getElementById('sourceType')!.value = 'googledrive';
+                                  }}
+                                />
+                                <p className="text-xs text-gray-400 mt-1">
+                                  Enter the Google Drive file link. Make sure the file is public or shared with "Anyone with the link"
+                                </p>
+                              </div>
+                            </div>
+                          </TabsContent>
+                          
+                          <TabsContent value="dropbox" className="mt-4">
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="videoUrl">Dropbox URL *</Label>
+                                <Input
+                                  id="videoUrl"
+                                  name="videoUrl"
+                                  placeholder="https://www.dropbox.com/s/..."
+                                  required
+                                  onChange={() => {
+                                    document.getElementById('sourceType')!.value = 'dropbox';
+                                  }}
+                                />
+                                <p className="text-xs text-gray-400 mt-1">
+                                  Enter the Dropbox share link. It will be automatically converted to a direct download link.
+                                </p>
+                              </div>
+                            </div>
+                          </TabsContent>
+                          
+                          <div className="border-t border-gray-700 my-6 pt-6">
+                            <h3 className="text-lg font-medium mb-4">Movie Details</h3>
+                            
+                            <div className="grid gap-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="title">Title *</Label>
+                                  <Input
+                                    id="title"
+                                    name="title"
+                                    required
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="genreId">Genre</Label>
+                                  <Select name="genreId" defaultValue="1">
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select genre" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="1">Action</SelectItem>
+                                      <SelectItem value="2">Adventure</SelectItem>
+                                      <SelectItem value="3">Animation</SelectItem>
+                                      <SelectItem value="4">Comedy</SelectItem>
+                                      <SelectItem value="5">Crime</SelectItem>
+                                      <SelectItem value="6">Documentary</SelectItem>
+                                      <SelectItem value="7">Drama</SelectItem>
+                                      <SelectItem value="8">Fantasy</SelectItem>
+                                      <SelectItem value="9">Horror</SelectItem>
+                                      <SelectItem value="10">Sci-Fi</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="releaseYear">Release Year</Label>
+                                  <Input
+                                    id="releaseYear"
+                                    name="releaseYear"
+                                    type="number"
+                                    defaultValue={new Date().getFullYear()}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="duration">Duration (min)</Label>
+                                  <Input
+                                    id="duration"
+                                    name="duration"
+                                    type="number"
+                                    defaultValue={90}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="rating">Rating</Label>
+                                  <Select name="rating" defaultValue="PG-13">
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select rating" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="G">G</SelectItem>
+                                      <SelectItem value="PG">PG</SelectItem>
+                                      <SelectItem value="PG-13">PG-13</SelectItem>
+                                      <SelectItem value="R">R</SelectItem>
+                                      <SelectItem value="NC-17">NC-17</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor="description">Description</Label>
+                                <Textarea
+                                  id="description"
+                                  name="description"
+                                  rows={3}
                                 />
                               </div>
                               
                               <div className="space-y-2">
-                                <Label htmlFor="duration">Duration (min)</Label>
+                                <Label htmlFor="posterUrl">Poster URL</Label>
                                 <Input
-                                  id="duration"
-                                  name="duration"
-                                  type="number"
-                                  defaultValue={90}
+                                  id="posterUrl"
+                                  name="posterUrl"
+                                  placeholder="https://example.com/poster.jpg"
                                 />
+                                <p className="text-xs text-gray-400 mt-1">
+                                  URL to movie poster image. Leave empty for a placeholder image.
+                                </p>
+                              </div>
+                              
+                              <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-4 mt-2">
+                                <div className="flex items-center space-x-2">
+                                  <input 
+                                    type="checkbox" 
+                                    id="featured" 
+                                    name="featured"
+                                    className="w-4 h-4 rounded border-gray-600 bg-gray-800"
+                                  />
+                                  <Label htmlFor="featured">Featured on homepage</Label>
+                                </div>
+                                
+                                <div className="flex items-center space-x-2">
+                                  <input 
+                                    type="checkbox" 
+                                    id="premium" 
+                                    name="premium"
+                                    className="w-4 h-4 rounded border-gray-600 bg-gray-800"
+                                  />
+                                  <Label htmlFor="premium">Premium content</Label>
+                                </div>
                               </div>
                             </div>
                           </div>
                           
-                          <div className="space-y-2">
-                            <Label htmlFor="description">Description</Label>
-                            <Textarea
-                              id="description"
-                              name="description"
-                              rows={3}
-                            />
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="posterUrl">Poster URL</Label>
-                              <Input
-                                id="posterUrl"
-                                name="posterUrl"
-                                placeholder="https://example.com/poster.jpg"
-                              />
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <Label htmlFor="rating">Rating</Label>
-                              <Select name="rating" defaultValue="PG-13">
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select rating" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="G">G</SelectItem>
-                                  <SelectItem value="PG">PG</SelectItem>
-                                  <SelectItem value="PG-13">PG-13</SelectItem>
-                                  <SelectItem value="R">R</SelectItem>
-                                  <SelectItem value="NC-17">NC-17</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label htmlFor="videoUrl">Video URL</Label>
-                            <Input
-                              id="videoUrl"
-                              name="videoUrl"
-                              placeholder="https://drive.google.com/file/d/..."
-                            />
-                            <p className="text-xs text-gray-400 mt-1">
-                              Supports Google Drive, Dropbox, or any direct video URL
-                            </p>
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button type="submit" disabled={addMovieMutation.isPending}>
-                            {addMovieMutation.isPending && (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            )}
-                            Create Movie
-                          </Button>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                  {/* Dropbox Integration */}
-                  <Dialog open={isDropboxModalOpen} onOpenChange={setIsDropboxModalOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" 
-                        onClick={() => setIsDropboxModalOpen(true)}>
-                        <FilesIcon className="h-4 w-4 mr-2" />
-                        Add from Dropbox
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl">
-                      <DialogHeader>
-                        <DialogTitle>Add Movie from Dropbox</DialogTitle>
-                        <DialogDescription>
-                          Provide the Dropbox file link to add a new movie
-                        </DialogDescription>
-                      </DialogHeader>
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const formData = new FormData(e.currentTarget);
-                        const videoUrl = formData.get('dropboxUrl') as string;
-                        
-                        if (!videoUrl) {
-                          toast({
-                            title: "Missing Video URL",
-                            description: "Please provide a Dropbox video URL",
-                            variant: "destructive"
-                          });
-                          return;
-                        }
-                        
-                        // Convert Dropbox URL to direct link if needed
-                        let directUrl = videoUrl;
-                        if (videoUrl.includes('dropbox.com')) {
-                          // Convert from share link to direct link
-                          directUrl = videoUrl.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
-                          directUrl = directUrl.replace('?dl=0', '').replace('?dl=1', '');
-                        }
-                        
-                        const movieData = {
-                          title: formData.get('title') as string,
-                          description: formData.get('description') as string || `Watch ${formData.get('title')} on FilmFlex`,
-                          releaseYear: parseInt(formData.get('releaseYear') as string) || new Date().getFullYear(),
-                          duration: parseInt(formData.get('duration') as string) || 90,
-                          posterUrl: formData.get('posterUrl') as string || 'https://via.placeholder.com/300x450?text=No+Poster',
-                          backdropUrl: formData.get('posterUrl') as string || 'https://via.placeholder.com/1280x720?text=No+Backdrop',
-                          rating: formData.get('rating') as string || 'PG-13',
-                          genreIds: [1], // Default genre
-                          videoSources: [
-                            {
-                              quality: 'HD',
-                              url: directUrl
-                            }
-                          ]
-                        };
-                        
-                        addMovieMutation.mutate(movieData);
-                      }}>
-                        <div className="grid gap-4 py-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="dropboxUrl">Dropbox Video URL *</Label>
-                            <Input
-                              id="dropboxUrl"
-                              name="dropboxUrl"
-                              placeholder="https://www.dropbox.com/s/..."
-                              required
-                            />
-                            <p className="text-xs text-gray-400 mt-1">
-                              Paste your Dropbox share link here. It will be automatically converted to a direct link.
-                            </p>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label htmlFor="title">Movie Title *</Label>
-                            <Input
-                              id="title"
-                              name="title"
-                              required
-                            />
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="releaseYear">Release Year</Label>
-                              <Input
-                                id="releaseYear"
-                                name="releaseYear"
-                                type="number"
-                                defaultValue={new Date().getFullYear()}
-                              />
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <Label htmlFor="duration">Duration (min)</Label>
-                              <Input
-                                id="duration"
-                                name="duration"
-                                type="number"
-                                defaultValue={90}
-                              />
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label htmlFor="description">Description</Label>
-                            <Textarea
-                              id="description"
-                              name="description"
-                              rows={3}
-                            />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label htmlFor="posterUrl">Poster URL</Label>
-                            <Input
-                              id="posterUrl"
-                              name="posterUrl"
-                              placeholder="https://example.com/poster.jpg"
-                            />
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button type="submit" disabled={addMovieMutation.isPending}>
-                            {addMovieMutation.isPending && (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            )}
-                            Add Movie
-                          </Button>
-                        </DialogFooter>
-                      </form>
+                          <DialogFooter>
+                            <Button type="submit" disabled={addMovieMutation.isPending}>
+                              {addMovieMutation.isPending && (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              )}
+                              Add Movie
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </Tabs>
                     </DialogContent>
                   </Dialog>
                   
