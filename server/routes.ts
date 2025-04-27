@@ -727,7 +727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Fetch statistics for dashboard
       const allUsers = await storage.getAllUsers();
-      const premiumUsers = allUsers.filter(user => user.subscriptionTier === 'premium');
+      const premiumUsers = allUsers.filter(user => user.userType === 'premium');
       const movies = await storage.getAllMovies();
       
       // Calculate total income from transactions
@@ -764,18 +764,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Process each movie from the request
       for (const movieData of movies) {
+        // Prepare movie data according to schema
         const movie = await storage.createMovie({
           title: movieData.title || 'Untitled Movie',
-          description: movieData.description || '',
-          year: movieData.year || new Date().getFullYear(),
-          director: movieData.director || '',
-          genre: movieData.genre || 'uncategorized',
-          length: movieData.length || 90, // Default to 90 minutes
-          posterUrl: movieData.posterUrl || '',
+          description: movieData.description || 'No description available',
+          releaseYear: movieData.releaseYear || new Date().getFullYear(),
+          duration: movieData.duration || 90, // Default to 90 minutes
+          posterUrl: movieData.posterUrl || 'https://via.placeholder.com/300x450?text=No+Poster',
+          backdropUrl: movieData.backdropUrl || 'https://via.placeholder.com/1280x720?text=No+Backdrop',
+          rating: movieData.rating || 'PG',
+          videoSources: movieData.videoSources || [],
           videoUrl: movieData.videoUrl || '',
-          trailerUrl: movieData.trailerUrl || '',
-          featured: movieData.featured || false,
-          premium: movieData.premium || false
+          genreIds: movieData.genreIds || [1], // Default to first genre
+          director: movieData.director || '',
+          cast: movieData.cast || [],
+          imdbRating: movieData.imdbRating || '',
         });
         
         if (movie) {
@@ -785,9 +788,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.logAdminActivity({
             adminId: adminUser.id,
             action: 'Import Movie',
-            target: `Movie ${movie.id}`,
-            notes: `Imported movie "${movie.title}" from Google Drive`,
-            timestamp: new Date()
+            entityId: movie.id,
+            entityType: 'movie',
+            details: {
+              title: movie.title,
+              source: 'Google Drive',
+              importDate: new Date().toISOString()
+            }
           });
         }
       }
