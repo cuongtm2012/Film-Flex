@@ -204,6 +204,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Drive files endpoint
+  router.get("/drive/files", async (req, res) => {
+    try {
+      const { folderId } = req.query;
+      
+      if (!folderId) {
+        return res.status(400).json({ message: "Folder ID is required" });
+      }
+      
+      // Check if API key is configured
+      console.log(`GOOGLE_API_KEY exists: ${!!process.env.GOOGLE_API_KEY}`);
+      
+      if (!process.env.GOOGLE_API_KEY) {
+        return res.status(500).json({
+          error: "Missing Google API Key",
+          message: "The Google API key is not configured. Please contact the administrator."
+        });
+      }
+      
+      console.log("Attempting to fetch files from Google Drive folder:", folderId);
+      
+      try {
+        // Use the Google Drive API to list files in the folder
+        const response = await axios.get(
+          `https://www.googleapis.com/drive/v3/files?q='${folderId}' in parents and trashed=false&fields=files(id,name,mimeType,size,thumbnailLink,webContentLink)&key=${process.env.GOOGLE_API_KEY}`
+        );
+        
+        // Filter to only include video files
+        const videoFiles = response.data.files.filter((file: any) => 
+          file.mimeType.includes('video/') || 
+          /\.(mp4|webm|mkv|avi|mov)$/i.test(file.name)
+        );
+        
+        // Log success (for admin tracking)
+        if (req.user) {
+          await storage.logAdminActivity({
+            adminId: req.user.id,
+            action: 'DRIVE_FILES_FETCH',
+            entityType: 'DRIVE',
+            details: `Successfully fetched ${videoFiles.length} video files from Drive folder: ${folderId}`
+          });
+        }
+        
+        return res.json({
+          success: true,
+          files: videoFiles
+        });
+      } catch (apiError: any) {
+        console.error("Error fetching files from Drive API:", apiError.message);
+        
+        // Log the error (for admin tracking)
+        if (req.user) {
+          await storage.logAdminActivity({
+            adminId: req.user.id,
+            action: 'DRIVE_FILES_ERROR',
+            entityType: 'DRIVE',
+            details: `Error fetching files from Drive folder ${folderId}: ${apiError.message}`
+          });
+        }
+        
+        return res.status(500).json({
+          error: "Failed to fetch files from Google Drive",
+          message: apiError.message
+        });
+      }
+    } catch (error: any) {
+      console.error('Error processing Drive files request:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // Google Drive movies endpoint
   router.get("/drive/movies/:folderId", async (req, res) => {
     try {
@@ -625,6 +699,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Import movies from Google Drive
+  adminRouter.post('/movies/import', isAdmin, async (req, res) => {
+    try {
+      const { movies } = req.body;
+      
+      if (!movies || !Array.isArray(movies) || movies.length === 0) {
+        return res.status(400).json({ error: "No movies to import" });
+      }
+      
+      console.log(`Importing ${movies.length} movies from Google Drive`);
+      
+      // Track successfully imported movies
+      const importedMovies = [];
+      
+      // Process each movie
+      for (const movieData of movies) {
+        try {
+          // Prepare movie data for database
+          const movieToCreate = {
+            title: movieData.title,
+            description: movieData.description || `Watch ${movieData.title} on FilmFlex.`,
+            releaseYear: movieData.releaseYear || new Date().getFullYear(),
+            duration: movieData.duration || 90,
+            posterUrl: movieData.posterUrl || 'https://via.placeholder.com/300x450?text=No+Poster',
+            backdropUrl: movieData.backdropUrl || 'https://via.placeholder.com/1280x720?text=No+Backdrop',
+            videoUrl: movieData.videoUrl || movieData.id,
+            rating: movieData.rating || 'PG-13',
+            genreIds: movieData.genreIds || [1],
+            director: movieData.director || 'Unknown Director',
+            cast: movieData.cast || [],
+            videoSources: [{
+              quality: 'HD',
+              url: movieData.videoUrl || `https://drive.google.com/uc?export=download&id=${movieData.id}`
+            }]
+          };
+          
+          // Create the movie in the database
+          const createdMovie = await storage.createMovie(movieToCreate);
+          importedMovies.push(createdMovie);
+          
+          // Log the activity
+          await storage.logAdminActivity({
+            adminId: req.user!.id,
+            action: 'IMPORT_MOVIE',
+            entityId: createdMovie.id,
+            entityType: 'MOVIE',
+            details: `Imported movie '${createdMovie.title}' from Google Drive (ID: ${movieData.id})`
+          });
+        } catch (movieError: any) {
+          console.error(`Error importing movie ${movieData.title}:`, movieError.message);
+        }
+      }
+      
+      res.json({
+        success: true,
+        count: importedMovies.length,
+        message: `Successfully imported ${importedMovies.length} of ${movies.length} movies`
+      });
+    } catch (error: any) {
+      console.error('Error importing movies:', error);
+      res.status(500).json({ error: "Failed to import movies from Google Drive" });
+    }
+  });
+  
   adminRouter.patch('/movies/:id', isAdmin, async (req, res) => {
     try {
       const movieId = parseInt(req.params.id);
@@ -750,65 +888,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Import movies from Google Drive
-  adminRouter.post('/movies/import', isAdmin, async (req, res) => {
-    try {
-      const { movies } = req.body;
-      
-      if (!Array.isArray(movies) || movies.length === 0) {
-        return res.status(400).json({ error: "No movies provided for import" });
-      }
-      
-      const adminUser = req.user as any;
-      let importCount = 0;
-      
-      // Process each movie from the request
-      for (const movieData of movies) {
-        // Prepare movie data according to schema
-        const movie = await storage.createMovie({
-          title: movieData.title || 'Untitled Movie',
-          description: movieData.description || 'No description available',
-          releaseYear: movieData.releaseYear || new Date().getFullYear(),
-          duration: movieData.duration || 90, // Default to 90 minutes
-          posterUrl: movieData.posterUrl || 'https://via.placeholder.com/300x450?text=No+Poster',
-          backdropUrl: movieData.backdropUrl || 'https://via.placeholder.com/1280x720?text=No+Backdrop',
-          rating: movieData.rating || 'PG',
-          videoSources: movieData.videoSources || [],
-          videoUrl: movieData.videoUrl || '',
-          genreIds: movieData.genreIds || [1], // Default to first genre
-          director: movieData.director || '',
-          cast: movieData.cast || [],
-          imdbRating: movieData.imdbRating || '',
-        });
-        
-        if (movie) {
-          importCount++;
-          
-          // Log the admin activity
-          await storage.logAdminActivity({
-            adminId: adminUser.id,
-            action: 'Import Movie',
-            entityId: movie.id,
-            entityType: 'movie',
-            details: {
-              title: movie.title,
-              source: 'Google Drive',
-              importDate: new Date().toISOString()
-            }
-          });
-        }
-      }
-      
-      res.status(201).json({ 
-        success: true, 
-        count: importCount,
-        message: `Successfully imported ${importCount} movies` 
-      });
-    } catch (error) {
-      console.error('Error importing movies:', error);
-      res.status(500).json({ error: "Failed to import movies from Google Drive" });
-    }
-  });
+
   
   // Mount admin routes
   app.use("/api/admin", adminRouter);
