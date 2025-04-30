@@ -1222,6 +1222,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch movie details from API" });
     }
   });
+  
+  // Get API movie sync status - Public endpoint
+  app.get("/api/api-movies-sync-status", async (req, res) => {
+    try {
+      // Get latest sync job logs
+      const latestJobs = await storage.getApiMovieJobLogs(5, 0);
+      
+      // Get movie counts by status
+      const draftCount = await storage.countApiMovies('draft');
+      const pendingCount = await storage.countApiMovies('pending_review');
+      const publishedCount = await storage.countApiMovies('published');
+      const totalCount = await storage.countApiMovies();
+      
+      res.json({
+        syncJobs: latestJobs,
+        counts: {
+          total: totalCount,
+          draft: draftCount,
+          pending: pendingCount,
+          published: publishedCount
+        },
+        lastSync: latestJobs.length > 0 ? latestJobs[0] : null
+      });
+    } catch (error) {
+      console.error('Error fetching API movie sync status:', error);
+      res.status(500).json({ message: "Failed to retrieve API movie sync status" });
+    }
+  });
 
   // Admin-only routes for managing PhimAPI data sync
   app.post("/api/admin/api-sync", async (req, res) => {

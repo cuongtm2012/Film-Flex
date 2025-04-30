@@ -1,0 +1,55 @@
+Build an automated system to retrieve **all movie data** from a paginated API endpoint (total 2251 pages), process and normalize the data, and store it reliably in a database. The system must handle errors, retries, and support scalability.
+
+---
+
+## Functional Requirements
+
+1. **Pagination Handling**
+   - Iterate over all pages from 1 to 2251.
+   - Construct API requests dynamically for each page.
+
+2. **API Request Execution**
+   - Send HTTP GET requests to the movie API endpoint with parameters:
+     ```
+     GET https://example.com/api/movies?page={page}&genre=all
+     ```
+   - Handle HTTP response status codes:
+     - Success (200): proceed with data processing.
+     - Client/Server errors (4xx, 5xx): implement retry logic or fail gracefully.
+
+3. **Data Parsing and Validation**
+   - Parse JSON response.
+   - Validate required fields for each movie record, e.g., `title`, `slug`, `poster_url`, `year`, `genres`.
+   - Normalize data formats (e.g., trim strings, format dates).
+
+4. **Database Interaction**
+   - Check if each movie already exists in the database (by unique key such as `slug` or `movie_id`).
+   - Insert new movie records or update existing ones.
+   - Store metadata such as last updated timestamp.
+
+5. **Error Handling and Retry Logic**
+   - Retry failed requests up to 3 times with exponential backoff or fixed delay.
+   - Log errors including page number and exception details.
+   - Skip pages after max retries and log for manual review.
+
+6. **Rate Limiting and Throttling**
+   - Respect API rate limits by adding delays between requests if necessary.
+   - Optionally implement concurrency control if parallel requests are used.
+
+7. **Logging and Monitoring**
+   - Log start and completion of each page fetch.
+   - Log summary after entire run (total movies processed, errors).
+   - Optionally send alerts or reports on failures.
+
+8. **Scheduling and Automation**
+   - Allow the job to be scheduled periodically (daily, weekly) to refresh data.
+   - Support incremental updates if API provides delta endpoints.
+
+---
+
+## Non-Functional Requirements
+
+- **Robustness:** System should handle intermittent network failures gracefully.
+- **Scalability:** Support parallel fetching if needed, with control over concurrency.
+- **Maintainability:** Clear modular code with separation of concerns.
+- **Performance:** Efficient database operations (batch inserts/updates if possible).
