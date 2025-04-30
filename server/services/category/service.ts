@@ -45,8 +45,13 @@ export async function createOrUpdateCategory(categoryData: InsertCategory): Prom
  * Link a movie with its categories
  * @param movieId Movie ID
  * @param categoryIds Array of category IDs
+ * @param movieType Type of movie ('regular' or 'api')
  */
-export async function linkMovieCategories(movieId: number, categoryIds: number[]): Promise<void> {
+export async function linkMovieCategories(
+  movieId: number, 
+  categoryIds: number[], 
+  movieType: 'regular' | 'api' = 'api'
+): Promise<void> {
   try {
     // First, remove any existing links for this movie
     await storage.removeAllMovieCategories(movieId);
@@ -55,11 +60,12 @@ export async function linkMovieCategories(movieId: number, categoryIds: number[]
     for (const categoryId of categoryIds) {
       await storage.createMovieCategory({
         movieId,
-        categoryId
+        categoryId,
+        movieType
       });
     }
     
-    log(`Linked movie ${movieId} with ${categoryIds.length} categories`, 'category');
+    log(`Linked movie ${movieId} (type: ${movieType}) with ${categoryIds.length} categories`, 'category');
   } catch (error) {
     log(`Error linking movie ${movieId} with categories: ${error}`, 'category');
     throw error;

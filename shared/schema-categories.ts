@@ -13,8 +13,11 @@ export const categories = pgTable("categories", {
 
 // Movie-Categories junction table for many-to-many relationship
 export const movieCategories = pgTable("movie_categories", {
-  movieId: integer("movie_id").notNull().references(() => apiMovies.id, { onDelete: "cascade" }),
+  movieId: integer("movie_id").notNull(),
   categoryId: integer("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
+  // We removed the foreign key constraint on movieId to allow both regular movies and API movies
+  // Adding a type field to distinguish between regular movies and API movies
+  movieType: text("movie_type", { enum: ["regular", "api"] }).default("api").notNull(),
 }, (table) => {
   return {
     pk: primaryKey({ columns: [table.movieId, table.categoryId] }),
