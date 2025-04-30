@@ -367,11 +367,9 @@ const NewHomePage = () => {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
               {filteredMovies.map(movie => (
-                <Link key={movie.id} href={`/movie/${movie.id}`}>
-                  <a>
-                    <MovieCard movie={movie} />
-                  </a>
-                </Link>
+                <div key={movie.id} onClick={() => setLocation(`/movie/${movie.id}`)}>
+                  <MovieCard movie={movie} />
+                </div>
               ))}
             </div>
           )}
