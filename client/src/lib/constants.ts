@@ -34,6 +34,8 @@ export interface Movie {
   cast?: string[];
   imdbRating?: string;
   viewCount?: number;
+  isApiMovie?: boolean; // Flag to indicate if the movie is from the API
+  trailerUrl?: string; // Trailer URL for the movie
 }
 
 export function formatDuration(minutes: number): string {
