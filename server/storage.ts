@@ -115,6 +115,7 @@ export interface IStorage {
   updateApiMovieJobLog(id: number, updates: Partial<Omit<ApiMovieJobLog, 'id'>>): Promise<ApiMovieJobLog>;
   getLatestApiMovieJobLog(jobType?: string): Promise<ApiMovieJobLog | undefined>;
   getApiMovieJobLogs(limit?: number, offset?: number): Promise<ApiMovieJobLog[]>;
+  getApiMovieJobLog(id: number): Promise<ApiMovieJobLog | undefined>;
 }
 
 // Set up Postgres store for session
@@ -1042,6 +1043,15 @@ export class DatabaseStorage implements IStorage {
     }
     
     return query;
+  }
+  
+  async getApiMovieJobLog(id: number): Promise<ApiMovieJobLog | undefined> {
+    const results = await db
+      .select()
+      .from(apiMovieJobLogs)
+      .where(eq(apiMovieJobLogs.id, id));
+    
+    return results[0];
   }
 }
 

@@ -19,6 +19,10 @@ import { ApiMovie } from '../../../shared/schema';
  */
 export async function createOrUpdateCategory(categoryData: InsertCategory): Promise<Category> {
   try {
+    if (!categoryData.slug) {
+      throw new Error('Category slug cannot be empty');
+    }
+    
     // Check if the category already exists
     const existingCategory = await storage.getCategoryBySlug(categoryData.slug);
     
@@ -152,6 +156,11 @@ export async function getMoviesByCategory(
   totalPages: number;
 }> {
   try {
+    if (!categorySlug) {
+      log('Cannot get movies with empty category slug', 'category');
+      return { movies: [], total: 0, totalPages: 0 };
+    }
+    
     // Calculate offset
     const offset = (page - 1) * limit;
     

@@ -1620,6 +1620,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Test endpoint for category processing
+  app.get('/api/test/categories/:movieId', async (req, res) => {
+    try {
+      const movieId = parseInt(req.params.movieId, 10);
+      if (isNaN(movieId)) {
+        return res.status(400).json({ error: 'Invalid movie ID' });
+      }
+      
+      // Get the movie
+      const movie = await storage.getApiMovieById(movieId);
+      if (!movie) {
+        return res.status(404).json({ error: 'Movie not found' });
+      }
+      
+      // Get the current categories
+      const categories = await storage.getCategoriesByMovieId(movieId);
+      
+      // Get the service
+      const { processMovieCategories } = await import('./services/category/service');
+      
+      // Sample categories for testing (both string and object format)
+      const testCategories = [
+        { id: 'test-id-1', name: 'Test Category 1', slug: 'test-category-1' },
+        { id: 'test-id-2', name: 'Test Category 2', slug: 'test-category-2' },
+        'String Category 1',
+        'String Category 2'
+      ];
+      
+      // Process the categories
+      await processMovieCategories(movie, testCategories);
+      
+      // Get the updated categories
+      const updatedCategories = await storage.getCategoriesByMovieId(movieId);
+      
+      res.json({
+        movie,
+        previousCategories: categories,
+        testCategories,
+        updatedCategories
+      });
+    } catch (error) {
+      console.error('Error testing categories:', error);
+      res.status(500).json({ error: 'Failed to test categories', details: error.message });
+    }
+  });
+
   // Initialize the scheduled movie sync if not in test environment
   if (process.env.NODE_ENV !== 'test') {
     initScheduledSync();
