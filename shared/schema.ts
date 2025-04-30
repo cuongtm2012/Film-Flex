@@ -267,6 +267,7 @@ export const apiMovies = pgTable("api_movies", {
   actors: text("actors").array(),
   directors: text("directors").array(),
   episodes: jsonb("episodes").notNull(), // Store episodes as JSON
+  embedUrl: text("embed_url"), // Direct embed URL for streaming
   status: text("status", { enum: ["draft", "pending_review", "published", "rejected"] }).default("draft").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -294,6 +295,7 @@ export const insertApiMovieSchema = createInsertSchema(apiMovies).pick({
   actors: true,
   directors: true,
   episodes: true,
+  embedUrl: true,
   status: true,
   createdAt: true,
   updatedAt: true,
@@ -314,6 +316,7 @@ export const insertApiMovieSchema = createInsertSchema(apiMovies).pick({
   trailerUrl: true,
   actors: true,
   directors: true,
+  embedUrl: true,
   status: true,
   createdAt: true,
   updatedAt: true,
