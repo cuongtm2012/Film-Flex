@@ -169,6 +169,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([...movies, ...transformedApiMovies]);
       }
       
+      // For testing purposes, add a sample movie with embedUrl to ensure the player works
+      if (req.query.limit === '1' && req.query.sample === 'true') {
+        const sampleMovie = {
+          id: 20001, // Special ID for testing
+          title: "Sample Movie with Embed URL",
+          description: "This is a sample movie with an embed URL for testing purposes.",
+          releaseYear: 2024,
+          duration: "120 min",
+          rating: "PG-13",
+          genreIds: [1, 3],
+          director: "Sample Director",
+          cast: ["Actor 1", "Actor 2"],
+          posterUrl: "https://phimimg.com/upload/vod/20250430-1/8cbf38129adc82a9e5425bf7260ae024.jpg",
+          backdropUrl: "https://phimimg.com/upload/vod/20250430-1/aafd1b025535a4410818fdc89ce176eb.jpg",
+          videoUrl: "",
+          embedUrl: "https://vidsrc.xyz/embed/movie?tmdb=739452", // Sample embed URL for testing
+          trailerUrl: "https://www.youtube.com/watch?v=_HB4hhMJExQ",
+          imdbRating: "8.5",
+          viewCount: 0,
+          isApiMovie: true
+        };
+        return res.json([sampleMovie]);
+      }
+      
       // Default: return only regular movies
       res.json(movies);
     } catch (error) {
@@ -264,6 +288,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           return res.json(transformedMovie);
         }
+      }
+      
+      // Special case for sample movie with ID 20001
+      if (movieId === 20001) {
+        const sampleMovie = {
+          id: 20001, // Special ID for testing
+          title: "Sample Movie with Embed URL",
+          description: "This is a sample movie with an embed URL for testing purposes.",
+          releaseYear: 2024,
+          duration: "120 min",
+          rating: "PG-13",
+          videoSources: [],
+          genreIds: [1, 3],
+          director: "Sample Director",
+          cast: ["Actor 1", "Actor 2"],
+          posterUrl: "https://phimimg.com/upload/vod/20250430-1/8cbf38129adc82a9e5425bf7260ae024.jpg",
+          backdropUrl: "https://phimimg.com/upload/vod/20250430-1/aafd1b025535a4410818fdc89ce176eb.jpg",
+          videoUrl: "",
+          embedUrl: "https://vidsrc.xyz/embed/movie?tmdb=739452", // Sample embed URL for testing
+          trailerUrl: "https://www.youtube.com/watch?v=_HB4hhMJExQ",
+          imdbRating: "8.5",
+          viewCount: 0,
+          isApiMovie: true
+        };
+        return res.json(sampleMovie);
       }
       
       // If not an API movie or API movie wasn't found, check regular movies
