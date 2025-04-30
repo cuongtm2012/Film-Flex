@@ -179,6 +179,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid movie ID" });
       }
       
+      // Check if it's an API movie (ID > 10000)
+      if (movieId >= 10000) {
+        // Try to find an API movie with ID - 10000 (since we added 10000 to API movie IDs)
+        const apiMovieId = movieId - 10000;
+        const apiMovie = await storage.getApiMovieBySlug('') || await storage.getApiMovies(1, 0, 'published', apiMovieId);
+        
+        if (apiMovie && apiMovie.length > 0) {
+          // Transform the API movie to regular movie format
+          const movie = apiMovie[0];
+          
+          // Transform categories to genreIds
+          const genreMap: Record<string, number> = {
+            "Action": 1,
+            "Adventure": 2,
+            "Comedy": 3,
+            "Drama": 4,
+            "Horror": 5,
+            "Science Fiction": 6,
+            "Thriller": 7,
+            "Documentary": 8,
+            "Animation": 9
+          };
+          
+          // Extract categories from API movie and ensure it's an array
+          const categories: string[] = Array.isArray(movie.categories) ? movie.categories : [];
+          // Map them to genre IDs or use default genre 1 (Action) if not found
+          const genreIds = categories.length > 0 
+            ? categories.map(cat => {
+                const genreId = genreMap[cat as keyof typeof genreMap];
+                return genreId || 1;
+              })
+            : [1]; // Default to Action genre if no categories
+          
+          // Handle various fields that might be missing or in different formats
+          const castArray = (() => {
+            if (!movie.actors) return [];
+            if (Array.isArray(movie.actors)) return movie.actors;
+            if (typeof movie.actors === 'string') return movie.actors.split(',');
+            return [];
+          })();
+          
+          // Handle episodes
+          const videoUrl = (() => {
+            if (!movie.episodes) return '';
+            if (!Array.isArray(movie.episodes) || movie.episodes.length === 0) return '';
+            const firstEpisode = movie.episodes[0];
+            if (!firstEpisode) return '';
+            return firstEpisode.streamUrl || firstEpisode.embedUrl || '';
+          })();
+          
+          const transformedMovie = {
+            id: movieId, // Keep the same ID that was requested
+            title: movie.title || 'Unknown Title',
+            description: movie.description || '',
+            releaseYear: parseInt(movie.releaseYear as string) || 2023,
+            duration: movie.duration || '100 min',
+            rating: "PG-13",
+            videoSources: [],
+            genreIds: genreIds,
+            director: "Unknown Director",
+            cast: castArray,
+            posterUrl: movie.posterUrl || '',
+            backdropUrl: movie.backdropUrl || '',
+            videoUrl: videoUrl,
+            trailerUrl: movie.trailerUrl || '',
+            imdbRating: "7.5",
+            viewCount: 0,
+            isApiMovie: true // Add a flag to indicate this is an API movie
+          };
+          
+          return res.json(transformedMovie);
+        }
+      }
+      
+      // If not an API movie or API movie wasn't found, check regular movies
       const movie = await storage.getMovie(movieId);
       if (!movie) {
         return res.status(404).json({ message: "Movie not found" });
@@ -186,6 +261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(movie);
     } catch (error) {
+      console.error('Error fetching movie:', error);
       res.status(500).json({ message: "Failed to retrieve movie" });
     }
   });

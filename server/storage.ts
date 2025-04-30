@@ -88,7 +88,7 @@ export interface IStorage {
   getApiMovieBySlug(slug: string): Promise<ApiMovie | undefined>;
   createApiMovie(movie: InsertApiMovie): Promise<ApiMovie>;
   updateApiMovie(id: number, updates: Partial<Omit<ApiMovie, 'id'>>): Promise<ApiMovie>;
-  getApiMovies(limit?: number, offset?: number, status?: string): Promise<ApiMovie[]>;
+  getApiMovies(limit?: number, offset?: number, status?: string, id?: number): Promise<ApiMovie[]>;
   getApiMoviesSlugs(): Promise<string[]>;
   countApiMovies(status?: string): Promise<number>;
   
@@ -661,7 +661,7 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async getApiMovies(limit?: number, offset?: number, status?: string): Promise<ApiMovie[]> {
+  async getApiMovies(limit?: number, offset?: number, status?: string, id?: number): Promise<ApiMovie[]> {
     let query = db
       .select()
       .from(apiMovies)
@@ -669,6 +669,10 @@ export class DatabaseStorage implements IStorage {
     
     if (status) {
       query = query.where(eq(apiMovies.status, status));
+    }
+    
+    if (id !== undefined) {
+      query = query.where(eq(apiMovies.id, id));
     }
     
     if (offset) {
