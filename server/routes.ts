@@ -30,26 +30,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const apiMovies = await storage.getApiMovies(undefined, undefined, 'published');
         
         // Transform API movies to regular movie format
-        const transformedApiMovies = apiMovies.map(apiMovie => ({
-          id: apiMovie.id,
-          title: apiMovie.title,
-          description: apiMovie.description,
-          releaseYear: apiMovie.releaseYear,
-          duration: apiMovie.duration || '100 min',
-          rating: 0,
-          genres: apiMovie.categories,
-          posterUrl: apiMovie.posterUrl,
-          backdropUrl: apiMovie.backdropUrl,
-          videoUrl: apiMovie.episodes && apiMovie.episodes.length > 0 ? 
-            apiMovie.episodes[0].streamUrl || apiMovie.episodes[0].embedUrl : '',
-          trailerUrl: apiMovie.trailerUrl || '',
-          featured: false,
-          premium: false,
-          status: 'active',
-          createdAt: apiMovie.createdAt,
-          updatedAt: apiMovie.updatedAt,
-          source: 'api'
-        }));
+        const transformedApiMovies = apiMovies.map(apiMovie => {
+          // Transform categories to genreIds by mapping to corresponding genre numbers
+          const genreMap = {
+            "Action": 1,
+            "Adventure": 2,
+            "Comedy": 3,
+            "Drama": 4,
+            "Horror": 5,
+            "Science Fiction": 6,
+            "Thriller": 7,
+            "Documentary": 8,
+            "Animation": 9
+          };
+          
+          // Extract categories from API movie
+          const categories = apiMovie.categories || [];
+          // Map them to genre IDs or use default genre 1 (Action) if not found
+          const genreIds = categories.length > 0 
+            ? categories.map(cat => genreMap[cat] || 1)
+            : [1]; // Default to Action genre if no categories
+        
+          return {
+            id: apiMovie.id,
+            title: apiMovie.title,
+            description: apiMovie.description,
+            releaseYear: parseInt(apiMovie.releaseYear) || 2023,
+            duration: apiMovie.duration || '100 min',
+            rating: "PG-13",
+            videoSources: [],
+            genreIds: genreIds,
+            director: "Unknown Director",
+            cast: apiMovie.actors ? apiMovie.actors.split(',') : [],
+            posterUrl: apiMovie.posterUrl,
+            backdropUrl: apiMovie.backdropUrl,
+            videoUrl: apiMovie.episodes && apiMovie.episodes.length > 0 ? 
+              apiMovie.episodes[0].streamUrl || apiMovie.episodes[0].embedUrl : '',
+            trailerUrl: apiMovie.trailerUrl || '',
+            imdbRating: "7.5",
+            viewCount: 0
+          };
+        });
         
         return res.json(transformedApiMovies);
       } else if (source === 'all') {
@@ -57,26 +78,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const apiMovies = await storage.getApiMovies(undefined, undefined, 'published');
         
         // Transform API movies to regular movie format
-        const transformedApiMovies = apiMovies.map(apiMovie => ({
-          id: apiMovie.id + 10000, // Avoid ID conflicts with regular movies
-          title: apiMovie.title,
-          description: apiMovie.description,
-          releaseYear: apiMovie.releaseYear,
-          duration: apiMovie.duration || '100 min',
-          rating: 0,
-          genres: apiMovie.categories,
-          posterUrl: apiMovie.posterUrl,
-          backdropUrl: apiMovie.backdropUrl,
-          videoUrl: apiMovie.episodes && apiMovie.episodes.length > 0 ? 
-            apiMovie.episodes[0].streamUrl || apiMovie.episodes[0].embedUrl : '',
-          trailerUrl: apiMovie.trailerUrl || '',
-          featured: false,
-          premium: false,
-          status: 'active',
-          createdAt: apiMovie.createdAt,
-          updatedAt: apiMovie.updatedAt,
-          source: 'api'
-        }));
+        const transformedApiMovies = apiMovies.map(apiMovie => {
+          // Transform categories to genreIds by mapping to corresponding genre numbers
+          const genreMap = {
+            "Action": 1,
+            "Adventure": 2,
+            "Comedy": 3,
+            "Drama": 4,
+            "Horror": 5,
+            "Science Fiction": 6,
+            "Thriller": 7,
+            "Documentary": 8,
+            "Animation": 9
+          };
+          
+          // Extract categories from API movie
+          const categories = apiMovie.categories || [];
+          // Map them to genre IDs or use default genre 1 (Action) if not found
+          const genreIds = categories.length > 0 
+            ? categories.map(cat => genreMap[cat] || 1)
+            : [1]; // Default to Action genre if no categories
+          
+          return {
+            id: apiMovie.id + 10000, // Avoid ID conflicts with regular movies
+            title: apiMovie.title,
+            description: apiMovie.description,
+            releaseYear: parseInt(apiMovie.releaseYear) || 2023,
+            duration: apiMovie.duration || '100 min',
+            rating: "PG-13",
+            videoSources: [],
+            genreIds: genreIds,
+            director: "Unknown Director",
+            cast: apiMovie.actors ? apiMovie.actors.split(',') : [],
+            posterUrl: apiMovie.posterUrl,
+            backdropUrl: apiMovie.backdropUrl,
+            videoUrl: apiMovie.episodes && apiMovie.episodes.length > 0 ? 
+              apiMovie.episodes[0].streamUrl || apiMovie.episodes[0].embedUrl : '',
+            trailerUrl: apiMovie.trailerUrl || '',
+            imdbRating: "7.5",
+            viewCount: 0
+          };
+        });
         
         // Combine both movie sources
         return res.json([...movies, ...transformedApiMovies]);

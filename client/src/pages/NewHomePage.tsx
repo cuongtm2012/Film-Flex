@@ -111,27 +111,37 @@ const Footer = () => {
 
 // Movie card component
 const MovieCard = ({ movie }: { movie: Movie }) => {
+  // Handle missing fields with fallback values
+  const posterUrl = movie.posterUrl || 'https://via.placeholder.com/300x450?text=No+Poster';
+  const imdbRating = movie.imdbRating || '0.0';
+  const duration = typeof movie.duration === 'number' ? `${movie.duration} min` : (movie.duration || '90 min');
+  const releaseYear = movie.releaseYear || 2023;
+  
   return (
     <div className="group cursor-pointer">
       <div className="overflow-hidden rounded-lg relative">
         <img 
-          src={movie.posterUrl} 
+          src={posterUrl} 
           alt={movie.title} 
           className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = 'https://via.placeholder.com/300x450?text=Error';
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
           <div>
             <div className="text-xs text-yellow-400 flex items-center mb-1">
-              <span className="mr-1">★</span> {movie.imdbRating || '0.0'}
+              <span className="mr-1">★</span> {imdbRating}
             </div>
             <div className="text-xs text-white/80">
-              {movie.duration} min | {movie.releaseYear}
+              {duration} | {releaseYear}
             </div>
           </div>
         </div>
       </div>
       <h3 className="mt-2 text-white text-sm font-medium truncate">{movie.title}</h3>
-      <div className="text-xs text-gray-400">{movie.releaseYear}</div>
+      <div className="text-xs text-gray-400">{releaseYear}</div>
     </div>
   );
 };
@@ -206,9 +216,9 @@ const NewHomePage = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const totalPages = 5; // Hardcoded for demo
   
-  // Fetch movies
+  // Fetch both regular and API movies at once
   const { data: movies, isLoading } = useQuery<Movie[]>({
-    queryKey: [`${API_BASE_URL}/movies`],
+    queryKey: [`${API_BASE_URL}/movies?source=all`],
     staleTime: 60 * 1000,
   });
   
