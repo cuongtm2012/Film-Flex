@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import express, { Request, Response, NextFunction } from "express";
 import axios from "axios";
 import { storage } from "./storage";
-import { syncMovies, fetchAndStorePage, fetchAndStoreMovieDetail, processPendingDetailFetches, initScheduledSync } from "./services/phimapi/service";
+import { syncMovies, initScheduledSync } from "./services/phimapi/service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes
@@ -963,6 +963,197 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to update movie" });
     }
   });
+
+  // PhimAPI movie data integration routes
+  app.get("/api/api-movies", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+      const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+      const status = req.query.status as string | undefined;
+
+      const apiMovies = await storage.getApiMovies(limit, offset, status);
+      const total = await storage.countApiMovies(status);
+      
+      res.json({
+        data: apiMovies,
+        pagination: {
+          total,
+          limit,
+          offset,
+          pages: Math.ceil(total / limit)
+        }
+      });
+    } catch (error) {
+      console.error("Failed to fetch API movies:", error);
+      res.status(500).json({ message: "Failed to fetch movies from API" });
+    }
+  });
+
+  app.get("/api/api-movies/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      
+      const apiMovie = await storage.getApiMovieBySlug(slug);
+      if (!apiMovie) {
+        return res.status(404).json({ message: "API movie not found" });
+      }
+      
+      res.json(apiMovie);
+    } catch (error) {
+      console.error(`Failed to fetch API movie ${req.params.slug}:`, error);
+      res.status(500).json({ message: "Failed to fetch movie details from API" });
+    }
+  });
+
+  // Admin-only routes for managing PhimAPI data sync
+  app.post("/api/admin/api-sync", async (req, res) => {
+    // This would typically have authentication/authorization middleware
+    try {
+      const startPage = req.body.startPage || 1;
+      const endPage = req.body.endPage || 5;
+      const detailBatchSize = req.body.detailBatchSize || 10;
+      
+      // Start sync process asynchronously (non-blocking)
+      syncMovies(startPage, endPage, detailBatchSize)
+        .then(count => {
+          console.log(`Successfully synced ${count} new movies from API`);
+        })
+        .catch(error => {
+          console.error("Error during API sync:", error);
+        });
+      
+      // Respond immediately
+      res.json({ 
+        message: "API sync started", 
+        details: `Syncing pages ${startPage} to ${endPage} with batch size ${detailBatchSize}` 
+      });
+    } catch (error) {
+      console.error("Failed to start API sync:", error);
+      res.status(500).json({ message: "Failed to start API sync process" });
+    }
+  });
+
+  app.get("/api/admin/api-sync/status", async (req, res) => {
+    // This would typically have authentication/authorization middleware
+    try {
+      const jobType = req.query.jobType as string | undefined;
+      const latestJob = await storage.getLatestApiMovieJobLog(jobType);
+      
+      if (!latestJob) {
+        return res.json({ message: "No sync jobs found" });
+      }
+      
+      // Get count of movies in different statuses
+      const draftCount = await storage.countApiMovies("draft");
+      const pendingCount = await storage.countApiMovies("pending_review");
+      const publishedCount = await storage.countApiMovies("published");
+      const totalCount = await storage.countApiMovies();
+      
+      res.json({
+        latestJob,
+        stats: {
+          total: totalCount,
+          draft: draftCount,
+          pending_review: pendingCount,
+          published: publishedCount
+        }
+      });
+    } catch (error) {
+      console.error("Failed to fetch API sync status:", error);
+      res.status(500).json({ message: "Failed to fetch API sync status" });
+    }
+  });
+
+  app.post("/api/admin/api-movies/:id/status", async (req, res) => {
+    // This would typically have authentication/authorization middleware
+    try {
+      const movieId = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      if (!movieId || isNaN(movieId)) {
+        return res.status(400).json({ message: "Invalid movie ID" });
+      }
+      
+      if (!status || !["draft", "pending_review", "published", "rejected"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      
+      // Update the movie status
+      const updatedMovie = await storage.updateApiMovie(movieId, { status });
+      
+      res.json(updatedMovie);
+    } catch (error) {
+      console.error(`Failed to update API movie status for ID ${req.params.id}:`, error);
+      res.status(500).json({ message: "Failed to update movie status" });
+    }
+  });
+
+  app.post("/api/admin/api-movies/import-to-catalog/:id", async (req, res) => {
+    // This would typically have authentication/authorization middleware
+    try {
+      const movieId = parseInt(req.params.id);
+      
+      if (!movieId || isNaN(movieId)) {
+        return res.status(400).json({ message: "Invalid movie ID" });
+      }
+      
+      // Get the API movie by ID
+      const [apiMovie] = await storage.getApiMovies(1, 0);
+      const actualMovie = apiMovie?.id === movieId ? apiMovie : null;
+      if (!actualMovie) {
+        return res.status(404).json({ message: "API movie not found" });
+      }
+      
+      // Convert API movie to catalog movie
+      const catalogMovie = {
+        title: actualMovie.title,
+        description: actualMovie.description,
+        releaseYear: actualMovie.releaseYear || new Date().getFullYear(),
+        duration: actualMovie.duration ? parseInt(actualMovie.duration) : 120, // Default to 2 hours if unknown
+        posterUrl: actualMovie.posterUrl,
+        backdropUrl: actualMovie.backdropUrl || actualMovie.posterUrl,
+        rating: "PG-13", // Default
+        genreIds: [1], // Default - would be mapped from categories in a full implementation
+        videoSources: actualMovie.episodes.map(episode => ({
+          type: "embed",
+          url: episode.embedUrl,
+          label: episode.name,
+          quality: actualMovie.quality || "HD"
+        })),
+      };
+      
+      // Create the new catalog movie
+      const newMovie = await storage.createMovie(catalogMovie);
+      
+      // Create movie upload record
+      const admin = req.user?.id || 1; // Default to ID 1 if not authenticated
+      await storage.createMovieUpload({
+        movieId: newMovie.id,
+        uploadedBy: admin,
+        status: "published",
+        approvedBy: admin,
+        reviewNotes: `Imported from PhimAPI (ID: ${apiMovie.id}, Slug: ${apiMovie.slug})`,
+        publishedAt: new Date()
+      });
+      
+      // Update API movie status to published
+      await storage.updateApiMovie(movieId, { status: "published" });
+      
+      res.json({
+        message: "Movie successfully imported to catalog",
+        apiMovie,
+        catalogMovie: newMovie
+      });
+    } catch (error) {
+      console.error(`Failed to import API movie ID ${req.params.id}:`, error);
+      res.status(500).json({ message: "Failed to import movie to catalog" });
+    }
+  });
+  
+  // Initialize the scheduled movie sync if not in test environment
+  if (process.env.NODE_ENV !== 'test') {
+    initScheduledSync();
+  }
 
   const httpServer = createServer(app);
   return httpServer;

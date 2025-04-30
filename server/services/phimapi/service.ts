@@ -1,7 +1,7 @@
 import { log } from '../../vite';
 import { fetchMovieList, fetchMovieDetail, withRetry } from './client';
 import { extractSlugs, processMovieDetail, createSlimMovie } from './processor';
-import { getCachedMovie, setCachedMovie, getCachedMovieSlugs, cacheMovieSlugs } from './cache';
+import { getCachedMovie, cacheMovie, getCachedMovieSlugs, cacheMovieSlugs } from './cache';
 import { storage } from '../../storage';
 import { InsertApiMovie, InsertApiMovieJobLog } from '@shared/schema';
 
@@ -157,7 +157,7 @@ export async function fetchAndStoreMovieDetail(slug: string): Promise<boolean> {
     const processedMovie = processMovieDetail(movieDetail.movie);
     
     // Cache the processed movie
-    setCachedMovie(processedMovie, { ttl: 60 * 10 }); // Cache for 10 minutes
+    cacheMovie(processedMovie, { ttl: 60 * 10 }); // Cache for 10 minutes
     
     // Update the movie in the database
     await storage.updateApiMovie(existingMovie.id, {
