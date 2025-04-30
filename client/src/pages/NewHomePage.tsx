@@ -5,7 +5,7 @@ import {
   Smartphone, ChevronLeft, ChevronRight, Facebook, 
   Twitter, Instagram, Youtube, Github
 } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { API_BASE_URL, Movie } from '@/lib/constants';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
@@ -219,6 +219,7 @@ const Pagination = ({ currentPage, totalPages, onChange }: {
 const NewHomePage = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
