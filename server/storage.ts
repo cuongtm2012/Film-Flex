@@ -694,6 +694,16 @@ export class DatabaseStorage implements IStorage {
     return results.map(item => item.slug);
   }
 
+  async deleteApiMovie(id: number): Promise<boolean> {
+    try {
+      await db.delete(apiMovies).where(eq(apiMovies.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error deleting API movie:', error);
+      return false;
+    }
+  }
+  
   async countApiMovies(status?: string): Promise<number> {
     try {
       // Import sql function from drizzle-orm
