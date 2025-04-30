@@ -7,7 +7,8 @@
  * number of pages and automatically publish movies to make them immediately available.
  * 
  * Usage (as cron job): 
- *   */5 * * * * cd /path/to/project && tsx scripts/cron-movie-sync.ts >> /var/log/movie-sync.log 2>&1
+ *   # Run every 5 minutes
+ *   # */5 * * * * cd /path/to/project && tsx scripts/cron-movie-sync.ts >> /var/log/movie-sync.log 2>&1
  * 
  * Options can be configured in the CONFIG object below.
  */

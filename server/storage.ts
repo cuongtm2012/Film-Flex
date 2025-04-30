@@ -7,8 +7,12 @@ import {
   type MovieUpload, type InsertMovieUpload, type ApiMovie, type InsertApiMovie,
   type ApiMovieJobLog, type InsertApiMovieJobLog
 } from "@shared/schema";
+import {
+  categories, movieCategories,
+  type Category, type InsertCategory, type MovieCategory, type InsertMovieCategory
+} from "@shared/schema-categories";
 import { db } from "./db";
-import { eq, and, desc, asc, or, like, gte, lte, isNull, isNotNull } from "drizzle-orm";
+import { eq, and, desc, asc, or, like, gte, lte, isNull, isNotNull, inArray, count } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import session from "express-session";
 import { pool } from "./db";
@@ -45,6 +49,18 @@ export interface IStorage {
   // View history methods
   getUserViewHistory(userId: number): Promise<ViewHistory[]>;
   addOrUpdateViewHistory(history: InsertViewHistory): Promise<ViewHistory>;
+  
+  // Category methods
+  getAllCategories(): Promise<Category[]>;
+  getCategory(id: number): Promise<Category | undefined>;
+  getCategoryBySlug(slug: string): Promise<Category | undefined>;
+  createCategory(category: InsertCategory): Promise<Category>;
+  updateCategory(id: number, updates: Partial<Omit<Category, 'id' | 'slug'>>): Promise<Category>;
+  getMoviesByCategory(categoryId: number, limit?: number, offset?: number): Promise<ApiMovie[]>;
+  countMoviesByCategory(categoryId: number): Promise<number>;
+  createMovieCategory(movieCategory: InsertMovieCategory): Promise<MovieCategory>;
+  removeAllMovieCategories(movieId: number): Promise<void>;
+  getMovieCategories(movieId: number): Promise<Category[]>;
   
   // Session store for authentication
   sessionStore: session.SessionStore;
@@ -314,6 +330,153 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return result[0];
     }
+  }
+  
+  // ========== CATEGORY METHODS ==========
+  
+  async getAllCategories(): Promise<Category[]> {
+    return db.select().from(categories);
+  }
+  
+  async getCategory(id: number): Promise<Category | undefined> {
+    const result = await db.select().from(categories).where(eq(categories.id, id));
+    return result[0];
+  }
+  
+  async getCategoryBySlug(slug: string): Promise<Category | undefined> {
+    const result = await db.select().from(categories).where(eq(categories.slug, slug));
+    return result[0];
+  }
+  
+  async createCategory(insertCategory: InsertCategory): Promise<Category> {
+    const result = await db.insert(categories).values(insertCategory).returning();
+    return result[0];
+  }
+  
+  async updateCategory(
+    id: number, 
+    updates: Partial<Omit<Category, 'id' | 'slug'>>
+  ): Promise<Category> {
+    const result = await db
+      .update(categories)
+      .set(updates)
+      .where(eq(categories.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  async getMoviesByCategory(
+    categoryId: number, 
+    limit: number = 20, 
+    offset: number = 0
+  ): Promise<ApiMovie[]> {
+    // First get the movie IDs that belong to this category
+    const movieCategoryLinks = await db
+      .select()
+      .from(movieCategories)
+      .where(eq(movieCategories.categoryId, categoryId));
+    
+    const movieIds = movieCategoryLinks.map(link => link.movieId);
+    
+    if (movieIds.length === 0) {
+      return [];
+    }
+    
+    // Then get the actual movies with pagination
+    const movies = await db
+      .select()
+      .from(apiMovies)
+      .where(
+        // Only get published movies that are in this category
+        and(
+          inArray(apiMovies.id, movieIds),
+          eq(apiMovies.status, "published")
+        )
+      )
+      .orderBy(desc(apiMovies.id))
+      .limit(limit)
+      .offset(offset);
+    
+    return movies;
+  }
+  
+  async countMoviesByCategory(categoryId: number): Promise<number> {
+    // First get the movie IDs that belong to this category
+    const movieCategoryLinks = await db
+      .select()
+      .from(movieCategories)
+      .where(eq(movieCategories.categoryId, categoryId));
+    
+    const movieIds = movieCategoryLinks.map(link => link.movieId);
+    
+    if (movieIds.length === 0) {
+      return 0;
+    }
+    
+    // Then count the published movies in this category
+    const result = await db
+      .select({ count: count() })
+      .from(apiMovies)
+      .where(
+        and(
+          inArray(apiMovies.id, movieIds),
+          eq(apiMovies.status, "published")
+        )
+      );
+    
+    return result[0]?.count || 0;
+  }
+  
+  async createMovieCategory(insertMovieCategory: InsertMovieCategory): Promise<MovieCategory> {
+    // Check if it already exists to avoid duplicates
+    const existing = await db
+      .select()
+      .from(movieCategories)
+      .where(
+        and(
+          eq(movieCategories.movieId, insertMovieCategory.movieId),
+          eq(movieCategories.categoryId, insertMovieCategory.categoryId)
+        )
+      );
+    
+    if (existing.length > 0) {
+      return existing[0];
+    }
+    
+    // Create new link
+    const result = await db
+      .insert(movieCategories)
+      .values(insertMovieCategory)
+      .returning();
+    return result[0];
+  }
+  
+  async removeAllMovieCategories(movieId: number): Promise<void> {
+    await db
+      .delete(movieCategories)
+      .where(eq(movieCategories.movieId, movieId));
+  }
+  
+  async getMovieCategories(movieId: number): Promise<Category[]> {
+    // First get the category IDs for this movie
+    const movieCategoryLinks = await db
+      .select()
+      .from(movieCategories)
+      .where(eq(movieCategories.movieId, movieId));
+    
+    const categoryIds = movieCategoryLinks.map(link => link.categoryId);
+    
+    if (categoryIds.length === 0) {
+      return [];
+    }
+    
+    // Then get the actual categories
+    const result = await db
+      .select()
+      .from(categories)
+      .where(inArray(categories.id, categoryIds));
+    
+    return result;
   }
 
   // ========== ADMIN USER MANAGEMENT ==========
