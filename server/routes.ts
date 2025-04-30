@@ -431,6 +431,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to retrieve categories" });
     }
   });
+  
+  // Create a new category
+  router.post("/categories", async (req, res) => {
+    try {
+      const { name, slug } = req.body;
+      
+      if (!name || !slug) {
+        return res.status(400).json({ message: "Name and slug are required" });
+      }
+      
+      // Import the category service
+      const { createOrUpdateCategory } = await import('./services/category/service');
+      
+      // Create or update the category
+      const category = await createOrUpdateCategory({ name, slug });
+      
+      res.status(201).json(category);
+    } catch (error) {
+      console.error("Error creating category:", error);
+      res.status(500).json({ message: "Failed to create category" });
+    }
+  });
+  
+  // Link a movie to categories
+  router.post("/movies/:movieId/categories", async (req, res) => {
+    try {
+      const movieId = parseInt(req.params.movieId);
+      const { categoryIds } = req.body;
+      
+      if (isNaN(movieId)) {
+        return res.status(400).json({ message: "Invalid movie ID" });
+      }
+      
+      if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+        return res.status(400).json({ message: "Category IDs must be a non-empty array" });
+      }
+      
+      // Import the category service
+      const { linkMovieCategories } = await import('./services/category/service');
+      
+      // Link the movie to categories
+      await linkMovieCategories(movieId, categoryIds);
+      
+      res.status(200).json({ message: "Movie linked to categories successfully" });
+    } catch (error) {
+      console.error("Error linking movie to categories:", error);
+      res.status(500).json({ message: "Failed to link movie to categories" });
+    }
+  });
 
   // Get movies by category with pagination
   router.get("/categories/:slug/movies", async (req, res) => {
