@@ -220,13 +220,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return [];
           })();
           
-          // Handle episodes
-          const videoUrl = (() => {
-            if (!movie.episodes) return '';
-            if (!Array.isArray(movie.episodes) || movie.episodes.length === 0) return '';
+          // Handle episodes and extract links
+          const extractEpisodeData = (() => {
+            if (!movie.episodes) return { videoUrl: '', embedUrl: '' };
+            if (!Array.isArray(movie.episodes) || movie.episodes.length === 0) return { videoUrl: '', embedUrl: '' };
+            
             const firstEpisode = movie.episodes[0];
-            if (!firstEpisode) return '';
-            return firstEpisode.streamUrl || firstEpisode.embedUrl || '';
+            if (!firstEpisode) return { videoUrl: '', embedUrl: '' };
+            
+            return {
+              videoUrl: firstEpisode.streamUrl || '',
+              embedUrl: firstEpisode.embedUrl || ''
+            };
           })();
           
           const transformedMovie = {
@@ -242,7 +247,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             cast: castArray,
             posterUrl: movie.posterUrl || '',
             backdropUrl: movie.backdropUrl || '',
-            videoUrl: videoUrl,
+            videoUrl: extractEpisodeData.videoUrl,
+            embedUrl: extractEpisodeData.embedUrl, // Add the embed URL separately
             trailerUrl: movie.trailerUrl || '',
             imdbRating: "7.5",
             viewCount: 0,
