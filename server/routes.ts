@@ -129,8 +129,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return [];
           })();
           
-          // Handle episodes and extract links
+          // Get embedUrl - first try the direct field, then fall back to episodes
           const extractEpisodeData = (() => {
+            // If we have a direct embedUrl field, use that first
+            if (apiMovie.embedUrl) {
+              return { 
+                videoUrl: '', 
+                embedUrl: apiMovie.embedUrl 
+              };
+            }
+            
+            // Otherwise fall back to extracting from episodes
             if (!apiMovie.episodes) return { videoUrl: '', embedUrl: '' };
             if (!Array.isArray(apiMovie.episodes) || apiMovie.episodes.length === 0) return { videoUrl: '', embedUrl: '' };
             
@@ -251,8 +260,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return [];
           })();
           
-          // Handle episodes and extract links
+          // Get embedUrl - first try the direct field, then fall back to episodes
           const extractEpisodeData = (() => {
+            // If we have a direct embedUrl field, use that first
+            if (movie.embedUrl) {
+              return { 
+                videoUrl: '', 
+                embedUrl: movie.embedUrl 
+              };
+            }
+            
+            // Otherwise fall back to extracting from episodes
             if (!movie.episodes) return { videoUrl: '', embedUrl: '' };
             if (!Array.isArray(movie.episodes) || movie.episodes.length === 0) return { videoUrl: '', embedUrl: '' };
             

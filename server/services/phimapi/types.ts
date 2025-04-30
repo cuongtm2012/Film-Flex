@@ -76,6 +76,7 @@ export interface MovieFromApi {
   trailerUrl?: string;
   actors?: string[];
   directors?: string[];
+  embedUrl?: string; // Direct embed URL for streaming
   episodes: {
     slug: string;
     name: string;

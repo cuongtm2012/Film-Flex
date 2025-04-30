@@ -49,6 +49,13 @@ export function processMovieDetail(movieDetail: ApiMovieDetail, episodesData?: a
       log(`No episodes found for ${movieDetail.slug}`, 'phimapi');
     }
     
+    // Extract embed URL from first episode if available
+    let primaryEmbedUrl = '';
+    if (processedEpisodes.length > 0 && processedEpisodes[0].embedUrl) {
+      primaryEmbedUrl = processedEpisodes[0].embedUrl;
+      log(`Found primary embed URL for ${movieDetail.slug}: ${primaryEmbedUrl}`, 'phimapi');
+    }
+    
     // Transform the data
     const processed: MovieFromApi = {
       slug: movieDetail.slug,
@@ -71,6 +78,7 @@ export function processMovieDetail(movieDetail: ApiMovieDetail, episodesData?: a
       actors: movieDetail.actor,
       directors: movieDetail.director,
       episodes: processedEpisodes,
+      embedUrl: primaryEmbedUrl, // Store the primary embed URL directly
       createdAt: now,
       updatedAt: now,
       lastCheckedAt: now

@@ -195,6 +195,7 @@ export async function fetchAndStoreMovieDetail(slug: string): Promise<boolean> {
       actors: processedMovie.actors,
       directors: processedMovie.directors,
       episodes: processedMovie.episodes,
+      embedUrl: processedMovie.embedUrl, // Store the embed URL directly
       status: 'pending_review', // Mark for review before publishing
       updatedAt: new Date(),
       lastCheckedAt: new Date()
