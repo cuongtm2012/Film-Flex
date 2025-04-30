@@ -6,10 +6,49 @@ import { log } from '../../vite';
  * @param movieDetail Movie detail from API
  * @returns Converted movie data
  */
-export function processMovieDetail(movieDetail: ApiMovieDetail): MovieFromApi {
+export function processMovieDetail(movieDetail: ApiMovieDetail, episodesData?: any[]): MovieFromApi {
   const now = new Date();
   
   try {
+    // Process episodes data from the response
+    const processedEpisodes = [];
+    
+    // If episodes are provided as a separate parameter (from the API response)
+    if (episodesData && Array.isArray(episodesData)) {
+      // Flatten the episode data from all servers
+      for (const serverData of episodesData) {
+        if (serverData.server_data && Array.isArray(serverData.server_data)) {
+          for (const episode of serverData.server_data) {
+            processedEpisodes.push({
+              slug: episode.slug,
+              name: episode.name,
+              filename: episode.filename,
+              embedUrl: episode.link_embed,
+              streamUrl: episode.link_m3u8
+            });
+          }
+        }
+      }
+      
+      log(`Processed ${processedEpisodes.length} episodes from external episodes data for ${movieDetail.slug}`, 'phimapi');
+    } 
+    // Fallback to episodes in the movie object if available
+    else if (movieDetail.episodes && Array.isArray(movieDetail.episodes)) {
+      for (const episode of movieDetail.episodes) {
+        processedEpisodes.push({
+          slug: episode.slug,
+          name: episode.name,
+          filename: episode.filename,
+          embedUrl: episode.link_embed,
+          streamUrl: episode.link_m3u8
+        });
+      }
+      
+      log(`Processed ${processedEpisodes.length} episodes from movie object for ${movieDetail.slug}`, 'phimapi');
+    } else {
+      log(`No episodes found for ${movieDetail.slug}`, 'phimapi');
+    }
+    
     // Transform the data
     const processed: MovieFromApi = {
       slug: movieDetail.slug,
@@ -31,13 +70,7 @@ export function processMovieDetail(movieDetail: ApiMovieDetail): MovieFromApi {
       trailerUrl: movieDetail.trailer_url,
       actors: movieDetail.actor,
       directors: movieDetail.director,
-      episodes: (movieDetail.episodes || []).map(episode => ({
-        slug: episode.slug,
-        name: episode.name,
-        filename: episode.filename,
-        embedUrl: episode.link_embed,
-        streamUrl: episode.link_m3u8
-      })),
+      episodes: processedEpisodes,
       createdAt: now,
       updatedAt: now,
       lastCheckedAt: now
