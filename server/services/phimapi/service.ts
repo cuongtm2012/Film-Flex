@@ -183,7 +183,7 @@ export async function fetchAndStoreMovieDetail(slug: string): Promise<boolean> {
     }
     
     // Process the movie details
-    const processedMovie = processMovieDetail(movieDetail.movie);
+    const processedMovie = processMovieDetail(movieDetail.movie, movieDetail.episodes);
     
     // Cache the processed movie
     cacheMovie(processedMovie, { ttl: 60 * 10 }); // Cache for 10 minutes
