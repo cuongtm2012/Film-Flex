@@ -4,6 +4,7 @@ import express, { Request, Response, NextFunction } from "express";
 import axios from "axios";
 import { storage } from "./storage";
 import { syncMovies, fetchAndStorePage, fetchAndStoreMovieDetail, processPendingDetailFetches, initScheduledSync } from "./services/phimapi/service";
+import { getMoviesByCategory } from "./services/category/service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes
