@@ -160,7 +160,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             videoUrl: extractEpisodeData.videoUrl,
             trailerUrl: apiMovie.trailerUrl || '',
             imdbRating: "7.5",
-            viewCount: 0
+            viewCount: 0,
+            isApiMovie: true // Flag to indicate this is an API movie
           };
         });
         
@@ -258,7 +259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             trailerUrl: movie.trailerUrl || '',
             imdbRating: "7.5",
             viewCount: 0,
-            isApiMovie: true // Add a flag to indicate this is an API movie
+            isApiMovie: true // Flag to indicate this is an API movie
           };
           
           return res.json(transformedMovie);
