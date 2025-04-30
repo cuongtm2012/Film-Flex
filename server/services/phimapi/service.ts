@@ -189,7 +189,7 @@ export async function fetchAndStoreMovieDetail(slug: string): Promise<boolean> {
     cacheMovie(processedMovie, { ttl: 60 * 10 }); // Cache for 10 minutes
     
     // Update the movie in the database
-    await storage.updateApiMovie(existingMovie.id, {
+    const updatedMovie = await storage.updateApiMovie(existingMovie.id, {
       description: processedMovie.description,
       trailerUrl: processedMovie.trailerUrl,
       actors: processedMovie.actors,
@@ -200,6 +200,16 @@ export async function fetchAndStoreMovieDetail(slug: string): Promise<boolean> {
       updatedAt: new Date(),
       lastCheckedAt: new Date()
     });
+    
+    // Process movie categories using the updated structure
+    try {
+      const { processMovieCategories } = await import('../category/service');
+      await processMovieCategories(updatedMovie, processedMovie.categories);
+      log(`Processed categories for movie ${updatedMovie.slug}`, 'phimapi');
+    } catch (categoryError) {
+      log(`Error processing categories for movie ${updatedMovie.slug}: ${categoryError}`, 'phimapi');
+      // Continue anyway - we don't want to fail the whole update just because of categories
+    }
     
     // Update job log
     await storage.updateApiMovieJobLog(jobLog.id, {
