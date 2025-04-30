@@ -75,28 +75,44 @@ export async function linkMovieCategories(
 /**
  * Process categories from a movie and link them
  * @param movie The movie to process
- * @param categories Array of categories from the API
+ * @param categories Array of categories from the API. Can be strings or objects with {id, name, slug} structure
  */
-export async function processMovieCategories(movie: ApiMovie, categories: string[]): Promise<void> {
+export async function processMovieCategories(movie: ApiMovie, categories: any[]): Promise<void> {
   try {
     const categoryIds: number[] = [];
     
     // Process each category
-    for (const categoryName of categories) {
-      // Create a slug from the category name
-      const slug = categoryName.toLowerCase().replace(/\s+/g, '-');
-      
-      // Create or update the category
-      const category = await createOrUpdateCategory({
-        name: categoryName,
-        slug
-      });
-      
-      categoryIds.push(category.id);
+    for (const category of categories) {
+      // Check if the category is a string or an object
+      if (typeof category === 'string') {
+        // If it's a string, create a slug from the category name
+        const categoryName = category;
+        const slug = categoryName.toLowerCase().replace(/\s+/g, '-');
+        
+        // Create or update the category
+        const categoryObj = await createOrUpdateCategory({
+          name: categoryName,
+          slug
+        });
+        
+        categoryIds.push(categoryObj.id);
+      } else if (typeof category === 'object' && category !== null) {
+        // If it's an object with id, name, and slug properties (PhimAPI format)
+        const categoryName = category.name;
+        const slug = category.slug || categoryName.toLowerCase().replace(/\s+/g, '-');
+        
+        // Create or update the category
+        const categoryObj = await createOrUpdateCategory({
+          name: categoryName,
+          slug
+        });
+        
+        categoryIds.push(categoryObj.id);
+      }
     }
     
     // Link the movie with its categories
-    await linkMovieCategories(movie.id, categoryIds);
+    await linkMovieCategories(movie.id, categoryIds, 'api');
   } catch (error) {
     log(`Error processing categories for movie ${movie.id}: ${error}`, 'category');
     throw error;
