@@ -1,97 +1,193 @@
-import { useRef, useState, useEffect } from "react";
-import { useRoute, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { 
-  Play, 
+import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
+import { useAccessibility } from '@/hooks/use-accessibility';
+import {
   Pause, 
-  Volume2, 
-  VolumeX, 
-  Subtitles, 
-  Moon, 
-  Sun, 
-  ChevronLeft, 
+  Play,
+  ChevronLeft,
   ChevronRight,
+  Volume2,
+  VolumeX,
   Settings,
-  List,
-  X,
+  Subtitles,
+  X, 
+  MessageSquare, 
+  ThumbsUp, 
+  Share2, 
+  Plus, 
   Heart,
-  Share2,
-  Plus,
-  MessageSquare,
-  ThumbsUp
-} from "lucide-react";
-import { API_BASE_URL, Movie } from "@/lib/constants";
-import { getDriveVideoStreamingUrl, extractDriveFileId, isValidDriveFileId } from "@/lib/driveHelper";
-import { useLanguage } from "@/hooks/use-language";
-import { useAuth } from "@/hooks/use-auth";
+  Info,
+  CornerUpRight
+} from 'lucide-react';
 
-// Placeholder subtitles - to be loaded dynamically from the API in the future
-const subtitlesData = {
-  en: [] as { id: number, start: number, end: number, text: string }[],
-  vi: [] as { id: number, start: number, end: number, text: string }[]
-};
+// Custom hook to handle keyboard shortcuts
+function useKeyboardShortcuts(handlers: {
+  togglePlay?: () => void;
+  toggleMute?: () => void;
+  seekForward?: () => void;
+  seekBackward?: () => void;
+  toggleFullscreen?: () => void;
+  toggleSubtitles?: () => void;
+  escape?: () => void;
+}) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't capture key events if they're in a form field
+      if (
+        e.target instanceof HTMLInputElement || 
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
 
-// Placeholder transcript - to be loaded dynamically from the API in the future
-const transcriptData: { id: number, time: number, speaker: string, text: string }[] = [];
+      switch (e.key.toLowerCase()) {
+        case ' ':
+        case 'k':
+          e.preventDefault();
+          handlers.togglePlay?.();
+          break;
+        case 'm':
+          handlers.toggleMute?.();
+          break;
+        case 'arrowright':
+        case 'l':
+          handlers.seekForward?.();
+          break;
+        case 'arrowleft':
+        case 'j':
+          handlers.seekBackward?.();
+          break;
+        case 'f':
+          handlers.toggleFullscreen?.();
+          break;
+        case 'c':
+          handlers.toggleSubtitles?.();
+          break;
+        case 'escape':
+          handlers.escape?.();
+          break;
+      }
+    };
 
-// Video playback speeds
-const speeds = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handlers]);
+}
 
-// Sample recommended movies - this would come from the API in production
-const recommendedMovies = [
-  { id: 1, title: "Kung Fu Panda 4", thumbnailUrl: "https://m.media-amazon.com/images/M/MV5BYmFkMDU2NTMtNTQ3Yy00NGQ2LTg5ZTMtZDNjOWY0NjFmZWYyXkEyXkFqcGdeQXVyMTEyNzQ1MTk0._V1_.jpg", duration: "94 min" },
-  { id: 2, title: "Godzilla x Kong", thumbnailUrl: "https://m.media-amazon.com/images/M/MV5BNzFkNWNlZTktZjQ5Ni00ZjViLWFkZTUtMzNiMzgwYTgzYWY3XkEyXkFqcGdeQXVyMTU0Mjc4MTY1._V1_.jpg", duration: "115 min" },
-  { id: 3, title: "Dune: Part Two", thumbnailUrl: "https://m.media-amazon.com/images/M/MV5BN2QyY2E0NTUtMzA3ZS00MzIzLWJhNDEtNDRlYjEwYzFkZDYxXkEyXkFqcGdeQXVyODk4OTc3MTY@._V1_.jpg", duration: "166 min" },
-  { id: 4, title: "Deadpool & Wolverine", thumbnailUrl: "https://m.media-amazon.com/images/M/MV5BMDZiMmE1ODQtZTRjYS00NDA2LWI4NWItODIzODlkZWY4NTIwXkEyXkFqcGdeQXVyMDM2NDM2MQ@@._V1_.jpg", duration: "127 min" },
-];
-
-// Sample comments - this would come from the API in production
-const comments = [
-  { id: 1, user: "MovieFan123", avatar: "M", content: "This was such an amazing movie! The visual effects were spectacular.", timestamp: "2 days ago", likes: 24 },
-  { id: 2, user: "CinemaLover", avatar: "C", content: "I'd give it a solid 8/10. Great storyline but the ending felt a bit rushed.", timestamp: "1 week ago", likes: 15 },
-  { id: 3, user: "FilmCritic", avatar: "F", content: "The cinematography deserves an award, absolutely stunning visuals throughout.", timestamp: "3 weeks ago", likes: 42 },
-];
+// Helper function to format time
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
 
 const MovieStreamingPage = () => {
   const [, setLocation] = useLocation();
-  const [match, params] = useRoute("/movie/:id");
-  const movieId = match ? parseInt(params.id) : null;
-  const { language } = useLanguage();
-  const { user } = useAuth();
+  const { announceToScreenReader } = useAccessibility();
+
+  // Get movie ID from URL
+  const movieId = parseInt(window.location.pathname.split('/').pop() || '0');
   
-  // UI state
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(1);
-  const [muted, setMuted] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [isNightMode, setIsNightMode] = useState(true);
-  const [showControls, setShowControls] = useState(true);
-  const [transcriptOpen, setTranscriptOpen] = useState(false);
-  const [controlsTimeout, setControlsTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [commentText, setCommentText] = useState("");
-  const [subtitleEnabled, setSubtitleEnabled] = useState(true);
-  const [subtitleLanguage, setSubtitleLanguage] = useState<'en' | 'vi'>('en');
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [showSpeedOptions, setShowSpeedOptions] = useState(false);
-  const [currentSubtitle, setCurrentSubtitle] = useState('');
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  
-  // References
+  // Fetch movie data
+  const { data: movie, isLoading, error, isError } = useQuery({
+    queryKey: ['/api/movies', movieId],
+    queryFn: async () => {
+      const response = await fetch(`/api/movies/${movieId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch movie');
+      }
+      return response.json();
+    },
+  });
+
+  // Video player state
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [subtitleEnabled, setSubtitleEnabled] = useState(false);
+  const [subtitleLanguage, setSubtitleLanguage] = useState('en');
+  const [currentSubtitle, setCurrentSubtitle] = useState('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showSpeedOptions, setShowSpeedOptions] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [commentText, setCommentText] = useState('');
+  const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
   
-  // Fetch movie details
-  const { data: movie, isLoading, error, isError } = useQuery<Movie>({
-    queryKey: [`${API_BASE_URL}/movie/${movieId}`],
-    staleTime: 60 * 1000, // 1 minute
-    enabled: !!movieId,
-  });
+  // Hide controls after inactivity
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    
+    const handleMouseMove = () => {
+      setShowControls(true);
+      clearTimeout(timeout);
+      
+      timeout = setTimeout(() => {
+        if (isPlaying) {
+          setShowControls(false);
+        }
+      }, 3000);
+    };
+    
+    const container = containerRef.current;
+    container?.addEventListener('mousemove', handleMouseMove);
+    
+    return () => {
+      container?.removeEventListener('mousemove', handleMouseMove);
+      clearTimeout(timeout);
+    };
+  }, [isPlaying]);
   
-  // Handle going back to movie details
-  const handleBack = () => {
-    setLocation(`/movie/${movieId}`);
+  // Update fullscreen state
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+  
+  // Handle metadata loaded
+  const handleMetadataLoaded = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+  
+  // Update current time
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+      
+      // Simulated subtitle display based on time
+      if (subtitleEnabled) {
+        const time = Math.floor(videoRef.current.currentTime);
+        if (time % 10 === 0) {
+          setCurrentSubtitle(subtitleLanguage === 'en' 
+            ? `Sample subtitle at ${time} seconds` 
+            : `Phụ đề mẫu tại giây thứ ${time}`);
+        } else if (time % 10 === 5) {
+          setCurrentSubtitle('');
+        }
+      }
+    }
   };
   
   // Toggle play/pause
@@ -99,37 +195,11 @@ const MovieStreamingPage = () => {
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
+        announceToScreenReader('Video paused');
       } else {
         videoRef.current.play();
+        announceToScreenReader('Video playing');
       }
-      setIsPlaying(!isPlaying);
-    }
-  };
-  
-  // Handle video progress updates
-  const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
-      
-      // Find current subtitle
-      if (subtitleEnabled) {
-        const currentSubs = subtitlesData[subtitleLanguage];
-        if (currentSubs.length > 0) {
-          const activeSub = currentSubs.find(
-            sub => videoRef.current!.currentTime >= sub.start && videoRef.current!.currentTime <= sub.end
-          );
-          setCurrentSubtitle(activeSub ? activeSub.text : '');
-        }
-      } else {
-        setCurrentSubtitle('');
-      }
-    }
-  };
-  
-  // Handle video metadata load
-  const handleMetadataLoaded = () => {
-    if (videoRef.current) {
-      setDuration(videoRef.current.duration);
     }
   };
   
@@ -138,190 +208,104 @@ const MovieStreamingPage = () => {
     if (videoRef.current) {
       videoRef.current.muted = !muted;
       setMuted(!muted);
+      announceToScreenReader(muted ? 'Audio unmuted' : 'Audio muted');
     }
   };
   
-  // Change volume
+  // Handle volume change
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
+    const value = parseFloat(e.target.value);
+    setVolume(value);
     if (videoRef.current) {
-      videoRef.current.volume = newVolume;
-      setVolume(newVolume);
-      setMuted(newVolume === 0);
+      videoRef.current.volume = value;
+      if (value === 0) {
+        setMuted(true);
+        videoRef.current.muted = true;
+      } else if (muted) {
+        setMuted(false);
+        videoRef.current.muted = false;
+      }
     }
   };
   
-  // Seek video to a specific time
+  // Handle seek
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (videoRef.current && progressRef.current) {
-      const progressRect = progressRef.current.getBoundingClientRect();
-      const seekPosition = (e.clientX - progressRect.left) / progressRect.width;
-      const seekTime = seekPosition * duration;
-      videoRef.current.currentTime = seekTime;
-      setCurrentTime(seekTime);
+    if (progressRef.current && videoRef.current) {
+      const rect = progressRef.current.getBoundingClientRect();
+      const pos = (e.clientX - rect.left) / rect.width;
+      videoRef.current.currentTime = pos * duration;
     }
   };
   
-  // Format time for display (mm:ss)
-  const formatTime = (timeInSeconds: number) => {
-    const minutes = Math.floor(timeInSeconds / 60);
-    const seconds = Math.floor(timeInSeconds % 60);
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-  };
-  
-  // Toggle night mode
-  const toggleNightMode = () => {
-    setIsNightMode(!isNightMode);
+  // Toggle fullscreen
+  const toggleFullscreen = () => {
+    if (!isFullscreen) {
+      containerRef.current?.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
   };
   
   // Toggle subtitles
   const toggleSubtitles = () => {
     setSubtitleEnabled(!subtitleEnabled);
+    announceToScreenReader(subtitleEnabled ? 'Subtitles disabled' : 'Subtitles enabled');
   };
   
-  // Change subtitle language
+  // Toggle subtitle language
   const toggleSubtitleLanguage = () => {
     setSubtitleLanguage(subtitleLanguage === 'en' ? 'vi' : 'en');
+    announceToScreenReader(`Subtitle language set to ${subtitleLanguage === 'en' ? 'Vietnamese' : 'English'}`);
   };
   
-  // Set playback speed
+  // Change playback speed
   const changePlaybackSpeed = (speed: number) => {
+    setPlaybackSpeed(speed);
     if (videoRef.current) {
       videoRef.current.playbackRate = speed;
-      setPlaybackSpeed(speed);
-      setShowSpeedOptions(false);
     }
+    setShowSpeedOptions(false);
+    announceToScreenReader(`Playback speed set to ${speed}`);
   };
   
-  // Auto-hide controls after inactivity
-  useEffect(() => {
-    const hideControls = () => {
-      if (controlsTimeout) {
-        clearTimeout(controlsTimeout);
-      }
-      
-      if (isPlaying) {
-        const timeout = setTimeout(() => {
-          setShowControls(false);
-        }, 3000);
-        setControlsTimeout(timeout);
-      }
-    };
-    
-    const handleMouseMove = () => {
-      setShowControls(true);
-      hideControls();
-    };
-    
-    const container = containerRef.current;
-    if (container) {
-      container.addEventListener('mousemove', handleMouseMove);
-    }
-    
-    hideControls();
-    
-    return () => {
-      if (controlsTimeout) {
-        clearTimeout(controlsTimeout);
-      }
-      if (container) {
-        container.removeEventListener('mousemove', handleMouseMove);
-      }
-    };
-  }, [isPlaying, controlsTimeout]);
+  // Handle back button
+  const handleBack = () => {
+    setLocation('/');
+  };
   
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (videoRef.current) {
-        switch (e.key) {
-          case ' ': // Space - play/pause
-            togglePlay();
-            break;
-          case 'ArrowRight': // Right arrow - forward 10s
-            videoRef.current.currentTime += 10;
-            break;
-          case 'ArrowLeft': // Left arrow - back 10s
-            videoRef.current.currentTime -= 10;
-            break;
-          case 'm': // M - mute/unmute
-            toggleMute();
-            break;
-          case 'f': // F - fullscreen
-            if (document.fullscreenElement) {
-              document.exitFullscreen();
-            } else {
-              containerRef.current?.requestFullscreen();
-            }
-            break;
-          case 's': // S - toggle subtitles
-            toggleSubtitles();
-            break;
-          case 'n': // N - toggle night mode
-            toggleNightMode();
-            break;
-          case 't': // T - toggle transcript
-            setTranscriptOpen(!transcriptOpen);
-            break;
-        }
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isPlaying, muted, transcriptOpen]);
+  // Register keyboard shortcuts
+  useKeyboardShortcuts({
+    togglePlay,
+    toggleMute,
+    seekForward: () => videoRef.current && (videoRef.current.currentTime += 10),
+    seekBackward: () => videoRef.current && (videoRef.current.currentTime -= 10),
+    toggleFullscreen,
+    toggleSubtitles,
+    escape: () => isFullscreen && document.exitFullscreen(),
+  });
   
-  // Get the video source
+  // Get video source based on movie data
   const getVideoSource = async () => {
     if (!movie) return '';
     
-    try {
-      // Check if we have videoUrl from the database
-      if (movie.videoUrl) {
-        // Case 1: Direct Google Drive file ID
-        if (isValidDriveFileId(movie.videoUrl)) {
-          return await getDriveVideoStreamingUrl(movie.videoUrl);
-        }
-        
-        // Case 2: Google Drive URL that needs extraction
-        const fileId = extractDriveFileId(movie.videoUrl);
-        if (fileId) {
-          return await getDriveVideoStreamingUrl(fileId);
-        }
-        
-        // Case 3: Direct video URL (not Google Drive)
-        if (movie.videoUrl.startsWith('http')) {
-          return movie.videoUrl;
-        }
-      }
-    } catch (error) {
-      console.error('Error processing video source:', error);
+    if (movie.videoSources && movie.videoSources.length > 0) {
+      // Return the highest quality source
+      const sortedSources = [...movie.videoSources].sort((a, b) => {
+        const qualityA = parseInt(a.quality.replace('p', ''));
+        const qualityB = parseInt(b.quality.replace('p', ''));
+        return qualityB - qualityA;
+      });
+      
+      return sortedSources[0].url;
     }
     
-    // Check traditional videoSources
-    if (movie.videoSources && movie.videoSources.length > 0) {
-      try {
-        // Sort by quality (assuming higher numbers = better quality)
-        const sortedSources = [...movie.videoSources].sort((a, b) => {
-          const qualityA = parseInt(a.quality.replace('p', '')) || 0;
-          const qualityB = parseInt(b.quality.replace('p', '')) || 0;
-          return qualityB - qualityA;
-        });
-        
-        const sourceUrl = sortedSources[0].url;
-        if (sourceUrl.includes('drive.google.com')) {
-          const fileId = extractDriveFileId(sourceUrl);
-          if (fileId) {
-            return await getDriveVideoStreamingUrl(fileId);
-          }
-        }
-        
-        return sourceUrl;
-      } catch (error) {
-        console.error('Error processing videoSources:', error);
+    if (movie.videoUrl) {
+      // If it's a Google Drive ID
+      if (movie.videoUrl.match(/^[a-zA-Z0-9_-]{33}$/)) {
+        return `https://drive.google.com/uc?export=download&id=${movie.videoUrl}`;
       }
+      
+      return movie.videoUrl;
     }
     
     return '';
@@ -329,11 +313,22 @@ const MovieStreamingPage = () => {
   
   // Current video source state
   const [videoSrc, setVideoSrc] = useState('');
+  // Track if it's an embed source (like iframe for API movies)
+  const [isEmbedSource, setIsEmbedSource] = useState(false);
   
   // Load video source when movie data changes
   useEffect(() => {
     if (movie) {
-      getVideoSource().then(src => setVideoSrc(src));
+      // Handle API movies differently
+      if (movie.isApiMovie) {
+        console.log('Loading API movie source:', movie.videoUrl);
+        setIsEmbedSource(true);
+        setVideoSrc(movie.videoUrl || '');
+      } else {
+        // Regular movies use the existing flow
+        setIsEmbedSource(false);
+        getVideoSource().then(src => setVideoSrc(src));
+      }
     }
   }, [movie]);
 
@@ -454,194 +449,207 @@ const MovieStreamingPage = () => {
             className="relative bg-black mb-4 rounded-lg overflow-hidden shadow-xl"
           >
             <div className="aspect-video w-full relative">
-              {/* Video element */}
-              <video
-                ref={videoRef}
-                className="w-full h-full object-contain"
-                src={videoSrc}
-                poster={movie.backdropUrl || movie.posterUrl}
-                preload="auto"
-                onTimeUpdate={handleTimeUpdate}
-                onLoadedMetadata={handleMetadataLoaded}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                onEnded={() => setIsPlaying(false)}
-              />
-              
-              {/* Subtitles overlay */}
-              {subtitleEnabled && currentSubtitle && (
-                <div className="absolute bottom-20 left-0 right-0 text-center z-10 pointer-events-none">
-                  <div className="inline-block bg-black/70 px-4 py-2 rounded-md text-white text-lg max-w-[80%] mx-auto">
-                    {currentSubtitle}
-                  </div>
-                </div>
-              )}
-              
-              {/* Play overlay */}
-              {!isPlaying && (
-                <div 
-                  className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer z-10"
-                  onClick={togglePlay}
-                >
-                  <div className="text-8xl text-white/90 select-none">
-                    <div className="flex items-center justify-center w-24 h-24 rounded-full bg-black/30">
-                      <Play className="h-12 w-12 fill-white text-white" />
+              {isEmbedSource ? (
+                /* Iframe for API movie embeds */
+                <iframe
+                  src={videoSrc}
+                  className="w-full h-full object-contain"
+                  allowFullScreen
+                  referrerPolicy="no-referrer"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                ></iframe>
+              ) : (
+                <>
+                  {/* Regular video element for standard movies */}
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-contain"
+                    src={videoSrc}
+                    poster={movie.backdropUrl || movie.posterUrl}
+                    preload="auto"
+                    onTimeUpdate={handleTimeUpdate}
+                    onLoadedMetadata={handleMetadataLoaded}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onEnded={() => setIsPlaying(false)}
+                  />
+                  
+                  {/* Subtitles overlay */}
+                  {subtitleEnabled && currentSubtitle && (
+                    <div className="absolute bottom-20 left-0 right-0 text-center z-10 pointer-events-none">
+                      <div className="inline-block bg-black/70 px-4 py-2 rounded-md text-white text-lg max-w-[80%] mx-auto">
+                        {currentSubtitle}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Video controls bar */}
-              <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent pt-10 pb-2 px-4 transition-opacity duration-300 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0'}`}>
-                {/* Progress bar */}
-                <div 
-                  ref={progressRef}
-                  className="h-2 bg-gray-600 rounded-full mb-4 cursor-pointer relative"
-                  onClick={handleSeek}
-                >
-                  <div 
-                    className="absolute top-0 left-0 h-full bg-red-600 rounded-full"
-                    style={{ width: `${(currentTime / duration) * 100}%` }}
-                  />
-                  <div 
-                    className="absolute top-0 h-4 w-4 bg-red-600 rounded-full -mt-1 shadow"
-                    style={{ left: `${(currentTime / duration) * 100}%` }}
-                  />
-                </div>
-                
-                {/* Controls row */}
-                <div className="flex items-center justify-between">
-                  {/* Left side controls */}
-                  <div className="flex items-center space-x-4">
-                    {/* Play/Pause button */}
-                    <button onClick={togglePlay} className="text-white hover:text-red-500 transition-colors">
-                      {isPlaying ? (
-                        <Pause className="h-6 w-6" />
-                      ) : (
-                        <Play className="h-6 w-6" />
-                      )}
-                    </button>
-                    
-                    {/* Skip backward/forward */}
-                    <button 
-                      onClick={() => videoRef.current && (videoRef.current.currentTime -= 10)}
-                      className="text-white hover:text-red-500 transition-colors relative"
+                  )}
+                  
+                  {/* Play overlay */}
+                  {!isPlaying && (
+                    <div 
+                      className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer z-10"
+                      onClick={togglePlay}
                     >
-                      <ChevronLeft className="h-6 w-6" />
-                      <span className="absolute text-xs font-bold">10</span>
-                    </button>
-                    
-                    <button 
-                      onClick={() => videoRef.current && (videoRef.current.currentTime += 10)}
-                      className="text-white hover:text-red-500 transition-colors relative"
+                      <div className="text-8xl text-white/90 select-none">
+                        <div className="flex items-center justify-center w-24 h-24 rounded-full bg-black/30">
+                          <Play className="h-12 w-12 fill-white text-white" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Video controls bar */}
+                  <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent pt-10 pb-2 px-4 transition-opacity duration-300 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0'}`}>
+                    {/* Progress bar */}
+                    <div 
+                      ref={progressRef}
+                      className="h-2 bg-gray-600 rounded-full mb-4 cursor-pointer relative"
+                      onClick={handleSeek}
                     >
-                      <ChevronRight className="h-6 w-6" />
-                      <span className="absolute text-xs font-bold">10</span>
-                    </button>
-                    
-                    {/* Volume control */}
-                    <div className="flex items-center space-x-2">
-                      <button onClick={toggleMute} className="text-white hover:text-red-500 transition-colors">
-                        {muted || volume === 0 ? (
-                          <VolumeX className="h-6 w-6" />
-                        ) : (
-                          <Volume2 className="h-6 w-6" />
-                        )}
-                      </button>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={muted ? 0 : volume}
-                        onChange={handleVolumeChange}
-                        className="w-20 accent-red-600"
+                      <div 
+                        className="absolute top-0 left-0 h-full bg-red-600 rounded-full"
+                        style={{ width: `${(currentTime / duration) * 100}%` }}
+                      />
+                      <div 
+                        className="absolute top-0 h-4 w-4 bg-red-600 rounded-full -mt-1 shadow"
+                        style={{ left: `${(currentTime / duration) * 100}%` }}
                       />
                     </div>
                     
-                    {/* Time display */}
-                    <div className="text-white text-sm">
-                      {formatTime(currentTime)} / {formatTime(duration)}
-                    </div>
-                  </div>
-                  
-                  {/* Right side controls */}
-                  <div className="flex items-center space-x-3">
-                    {/* Subtitle toggle */}
-                    <button 
-                      onClick={toggleSubtitles}
-                      className={`p-2 rounded-full ${subtitleEnabled ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'} hover:bg-red-700 transition-colors`}
-                      title={subtitleEnabled ? 'Disable subtitles' : 'Enable subtitles'}
-                    >
-                      <Subtitles className="h-4 w-4" />
-                    </button>
-                    
-                    {/* Settings button */}
-                    <div className="relative">
-                      <button 
-                        onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                        className={`p-2 rounded-full ${isSettingsOpen ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'} hover:bg-red-700 transition-colors`}
-                        title="Settings"
-                      >
-                        <Settings className="h-4 w-4" />
-                      </button>
+                    {/* Controls row */}
+                    <div className="flex items-center justify-between">
+                      {/* Left side controls */}
+                      <div className="flex items-center space-x-4">
+                        {/* Play/Pause button */}
+                        <button onClick={togglePlay} className="text-white hover:text-red-500 transition-colors">
+                          {isPlaying ? (
+                            <Pause className="h-6 w-6" />
+                          ) : (
+                            <Play className="h-6 w-6" />
+                          )}
+                        </button>
+                        
+                        {/* Skip backward/forward */}
+                        <button 
+                          onClick={() => videoRef.current && (videoRef.current.currentTime -= 10)}
+                          className="text-white hover:text-red-500 transition-colors relative"
+                        >
+                          <ChevronLeft className="h-6 w-6" />
+                          <span className="absolute text-xs font-bold">10</span>
+                        </button>
+                        
+                        <button 
+                          onClick={() => videoRef.current && (videoRef.current.currentTime += 10)}
+                          className="text-white hover:text-red-500 transition-colors relative"
+                        >
+                          <ChevronRight className="h-6 w-6" />
+                          <span className="absolute text-xs font-bold">10</span>
+                        </button>
+                        
+                        {/* Volume control */}
+                        <div className="flex items-center space-x-2">
+                          <button onClick={toggleMute} className="text-white hover:text-red-500 transition-colors">
+                            {muted || volume === 0 ? (
+                              <VolumeX className="h-6 w-6" />
+                            ) : (
+                              <Volume2 className="h-6 w-6" />
+                            )}
+                          </button>
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={muted ? 0 : volume}
+                            onChange={handleVolumeChange}
+                            className="w-20 accent-red-600"
+                          />
+                        </div>
+                        
+                        {/* Time display */}
+                        <div className="text-white text-sm">
+                          {formatTime(currentTime)} / {formatTime(duration)}
+                        </div>
+                      </div>
                       
-                      {/* Settings dropdown */}
-                      {isSettingsOpen && (
-                        <div className="absolute bottom-full right-0 mb-2 bg-zinc-900 shadow-lg rounded-md w-56 overflow-hidden z-30">
-                          <div className="px-4 py-2 border-b border-zinc-800 flex justify-between items-center">
-                            <h3 className="text-white font-medium">Settings</h3>
-                            <button onClick={() => setIsSettingsOpen(false)} className="text-gray-400 hover:text-white">
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
+                      {/* Right side controls */}
+                      <div className="flex items-center space-x-3">
+                        {/* Subtitle toggle */}
+                        <button 
+                          onClick={toggleSubtitles}
+                          className={`p-2 rounded-full ${subtitleEnabled ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'} hover:bg-red-700 transition-colors`}
+                          title={subtitleEnabled ? 'Disable subtitles' : 'Enable subtitles'}
+                        >
+                          <Subtitles className="h-4 w-4" />
+                        </button>
+                        
+                        {/* Settings button */}
+                        <div className="relative">
+                          <button 
+                            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                            className={`p-2 rounded-full ${isSettingsOpen ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'} hover:bg-red-700 transition-colors`}
+                            title="Settings"
+                          >
+                            <Settings className="h-4 w-4" />
+                          </button>
                           
-                          {/* Setting options */}
-                          <div className="p-2">
-                            {/* Subtitle language */}
-                            <div className="flex justify-between items-center p-2 hover:bg-zinc-800 rounded">
-                              <span className="text-sm text-gray-300">Subtitle language</span>
-                              <button 
-                                onClick={toggleSubtitleLanguage}
-                                className="px-2 py-1 bg-zinc-700 rounded text-xs text-white"
-                              >
-                                {subtitleLanguage === 'en' ? 'English' : 'Vietnamese'}
-                              </button>
-                            </div>
-                            
-                            {/* Playback speed */}
-                            <div className="relative">
-                              <div className="flex justify-between items-center p-2 hover:bg-zinc-800 rounded cursor-pointer"
-                                onClick={() => setShowSpeedOptions(!showSpeedOptions)}
-                              >
-                                <span className="text-sm text-gray-300">Playback speed</span>
-                                <span className="px-2 py-1 bg-zinc-700 rounded text-xs text-white">
-                                  {playbackSpeed}x
-                                </span>
+                          {/* Settings dropdown */}
+                          {isSettingsOpen && (
+                            <div className="absolute bottom-full right-0 mb-2 bg-zinc-900 shadow-lg rounded-md w-56 overflow-hidden z-30">
+                              <div className="px-4 py-2 border-b border-zinc-800 flex justify-between items-center">
+                                <h3 className="text-white font-medium">Settings</h3>
+                                <button onClick={() => setIsSettingsOpen(false)} className="text-gray-400 hover:text-white">
+                                  <X className="h-4 w-4" />
+                                </button>
                               </div>
                               
-                              {/* Speed options dropdown */}
-                              {showSpeedOptions && (
-                                <div className="absolute right-0 mt-1 bg-zinc-900 shadow-lg rounded-md w-full z-10">
-                                  {speeds.map((speed) => (
-                                    <button 
-                                      key={speed}
-                                      className={`block w-full text-left px-4 py-2 text-sm ${playbackSpeed === speed ? 'bg-red-600 text-white' : 'text-gray-300 hover:bg-zinc-800'}`}
-                                      onClick={() => changePlaybackSpeed(speed)}
-                                    >
-                                      {speed}x
-                                    </button>
-                                  ))}
+                              {/* Setting options */}
+                              <div className="p-2">
+                                {/* Subtitle language */}
+                                <div className="flex justify-between items-center p-2 hover:bg-zinc-800 rounded">
+                                  <span className="text-sm text-gray-300">Subtitle language</span>
+                                  <button 
+                                    onClick={toggleSubtitleLanguage}
+                                    className="px-2 py-1 bg-zinc-700 rounded text-xs text-white"
+                                  >
+                                    {subtitleLanguage === 'en' ? 'English' : 'Vietnamese'}
+                                  </button>
                                 </div>
-                              )}
+                                
+                                {/* Playback speed */}
+                                <div className="relative">
+                                  <div className="flex justify-between items-center p-2 hover:bg-zinc-800 rounded cursor-pointer"
+                                    onClick={() => setShowSpeedOptions(!showSpeedOptions)}
+                                  >
+                                    <span className="text-sm text-gray-300">Playback speed</span>
+                                    <span className="px-2 py-1 bg-zinc-700 rounded text-xs text-white">
+                                      {playbackSpeed}x
+                                    </span>
+                                  </div>
+                                  
+                                  {/* Speed options dropdown */}
+                                  {showSpeedOptions && (
+                                    <div className="absolute right-0 mt-1 bg-zinc-900 shadow-lg rounded-md w-full z-10">
+                                      {speeds.map((speed) => (
+                                        <button 
+                                          key={speed}
+                                          className={`block w-full text-left px-4 py-2 text-sm ${playbackSpeed === speed ? 'bg-red-600 text-white' : 'text-gray-300 hover:bg-zinc-800'}`}
+                                          onClick={() => changePlaybackSpeed(speed)}
+                                        >
+                                          {speed}x
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
             </div>
           </div>
           
@@ -701,153 +709,234 @@ const MovieStreamingPage = () => {
             </h2>
             
             {/* Comment form */}
-            {user ? (
-              <form onSubmit={handleCommentSubmit} className="mb-6">
-                <div className="flex items-start space-x-3">
-                  <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0">
-                    {user.username[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1">
-                    <textarea 
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      placeholder="Share your thoughts..."
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-3 text-white resize-none focus:outline-none focus:ring-1 focus:ring-red-500"
-                      rows={3}
-                    ></textarea>
+            <form onSubmit={handleCommentSubmit} className="mb-6">
+              <div className="flex items-start space-x-4">
+                <div className="w-10 h-10 rounded-full bg-red-600 flex-shrink-0 flex items-center justify-center text-white font-medium">
+                  U
+                </div>
+                <div className="flex-1">
+                  <textarea
+                    className="w-full p-3 bg-zinc-800 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-red-500"
+                    placeholder="Add a comment..."
+                    rows={3}
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                  ></textarea>
+                  <div className="flex justify-end mt-2">
                     <button 
                       type="submit"
-                      className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                      disabled={!commentText.trim()}
                     >
-                      Post Comment
+                      Comment
                     </button>
                   </div>
                 </div>
-              </form>
-            ) : (
-              <div className="p-4 bg-zinc-800 rounded-lg mb-6 text-center">
-                <p className="text-gray-300 mb-2">Sign in to leave a comment</p>
-                <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-                  Sign In
-                </button>
               </div>
-            )}
+            </form>
             
-            {/* Existing comments */}
+            {/* Sample comments */}
             <div className="space-y-6">
-              {comments.map((comment) => (
-                <div key={comment.id} className="flex items-start space-x-3">
-                  <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0">
-                    {comment.avatar}
+              <div className="flex items-start space-x-4">
+                <div className="w-10 h-10 rounded-full bg-blue-500 flex-shrink-0 flex items-center justify-center text-white font-medium">
+                  J
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center mb-1">
+                    <h4 className="font-medium text-white mr-2">John Doe</h4>
+                    <span className="text-xs text-gray-400">2 days ago</span>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center mb-1">
-                      <span className="font-medium text-white mr-2">{comment.user}</span>
-                      <span className="text-xs text-gray-400">{comment.timestamp}</span>
-                    </div>
-                    <p className="text-gray-300 mb-2">{comment.content}</p>
-                    <div className="flex items-center text-sm text-gray-400">
-                      <button className="flex items-center hover:text-red-500 transition-colors">
-                        <ThumbsUp className="h-4 w-4 mr-1" />
-                        <span>{comment.likes}</span>
-                      </button>
-                      <button className="ml-4 hover:text-red-500 transition-colors">Reply</button>
-                    </div>
+                  <p className="text-gray-300">
+                    This is an amazing movie! The cinematography and acting were outstanding. I would definitely recommend it to anyone who enjoys this genre.
+                  </p>
+                  <div className="flex items-center space-x-4 mt-2 text-sm text-gray-400">
+                    <button className="flex items-center space-x-1 hover:text-white">
+                      <ThumbsUp className="h-4 w-4" />
+                      <span>23</span>
+                    </button>
+                    <button className="hover:text-white flex items-center space-x-1">
+                      <CornerUpRight className="h-4 w-4" />
+                      <span>Reply</span>
+                    </button>
                   </div>
                 </div>
-              ))}
+              </div>
+              
+              <div className="flex items-start space-x-4">
+                <div className="w-10 h-10 rounded-full bg-green-500 flex-shrink-0 flex items-center justify-center text-white font-medium">
+                  S
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center mb-1">
+                    <h4 className="font-medium text-white mr-2">Sarah Kim</h4>
+                    <span className="text-xs text-gray-400">1 week ago</span>
+                  </div>
+                  <p className="text-gray-300">
+                    I had high expectations for this one and it didn't disappoint. The plot twists kept me on the edge of my seat the entire time!
+                  </p>
+                  <div className="flex items-center space-x-4 mt-2 text-sm text-gray-400">
+                    <button className="flex items-center space-x-1 hover:text-white">
+                      <ThumbsUp className="h-4 w-4" />
+                      <span>15</span>
+                    </button>
+                    <button className="hover:text-white flex items-center space-x-1">
+                      <CornerUpRight className="h-4 w-4" />
+                      <span>Reply</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
         
         {/* Sidebar */}
-        <div className="w-full lg:w-1/4">
-          <div className="bg-zinc-900 p-4 rounded-lg mb-4">
-            <h3 className="text-lg font-bold mb-4">Recommended</h3>
+        <div className="w-full lg:w-1/4 mt-6 lg:mt-0">
+          {/* Up Next / Recommendations */}
+          <div className="bg-zinc-900 p-6 rounded-lg">
+            <h2 className="text-xl font-bold mb-4">Recommended For You</h2>
+            
             <div className="space-y-4">
-              {recommendedMovies.map((rec) => (
-                <a 
-                  key={rec.id}
-                  href={`/movie/${rec.id}`} 
-                  className="flex items-start space-x-3 hover:bg-zinc-800 p-2 rounded-lg transition-colors"
-                >
-                  <div className="w-16 h-24 rounded overflow-hidden flex-shrink-0">
-                    <img 
-                      src={rec.thumbnailUrl} 
-                      alt={rec.title}
-                      className="w-full h-full object-cover"
-                    />
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="flex items-start space-x-3">
+                  <div className="w-24 h-16 rounded bg-zinc-800 overflow-hidden flex-shrink-0">
+                    <div className="w-full h-full bg-gradient-to-br from-zinc-700 to-zinc-800"></div>
                   </div>
-                  <div>
-                    <h4 className="text-white font-medium line-clamp-2">{rec.title}</h4>
-                    <p className="text-xs text-gray-400 mt-1">{rec.duration}</p>
+                  <div className="flex-1">
+                    <h3 className="text-white font-medium mb-1">Recommended Movie {index + 1}</h3>
+                    <p className="text-xs text-gray-400">2023 • Action, Drama</p>
+                    <div className="flex items-center mt-1">
+                      <div className="h-1.5 w-20 bg-gray-700 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-red-600 rounded-full"
+                          style={{ width: `${Math.floor(Math.random() * 100)}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs text-gray-400 ml-2">
+                        {Math.floor(Math.random() * 120)} min
+                      </span>
+                    </div>
                   </div>
-                </a>
+                </div>
               ))}
+            </div>
+            
+            <button className="w-full mt-4 py-2 text-center text-red-600 hover:text-red-500 transition-colors">
+              Show more
+            </button>
+          </div>
+          
+          {/* Movie Info */}
+          <div className="bg-zinc-900 p-6 rounded-lg mt-6">
+            <h2 className="text-xl font-bold mb-4 flex items-center">
+              <Info className="h-5 w-5 mr-2" />
+              Movie Info
+            </h2>
+            
+            <div className="space-y-4 text-sm">
+              <div>
+                <h3 className="text-gray-400 mb-1">Director</h3>
+                <p className="text-white">{movie.director || 'Unknown'}</p>
+              </div>
+              
+              <div>
+                <h3 className="text-gray-400 mb-1">Cast</h3>
+                <p className="text-white">
+                  {movie.cast && movie.cast.length > 0 
+                    ? movie.cast.join(', ')
+                    : 'No cast information available'}
+                </p>
+              </div>
+              
+              <div>
+                <h3 className="text-gray-400 mb-1">IMDB Rating</h3>
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-yellow-400 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  <span className="text-white">{movie.imdbRating || '7.5'}</span>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-gray-400 mb-1">Views</h3>
+                <p className="text-white">{movie.viewCount?.toLocaleString() || '15,789'} views</p>
+              </div>
+              
+              {movie.trailerUrl && (
+                <div>
+                  <h3 className="text-gray-400 mb-1">Trailer</h3>
+                  <button className="flex items-center space-x-2 text-red-500 hover:text-red-400 transition-colors">
+                    <Play className="h-4 w-4" />
+                    <span>Watch Trailer</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </main>
       
       {/* Footer */}
-      <footer className="bg-zinc-900 mt-10 py-8">
+      <footer className="bg-zinc-900 py-8 mt-10">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-lg font-bold mb-3 text-white">FilmFlex</h3>
-              <p className="text-gray-400 text-sm">
-                The ultimate streaming platform for movie enthusiasts, offering a wide selection of films for every taste.
+          <div className="flex flex-col md:flex-row justify-between">
+            {/* Logo Section */}
+            <div className="mb-6 md:mb-0">
+              <span className="text-red-600 text-3xl font-bold">FilmFlex</span>
+              <p className="text-gray-400 mt-2 max-w-md">
+                FilmFlex: Premium streaming experience with the latest movies and TV shows in high definition.
               </p>
             </div>
             
-            <div>
-              <h3 className="text-md font-bold mb-3 text-white">Navigation</h3>
-              <ul className="space-y-2">
-                <li><a href="/" className="text-gray-400 hover:text-white text-sm">Home</a></li>
-                <li><a href="/movies" className="text-gray-400 hover:text-white text-sm">Movies</a></li>
-                <li><a href="/series" className="text-gray-400 hover:text-white text-sm">TV Series</a></li>
-                <li><a href="/genre" className="text-gray-400 hover:text-white text-sm">Categories</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="text-md font-bold mb-3 text-white">Legal</h3>
-              <ul className="space-y-2">
-                <li><a href="/terms" className="text-gray-400 hover:text-white text-sm">Terms of Use</a></li>
-                <li><a href="/privacy" className="text-gray-400 hover:text-white text-sm">Privacy Policy</a></li>
-                <li><a href="/cookie-policy" className="text-gray-400 hover:text-white text-sm">Cookie Policy</a></li>
-                <li><a href="/dmca" className="text-gray-400 hover:text-white text-sm">DMCA</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="text-md font-bold mb-3 text-white">Connect</h3>
-              <div className="flex space-x-3 mb-4">
-                <a href="#" className="text-gray-400 hover:text-white">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
-                  </svg>
-                </a>
-                <a href="#" className="text-gray-400 hover:text-white">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
-                  </svg>
-                </a>
-                <a href="#" className="text-gray-400 hover:text-white">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12.315 2c2.43 0 2.784.013 3.808.06 1.064.049 1.791.218 2.427.465a4.902 4.902 0 011.772 1.153 4.902 4.902 0 011.153 1.772c.247.636.416 1.363.465 2.427.048 1.067.06 1.407.06 4.123v.08c0 2.643-.012 2.987-.06 4.043-.049 1.064-.218 1.791-.465 2.427a4.902 4.902 0 01-1.153 1.772 4.902 4.902 0 01-1.772 1.153c-.636.247-1.363.416-2.427.465-1.067.048-1.407.06-4.123.06h-.08c-2.643 0-2.987-.012-4.043-.06-1.064-.049-1.791-.218-2.427-.465a4.902 4.902 0 01-1.772-1.153 4.902 4.902 0 01-1.153-1.772c-.247-.636-.416-1.363-.465-2.427-.047-1.024-.06-1.379-.06-3.808v-.63c0-2.43.013-2.784.06-3.808.049-1.064.218-1.791.465-2.427a4.902 4.902 0 011.153-1.772A4.902 4.902 0 015.45 2.525c.636-.247 1.363-.416 2.427-.465C8.901 2.013 9.256 2 11.685 2h.63zm-.081 1.802h-.468c-2.456 0-2.784.011-3.807.058-.975.045-1.504.207-1.857.344-.467.182-.8.398-1.15.748-.35.35-.566.683-.748 1.15-.137.353-.3.882-.344 1.857-.047 1.023-.058 1.351-.058 3.807v.468c0 2.456.011 2.784.058 3.807.045.975.207 1.504.344 1.857.182.466.399.8.748 1.15.35.35.683.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058h.08c2.597 0 2.917-.01 3.96-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.683.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041v-.08c0-2.597-.01-2.917-.058-3.96-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 00-.748-1.15 3.098 3.098 0 00-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.023-.047-1.351-.058-3.807-.058zM12 6.865a5.135 5.135 0 110 10.27 5.135 5.135 0 010-10.27zm0 1.802a3.333 3.333 0 100 6.666 3.333 3.333 0 000-6.666zm5.338-3.205a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4z" />
-                  </svg>
-                </a>
-                <a href="#" className="text-gray-400 hover:text-white">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z" />
-                  </svg>
-                </a>
+            {/* Links */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              <div>
+                <h3 className="text-white font-medium mb-4">Browse</h3>
+                <ul className="space-y-2">
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Movies</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">TV Shows</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">New Releases</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Trending</a></li>
+                </ul>
               </div>
-              <p className="text-gray-400 text-sm">
-                &copy; 2025 FilmFlex. All rights reserved.
-              </p>
+              
+              <div>
+                <h3 className="text-white font-medium mb-4">Support</h3>
+                <ul className="space-y-2">
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">FAQ</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Help Center</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Contact Us</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Terms of Use</a></li>
+                </ul>
+              </div>
+              
+              <div>
+                <h3 className="text-white font-medium mb-4">Account</h3>
+                <ul className="space-y-2">
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">My Account</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Watchlist</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Subscriptions</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Settings</a></li>
+                </ul>
+              </div>
+              
+              <div>
+                <h3 className="text-white font-medium mb-4">Connect</h3>
+                <ul className="space-y-2">
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Facebook</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Twitter</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Instagram</a></li>
+                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">YouTube</a></li>
+                </ul>
+              </div>
             </div>
+          </div>
+          
+          <div className="mt-8 pt-8 border-t border-zinc-800 text-center">
+            <p className="text-gray-400 text-sm">
+              © 2025 FilmFlex. All rights reserved.
+            </p>
           </div>
         </div>
       </footer>
