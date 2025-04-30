@@ -262,7 +262,7 @@ async function processPage(
           // Process movie categories if available
           try {
             if (slimMovie.categories && slimMovie.categories.length > 0) {
-              const { processMovieCategories } = await import('../../category/service');
+              const { processMovieCategories } = await import('../category/service');
               await processMovieCategories(newMovie, slimMovie.categories);
               log(`Processed categories for new movie ${newMovie.slug}`, 'phimapi');
             }

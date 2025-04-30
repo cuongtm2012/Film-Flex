@@ -102,6 +102,8 @@ export interface IStorage {
   
   // PhimAPI Movie Integration
   getApiMovieBySlug(slug: string): Promise<ApiMovie | undefined>;
+  getApiMovieById(id: number): Promise<ApiMovie | undefined>;
+  getCategoriesByMovieId(movieId: number, movieType?: 'regular' | 'api'): Promise<Category[]>;
   createApiMovie(movie: InsertApiMovie): Promise<ApiMovie>;
   updateApiMovie(id: number, updates: Partial<Omit<ApiMovie, 'id'>>): Promise<ApiMovie>;
   getApiMovies(limit?: number, offset?: number, status?: string, id?: number): Promise<ApiMovie[]>;
@@ -877,6 +879,34 @@ export class DatabaseStorage implements IStorage {
       .from(apiMovies)
       .where(eq(apiMovies.slug, slug));
     return results[0];
+  }
+  
+  async getApiMovieById(id: number): Promise<ApiMovie | undefined> {
+    const results = await db
+      .select()
+      .from(apiMovies)
+      .where(eq(apiMovies.id, id));
+    return results[0];
+  }
+  
+  async getCategoriesByMovieId(movieId: number, movieType: 'regular' | 'api' = 'api'): Promise<Category[]> {
+    // Get all categories linked to this movie via the movie_categories junction table
+    const results = await db
+      .select({
+        id: categories.id,
+        name: categories.name,
+        slug: categories.slug,
+        createdAt: categories.createdAt,
+        updatedAt: categories.updatedAt
+      })
+      .from(categories)
+      .innerJoin(movieCategories, and(
+        eq(categories.id, movieCategories.categoryId),
+        eq(movieCategories.movieId, movieId),
+        eq(movieCategories.movieType, movieType)
+      ));
+    
+    return results;
   }
 
   async createApiMovie(movie: InsertApiMovie): Promise<ApiMovie> {
