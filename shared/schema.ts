@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, date, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -243,3 +243,119 @@ export type InsertAdminLog = z.infer<typeof insertAdminLogSchema>;
 
 export type MovieUpload = typeof movieUploads.$inferSelect;
 export type InsertMovieUpload = z.infer<typeof insertMovieUploadSchema>;
+
+// API Movies model (from phimapi.com)
+export const apiMovies = pgTable("api_movies", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  originalTitle: text("original_title"),
+  description: text("description").notNull(),
+  posterUrl: text("poster_url").notNull(),
+  backdropUrl: text("backdrop_url"),
+  releaseYear: integer("release_year"),
+  quality: text("quality"),
+  language: text("language"),
+  categories: text("categories").array(),
+  countries: text("countries").array(),
+  type: text("type"),
+  views: integer("views"),
+  duration: text("duration"),
+  currentEpisode: text("current_episode"),
+  totalEpisodes: text("total_episodes"),
+  trailerUrl: text("trailer_url"),
+  actors: text("actors").array(),
+  directors: text("directors").array(),
+  episodes: jsonb("episodes").notNull(), // Store episodes as JSON
+  status: text("status", { enum: ["draft", "pending_review", "published", "rejected"] }).default("draft").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  lastCheckedAt: timestamp("last_checked_at").defaultNow().notNull(),
+});
+
+export const insertApiMovieSchema = createInsertSchema(apiMovies).pick({
+  slug: true,
+  title: true,
+  originalTitle: true,
+  description: true,
+  posterUrl: true,
+  backdropUrl: true,
+  releaseYear: true,
+  quality: true,
+  language: true,
+  categories: true,
+  countries: true,
+  type: true,
+  views: true,
+  duration: true,
+  currentEpisode: true,
+  totalEpisodes: true,
+  trailerUrl: true,
+  actors: true,
+  directors: true,
+  episodes: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+  lastCheckedAt: true,
+}).partial({
+  originalTitle: true,
+  backdropUrl: true,
+  releaseYear: true,
+  quality: true,
+  language: true,
+  categories: true,
+  countries: true,
+  type: true,
+  views: true,
+  duration: true,
+  currentEpisode: true,
+  totalEpisodes: true,
+  trailerUrl: true,
+  actors: true,
+  directors: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+  lastCheckedAt: true,
+});
+
+// API Movie Job Log model to track API data fetches
+export const apiMovieJobLogs = pgTable("api_movie_job_logs", {
+  id: serial("id").primaryKey(),
+  jobType: text("job_type", { enum: ["list", "detail", "update"] }).notNull(),
+  status: text("status", { enum: ["success", "partial", "failed"] }).notNull(),
+  details: jsonb("details"), // Store details like errors, success count, etc.
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  moviesProcessed: integer("movies_processed").default(0),
+  moviesAdded: integer("movies_added").default(0),
+  moviesUpdated: integer("movies_updated").default(0),
+  errorCount: integer("error_count").default(0),
+});
+
+export const insertApiMovieJobLogSchema = createInsertSchema(apiMovieJobLogs).pick({
+  jobType: true,
+  status: true,
+  details: true,
+  startedAt: true,
+  completedAt: true,
+  moviesProcessed: true,
+  moviesAdded: true,
+  moviesUpdated: true,
+  errorCount: true,
+}).partial({
+  details: true,
+  startedAt: true,
+  completedAt: true,
+  moviesProcessed: true,
+  moviesAdded: true,
+  moviesUpdated: true,
+  errorCount: true,
+});
+
+export type ApiMovie = typeof apiMovies.$inferSelect;
+export type InsertApiMovie = z.infer<typeof insertApiMovieSchema>;
+
+export type ApiMovieJobLog = typeof apiMovieJobLogs.$inferSelect;
+export type InsertApiMovieJobLog = z.infer<typeof insertApiMovieJobLogSchema>;

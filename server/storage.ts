@@ -81,6 +81,20 @@ export interface IStorage {
   // Admin Activity Logging
   logAdminActivity(log: InsertAdminLog): Promise<AdminLog>;
   getAdminLogs(adminId?: number, limit?: number, offset?: number): Promise<AdminLog[]>;
+  
+  // PhimAPI Movie Integration
+  getApiMovieBySlug(slug: string): Promise<ApiMovie | undefined>;
+  createApiMovie(movie: InsertApiMovie): Promise<ApiMovie>;
+  updateApiMovie(id: number, updates: Partial<Omit<ApiMovie, 'id'>>): Promise<ApiMovie>;
+  getApiMovies(limit?: number, offset?: number, status?: string): Promise<ApiMovie[]>;
+  getApiMoviesSlugs(): Promise<string[]>;
+  countApiMovies(status?: string): Promise<number>;
+  
+  // API Job Logging
+  createApiMovieJobLog(log: InsertApiMovieJobLog): Promise<ApiMovieJobLog>;
+  updateApiMovieJobLog(id: number, updates: Partial<Omit<ApiMovieJobLog, 'id'>>): Promise<ApiMovieJobLog>;
+  getLatestApiMovieJobLog(jobType?: string): Promise<ApiMovieJobLog | undefined>;
+  getApiMovieJobLogs(limit?: number, offset?: number): Promise<ApiMovieJobLog[]>;
 }
 
 // Set up Postgres store for session

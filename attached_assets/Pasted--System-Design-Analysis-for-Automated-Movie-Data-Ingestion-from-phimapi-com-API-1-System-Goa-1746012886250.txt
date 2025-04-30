@@ -1,0 +1,111 @@
+# System Design & Analysis for Automated Movie Data Ingestion from phimapi.com API
+
+## 1. System Goals
+
+- Automatically collect newly updated movie data from phimapi.com API page by page.
+- Fetch detailed movie info, episode list, and streaming links by slug.
+- Store detailed movie data in a database for fast querying.
+- Cache movie data to optimize performance and reduce API load.
+- Periodically update data to keep information fresh.
+- Serve movie data to frontend or downstream systems.
+- Optionally integrate AI for advanced data processing, recommendations, or analysis.
+
+---
+
+## 2. Overall Architecture
+
+```
++-------------------+       +-----------------+       +-----------------+
+|   Scheduler / Job  | ----> | Data Ingestion  | ----> |     Database    |
+| (cron, AI trigger) |       | (API calls)     |       | (SQL/NoSQL +    |
++-------------------+       +-----------------+       |  Redis Cache)   |
+                                                        +-----------------+
+                                                                |
+                                                                v
+                                                        +-----------------+
+                                                        |    Backend API   |
+                                                        | (REST/GraphQL)  |
+                                                        +-----------------+
+                                                                |
+                                                                v
+                                                        +-----------------+
+                                                        |    Frontend     |
+                                                        +-----------------+
+```
+
+---
+
+## 3. Detailed Components
+
+### 3.1 Scheduler / Job Manager
+
+- Runs periodically (e.g., hourly, daily) or triggered by AI events.
+- Coordinates fetching new movie data and updating existing records.
+- Can be implemented via cron jobs, task queues (Celery, RabbitMQ), or serverless functions (AWS Lambda).
+
+### 3.2 Data Ingestion
+
+- Call API to get movie list by page:  
+  `GET https://phimapi.com/danh-sach/phim-moi-cap-nhat?page=N`
+- Extract `slug` for each movie in the list.
+- For each `slug`, call API for detailed movie info:  
+  `GET https://phimapi.com/phim/${slug}`
+- Process and normalize data fields like `link_embed`, title, description, episodes.
+- Handle errors and retry on API failures or timeouts.
+- Implement rate limiting to avoid API blocking.
+
+### 3.3 Database & Cache
+
+- **Primary Database**:  
+  - Store movie info, slug, description, episodes, streaming links, last update timestamps.  
+  - Use SQL (PostgreSQL, MySQL) or NoSQL (MongoDB) depending on needs.
+- **Cache Layer**:  
+  - Use Redis or Memcached to cache movie details, episode lists, streaming links with appropriate TTL.  
+  - Improves backend response speed and reduces load on database and external API.
+
+### 3.4 Backend API
+
+- Provide REST or GraphQL endpoints for frontend or other consumers.
+- Retrieve data from cache or database.
+- Support search, movie detail retrieval, episode listing.
+- Secure API access and apply rate limiting if necessary.
+
+### 3.5 Frontend
+
+- Display new movie lists, movie details, and episodes.
+- Embed video player using `link_embed`.
+- Responsive design optimized for various devices.
+
+---
+
+## 4. Workflow
+
+1. **Fetch new movie list**  
+   Scheduler calls phimapi.com API page by page to get new movie slugs, storing them in the database.
+
+2. **Fetch movie details by slug**  
+   Scheduler or worker fetches detailed info for each slug, updates database and cache.
+
+3. **Serve users**  
+   Backend API serves data from cache or database to frontend.
+
+4. **Periodic updates**  
+   Scheduler runs regularly to update new or changed movies.
+
+---
+
+## 5. AI Integration (Optional)
+
+- **Content analysis**: AI processes movie descriptions and genres for classification and tagging.
+- **Recommendation engine**: AI suggests movies based on user behavior or content similarity.
+- **Advanced data processing**: Automated translation, cover image recognition, content summarization.
+
+---
+
+## 6. Technical Considerations
+
+- **API rate limiting**: Control API call frequency.
+- **Error handling & retries**: Retry or log failures.
+- **API security**: Protect API keys or tokens.
+- **Cache TTL management**: Balance freshness and speed.
+- **Monitoring & alerting**: Log errors, track job status, notify on issues.
