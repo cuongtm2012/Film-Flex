@@ -61,13 +61,23 @@ async function main() {
         movies_added INTEGER NOT NULL DEFAULT 0,
         movies_updated INTEGER NOT NULL DEFAULT 0,
         movies_failed INTEGER NOT NULL DEFAULT 0,
-        error_count INTEGER NOT NULL DEFAULT 0,
         last_processed_page INTEGER,
         next_page INTEGER,
         details JSONB,
         started_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
         completed_at TIMESTAMP WITH TIME ZONE
       );
+      
+      -- Check if error_count column exists, if not add it
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+          SELECT FROM information_schema.columns 
+          WHERE table_name = 'api_movie_job_logs' AND column_name = 'error_count'
+        ) THEN
+          ALTER TABLE api_movie_job_logs ADD COLUMN error_count INTEGER NOT NULL DEFAULT 0;
+        END IF;
+      END $$;
     `);
     
     console.log("api_movie_job_logs table created or verified");

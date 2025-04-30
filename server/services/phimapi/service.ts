@@ -25,7 +25,8 @@ export async function fetchAndStorePage(page: number = 1): Promise<number> {
       status: 'success',
       moviesProcessed: 0,
       moviesAdded: 0,
-      moviesUpdated: 0
+      moviesUpdated: 0,
+      errorCount: 0
     });
 
     // Fetch the movie list from API
@@ -107,6 +108,21 @@ export async function fetchAndStorePage(page: number = 1): Promise<number> {
     return successCount;
   } catch (error) {
     log(`Error fetching movie page ${page}: ${error}`, 'phimapi');
+    // Create error log
+    try {
+      await storage.createApiMovieJobLog({
+        jobType: 'list',
+        status: 'failed',
+        moviesProcessed: 0,
+        moviesAdded: 0,
+        moviesUpdated: 0,
+        errorCount: 1,
+        details: { error: error.toString(), page },
+        completedAt: new Date()
+      });
+    } catch (logError) {
+      log(`Failed to create error log: ${logError}`, 'phimapi');
+    }
     throw error;
   }
 }
@@ -137,7 +153,8 @@ export async function fetchAndStoreMovieDetail(slug: string): Promise<boolean> {
       jobType: 'detail',
       status: 'success',
       moviesProcessed: 1,
-      moviesUpdated: 0
+      moviesUpdated: 0,
+      errorCount: 0
     });
     
     // Fetch the movie detail from API
@@ -182,6 +199,20 @@ export async function fetchAndStoreMovieDetail(slug: string): Promise<boolean> {
     return true;
   } catch (error) {
     log(`Error fetching movie detail ${slug}: ${error}`, 'phimapi');
+    // Create error log
+    try {
+      await storage.createApiMovieJobLog({
+        jobType: 'detail',
+        status: 'failed',
+        moviesProcessed: 1,
+        moviesUpdated: 0,
+        errorCount: 1,
+        details: { error: error.toString(), slug },
+        completedAt: new Date()
+      });
+    } catch (logError) {
+      log(`Failed to create error log: ${logError}`, 'phimapi');
+    }
     throw error;
   }
 }
@@ -206,7 +237,8 @@ export async function processPendingDetailFetches(batchSize: number = 5): Promis
       jobType: 'update',
       status: 'success',
       moviesProcessed: pendingMovies.length,
-      moviesUpdated: 0
+      moviesUpdated: 0,
+      errorCount: 0
     });
     
     // Process each movie
@@ -235,6 +267,20 @@ export async function processPendingDetailFetches(batchSize: number = 5): Promis
     return successCount;
   } catch (error) {
     log(`Error processing pending movie details: ${error}`, 'phimapi');
+    // Create error log
+    try {
+      await storage.createApiMovieJobLog({
+        jobType: 'update',
+        status: 'failed',
+        moviesProcessed: 0,
+        moviesUpdated: 0,
+        errorCount: 1,
+        details: { error: error.toString() },
+        completedAt: new Date()
+      });
+    } catch (logError) {
+      log(`Failed to create error log: ${logError}`, 'phimapi');
+    }
     throw error;
   }
 }
@@ -286,6 +332,26 @@ export async function syncMovies(
     return totalNewMovies;
   } catch (error) {
     log(`Error syncing movies: ${error}`, 'phimapi');
+    // Create error log
+    try {
+      await storage.createApiMovieJobLog({
+        jobType: 'list',
+        status: 'failed',
+        moviesProcessed: 0,
+        moviesAdded: 0,
+        moviesUpdated: 0,
+        errorCount: 1,
+        details: { 
+          error: error.toString(),
+          startPage,
+          endPage,
+          detailBatchSize
+        },
+        completedAt: new Date()
+      });
+    } catch (logError) {
+      log(`Failed to create error log: ${logError}`, 'phimapi');
+    }
     throw error;
   }
 }
@@ -301,6 +367,21 @@ export function initScheduledSync(): void {
       await syncMovies(1, 2, 5); // Start with just 2 pages and 5 movies for details
     } catch (error) {
       log(`Initial sync error: ${error}`, 'phimapi');
+      // Log the error
+      try {
+        await storage.createApiMovieJobLog({
+          jobType: 'list',
+          status: 'failed',
+          moviesProcessed: 0,
+          moviesAdded: 0,
+          moviesUpdated: 0,
+          errorCount: 1,
+          details: { error: error.toString(), initial: true },
+          completedAt: new Date()
+        });
+      } catch (logError) {
+        log(`Failed to create initial error log: ${logError}`, 'phimapi');
+      }
     }
   }, 10000);
   
