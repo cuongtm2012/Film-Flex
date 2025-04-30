@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Search, User, Film, Tv, Map, Users, Calendar, 
   Smartphone, ChevronLeft, ChevronRight, Facebook, 
-  Twitter, Instagram, Youtube, Github
+  Twitter, Instagram, Youtube, Github, Loader2
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { API_BASE_URL, Movie } from '@/lib/constants';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
+
+// Define Category interface
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 // Footer component
 const Footer = () => {
@@ -215,6 +224,13 @@ const Pagination = ({ currentPage, totalPages, onChange }: {
   );
 };
 
+// Define a MovieWithPagination interface
+interface MovieWithPagination {
+  movies: Movie[];
+  total: number;
+  totalPages: number;
+}
+
 // Main component
 const NewHomePage = () => {
   const { t } = useLanguage();
@@ -222,29 +238,56 @@ const NewHomePage = () => {
   const [, setLocation] = useLocation();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const totalPages = 5; // Hardcoded for demo
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
-  // Fetch both regular and API movies at once
-  const { data: movies, isLoading } = useQuery<Movie[]>({
-    queryKey: [`${API_BASE_URL}/movies?source=all`],
-    staleTime: 60 * 1000,
+  // Fetch categories from API
+  const { data: categoriesData, isLoading: isCategoriesLoading } = useQuery<Category[]>({
+    queryKey: [`${API_BASE_URL}/categories`],
+    staleTime: 60 * 60 * 1000, // Cache for 1 hour
   });
   
-  // Filter movies if needed
-  const filteredMovies = movies?.filter(movie => 
-    (selectedCategory === 'all' || movie.genreIds.includes(parseInt(selectedCategory)))
-  ) || [];
+  // Handle category change
+  const handleCategoryChange = (categorySlug: string) => {
+    setSelectedCategory(categorySlug);
+    setCurrentPage(1); // Reset to first page when changing category
+  };
   
-  // Categories
+  // Fetch movies from API
+  const { data: moviesData, isLoading: isMoviesLoading } = useQuery<MovieWithPagination>({
+    queryKey: [
+      'movies',
+      selectedCategory,
+      currentPage
+    ],
+    queryFn: async () => {
+      const response = await fetch(
+        selectedCategory === 'all'
+          ? `${API_BASE_URL}/movies?source=all&page=${currentPage}`
+          : `${API_BASE_URL}/categories/${selectedCategory}/movies?page=${currentPage}`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch movies');
+      }
+      
+      return response.json();
+    },
+    staleTime: 60 * 1000, // Cache for 1 minute
+  });
+  
+  // Combined loading state
+  const isLoading = isMoviesLoading || isCategoriesLoading;
+  
+  // Total pages from API response or default to 1
+  const totalPages = moviesData?.totalPages || 1;
+  
+  // Get movies from the response or empty array
+  const movies = moviesData?.movies || [];
+  
+  // Categories list with "All" option
   const categories = [
-    { id: 'all', name: 'All' },
-    { id: '1', name: 'Action' },
-    { id: '2', name: 'Drama' },
-    { id: '3', name: 'Comedy' },
-    { id: '4', name: 'Animation' },
-    { id: '5', name: 'Horror' },
-    { id: '6', name: 'Sci-Fi' }
+    { id: 0, name: 'All', slug: 'all', createdAt: '', updatedAt: '' },
+    ...(categoriesData || [])
   ];
   
   return (
@@ -341,9 +384,9 @@ const NewHomePage = () => {
               {categories.map(category => (
                 <button
                   key={category.id}
-                  onClick={() => setSelectedCategory(category.id)}
+                  onClick={() => handleCategoryChange(category.slug)}
                   className={`px-4 py-2 rounded-full whitespace-nowrap text-sm ${
-                    selectedCategory === category.id
+                    selectedCategory === category.slug
                       ? 'bg-red-600 text-white'
                       : 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'
                   }`}
@@ -367,7 +410,7 @@ const NewHomePage = () => {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {filteredMovies.map(movie => (
+              {movies.map(movie => (
                 <div key={movie.id} onClick={() => setLocation(`/movie/${movie.id}`)}>
                   <MovieCard movie={movie} />
                 </div>
