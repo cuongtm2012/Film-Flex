@@ -82,6 +82,30 @@ async function main() {
     
     console.log("api_movie_job_logs table created or verified");
     
+    // Create categories table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        slug TEXT NOT NULL UNIQUE,
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+      );
+    `);
+    
+    console.log("categories table created or verified");
+    
+    // Create movie_categories junction table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS movie_categories (
+        movie_id INTEGER NOT NULL REFERENCES api_movies(id) ON DELETE CASCADE,
+        category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+        PRIMARY KEY (movie_id, category_id)
+      );
+    `);
+    
+    console.log("movie_categories table created or verified");
+    
     console.log("Database schema applied successfully");
   } catch (error) {
     console.error("Error applying schema:", error);

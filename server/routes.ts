@@ -448,6 +448,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid limit parameter. Must be between 1 and 100" });
       }
       
+      // Import category service function
+      const { getMoviesByCategory } = await import('./services/category/service');
+      
       // Get movies by category with pagination
       const result = await getMoviesByCategory(slug, page, limit);
       
