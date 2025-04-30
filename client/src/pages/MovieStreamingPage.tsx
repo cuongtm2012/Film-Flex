@@ -315,9 +315,10 @@ const MovieStreamingPage = () => {
     if (movie) {
       // Handle API movies differently
       if (movie.isApiMovie) {
-        console.log('Loading API movie source:', movie.videoUrl);
+        console.log('Loading API movie source:', movie.embedUrl || movie.videoUrl);
         setIsEmbedSource(true);
-        setVideoSrc(movie.videoUrl || '');
+        // Prioritize embedUrl for API movies, fall back to videoUrl
+        setVideoSrc(movie.embedUrl || movie.videoUrl || '');
       } else {
         // Regular movies use the existing flow
         setIsEmbedSource(false);

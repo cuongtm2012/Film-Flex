@@ -129,13 +129,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return [];
           })();
           
-          // Handle episodes
-          const videoUrl = (() => {
-            if (!apiMovie.episodes) return '';
-            if (!Array.isArray(apiMovie.episodes) || apiMovie.episodes.length === 0) return '';
+          // Handle episodes and extract links
+          const extractEpisodeData = (() => {
+            if (!apiMovie.episodes) return { videoUrl: '', embedUrl: '' };
+            if (!Array.isArray(apiMovie.episodes) || apiMovie.episodes.length === 0) return { videoUrl: '', embedUrl: '' };
+            
             const firstEpisode = apiMovie.episodes[0];
-            if (!firstEpisode) return '';
-            return firstEpisode.streamUrl || firstEpisode.embedUrl || '';
+            if (!firstEpisode) return { videoUrl: '', embedUrl: '' };
+            
+            return {
+              videoUrl: firstEpisode.streamUrl || '',
+              embedUrl: firstEpisode.embedUrl || ''
+            };
           })();
           
           return {
@@ -148,10 +153,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             videoSources: [],
             genreIds: genreIds,
             director: "Unknown Director",
+            embedUrl: extractEpisodeData.embedUrl, // Add embed URL for API movies
             cast: castArray,
             posterUrl: apiMovie.posterUrl || '',
             backdropUrl: apiMovie.backdropUrl || '',
-            videoUrl: videoUrl,
+            videoUrl: extractEpisodeData.videoUrl,
             trailerUrl: apiMovie.trailerUrl || '',
             imdbRating: "7.5",
             viewCount: 0
