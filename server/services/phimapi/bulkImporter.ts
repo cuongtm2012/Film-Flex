@@ -159,16 +159,29 @@ async function fetchAndStoreMovieDetail(slug: string): Promise<boolean> {
     cacheMovie(processedMovie, { ttl: 60 * 60 }); // Cache for 1 hour
     
     // Update the movie in the database
-    await storage.updateApiMovie(existingMovie.id, {
+    const updatedMovie = await storage.updateApiMovie(existingMovie.id, {
       description: processedMovie.description,
       trailerUrl: processedMovie.trailerUrl,
       actors: processedMovie.actors,
       directors: processedMovie.directors,
       episodes: processedMovie.episodes,
+      embedUrl: processedMovie.embedUrl, // Store the embed URL directly
       status: 'pending_review', // Mark for review before publishing
       updatedAt: new Date(),
       lastCheckedAt: new Date()
     });
+
+    // Process movie categories using the updated structure
+    try {
+      if (processedMovie.categories && processedMovie.categories.length > 0) {
+        const { processMovieCategories } = await import('../category/service');
+        await processMovieCategories(updatedMovie, processedMovie.categories);
+        log(`Processed categories for updated movie ${updatedMovie.slug}`, 'phimapi');
+      }
+    } catch (categoryError) {
+      log(`Error processing categories for updated movie ${updatedMovie.slug}: ${categoryError}`, 'phimapi');
+      // Continue anyway - we don't want to fail the whole update just because of categories
+    }
     
     return true;
   } catch (error) {

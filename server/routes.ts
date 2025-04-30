@@ -1620,6 +1620,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get movies by category with pagination
+  app.get('/api/categories/:slug/movies', async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const page = parseInt(req.query.page as string, 10) || 1;
+      const limit = parseInt(req.query.limit as string, 10) || 20;
+      
+      // Import the service function
+      const { getMoviesByCategory } = await import('./services/category/service');
+      
+      // Get movies for this category
+      const result = await getMoviesByCategory(slug, page, limit);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error getting movies by category:', error);
+      res.status(500).json({ error: 'Failed to get movies by category' });
+    }
+  });
+  
+  // Get all categories
+  app.get('/api/categories', async (req, res) => {
+    try {
+      const categories = await storage.getAllCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error('Error getting categories:', error);
+      res.status(500).json({ error: 'Failed to get categories' });
+    }
+  });
+  
   // Test endpoint for category processing
   app.get('/api/test/categories/:movieId', async (req, res) => {
     try {
