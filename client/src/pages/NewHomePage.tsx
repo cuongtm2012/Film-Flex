@@ -117,6 +117,9 @@ const MovieCard = ({ movie }: { movie: Movie }) => {
   const duration = typeof movie.duration === 'number' ? `${movie.duration} min` : (movie.duration || '90 min');
   const releaseYear = movie.releaseYear || 2023;
   
+  // Check if it's an API movie (handle specific properties if needed)
+  const isApiMovie = movie.id > 10000; // We added 10000 to API movie IDs
+  
   return (
     <div className="group cursor-pointer">
       <div className="overflow-hidden rounded-lg relative">
@@ -137,6 +140,11 @@ const MovieCard = ({ movie }: { movie: Movie }) => {
             <div className="text-xs text-white/80">
               {duration} | {releaseYear}
             </div>
+            {isApiMovie && (
+              <div className="text-xs text-purple-400 mt-1">
+                API Source
+              </div>
+            )}
           </div>
         </div>
       </div>

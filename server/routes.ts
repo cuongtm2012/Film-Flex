@@ -32,7 +32,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Transform API movies to regular movie format
         const transformedApiMovies = apiMovies.map(apiMovie => {
           // Transform categories to genreIds by mapping to corresponding genre numbers
-          const genreMap = {
+          const genreMap: Record<string, number> = {
             "Action": 1,
             "Adventure": 2,
             "Comedy": 3,
@@ -44,28 +44,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
             "Animation": 9
           };
           
-          // Extract categories from API movie
-          const categories = apiMovie.categories || [];
+          // Extract categories from API movie and ensure it's an array
+          const categories: string[] = Array.isArray(apiMovie.categories) ? apiMovie.categories : [];
           // Map them to genre IDs or use default genre 1 (Action) if not found
           const genreIds = categories.length > 0 
-            ? categories.map(cat => genreMap[cat] || 1)
+            ? categories.map(cat => {
+                const genreId = genreMap[cat as keyof typeof genreMap];
+                return genreId || 1;
+              })
             : [1]; // Default to Action genre if no categories
         
+          // Handle various fields that might be missing or in different formats
+          const castArray = (() => {
+            if (!apiMovie.actors) return [];
+            if (Array.isArray(apiMovie.actors)) return apiMovie.actors;
+            if (typeof apiMovie.actors === 'string') return apiMovie.actors.split(',');
+            return [];
+          })();
+          
+          // Handle episodes
+          const videoUrl = (() => {
+            if (!apiMovie.episodes) return '';
+            if (!Array.isArray(apiMovie.episodes) || apiMovie.episodes.length === 0) return '';
+            const firstEpisode = apiMovie.episodes[0];
+            if (!firstEpisode) return '';
+            return firstEpisode.streamUrl || firstEpisode.embedUrl || '';
+          })();
+          
           return {
             id: apiMovie.id,
-            title: apiMovie.title,
-            description: apiMovie.description,
-            releaseYear: parseInt(apiMovie.releaseYear) || 2023,
+            title: apiMovie.title || 'Unknown Title',
+            description: apiMovie.description || '',
+            releaseYear: parseInt(apiMovie.releaseYear as string) || 2023,
             duration: apiMovie.duration || '100 min',
             rating: "PG-13",
             videoSources: [],
             genreIds: genreIds,
             director: "Unknown Director",
-            cast: apiMovie.actors ? apiMovie.actors.split(',') : [],
-            posterUrl: apiMovie.posterUrl,
-            backdropUrl: apiMovie.backdropUrl,
-            videoUrl: apiMovie.episodes && apiMovie.episodes.length > 0 ? 
-              apiMovie.episodes[0].streamUrl || apiMovie.episodes[0].embedUrl : '',
+            cast: castArray,
+            posterUrl: apiMovie.posterUrl || '',
+            backdropUrl: apiMovie.backdropUrl || '',
+            videoUrl: videoUrl,
             trailerUrl: apiMovie.trailerUrl || '',
             imdbRating: "7.5",
             viewCount: 0
@@ -80,7 +99,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Transform API movies to regular movie format
         const transformedApiMovies = apiMovies.map(apiMovie => {
           // Transform categories to genreIds by mapping to corresponding genre numbers
-          const genreMap = {
+          const genreMap: Record<string, number> = {
             "Action": 1,
             "Adventure": 2,
             "Comedy": 3,
@@ -92,28 +111,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
             "Animation": 9
           };
           
-          // Extract categories from API movie
-          const categories = apiMovie.categories || [];
+          // Extract categories from API movie and ensure it's an array
+          const categories: string[] = Array.isArray(apiMovie.categories) ? apiMovie.categories : [];
           // Map them to genre IDs or use default genre 1 (Action) if not found
           const genreIds = categories.length > 0 
-            ? categories.map(cat => genreMap[cat] || 1)
+            ? categories.map(cat => {
+                const genreId = genreMap[cat as keyof typeof genreMap];
+                return genreId || 1;
+              })
             : [1]; // Default to Action genre if no categories
+          
+          // Handle various fields that might be missing or in different formats
+          const castArray = (() => {
+            if (!apiMovie.actors) return [];
+            if (Array.isArray(apiMovie.actors)) return apiMovie.actors;
+            if (typeof apiMovie.actors === 'string') return apiMovie.actors.split(',');
+            return [];
+          })();
+          
+          // Handle episodes
+          const videoUrl = (() => {
+            if (!apiMovie.episodes) return '';
+            if (!Array.isArray(apiMovie.episodes) || apiMovie.episodes.length === 0) return '';
+            const firstEpisode = apiMovie.episodes[0];
+            if (!firstEpisode) return '';
+            return firstEpisode.streamUrl || firstEpisode.embedUrl || '';
+          })();
           
           return {
             id: apiMovie.id + 10000, // Avoid ID conflicts with regular movies
-            title: apiMovie.title,
-            description: apiMovie.description,
-            releaseYear: parseInt(apiMovie.releaseYear) || 2023,
+            title: apiMovie.title || 'Unknown Title',
+            description: apiMovie.description || '',
+            releaseYear: parseInt(apiMovie.releaseYear as string) || 2023,
             duration: apiMovie.duration || '100 min',
             rating: "PG-13",
             videoSources: [],
             genreIds: genreIds,
             director: "Unknown Director",
-            cast: apiMovie.actors ? apiMovie.actors.split(',') : [],
-            posterUrl: apiMovie.posterUrl,
-            backdropUrl: apiMovie.backdropUrl,
-            videoUrl: apiMovie.episodes && apiMovie.episodes.length > 0 ? 
-              apiMovie.episodes[0].streamUrl || apiMovie.episodes[0].embedUrl : '',
+            cast: castArray,
+            posterUrl: apiMovie.posterUrl || '',
+            backdropUrl: apiMovie.backdropUrl || '',
+            videoUrl: videoUrl,
             trailerUrl: apiMovie.trailerUrl || '',
             imdbRating: "7.5",
             viewCount: 0
