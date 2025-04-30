@@ -183,11 +183,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (movieId >= 10000) {
         // Try to find an API movie with ID - 10000 (since we added 10000 to API movie IDs)
         const apiMovieId = movieId - 10000;
-        const apiMovie = await storage.getApiMovieBySlug('') || await storage.getApiMovies(1, 0, 'published', apiMovieId);
+        const apiMovieResult = await storage.getApiMovies(1, 0, 'published', apiMovieId);
         
-        if (apiMovie && apiMovie.length > 0) {
+        if (apiMovieResult && Array.isArray(apiMovieResult) && apiMovieResult.length > 0) {
           // Transform the API movie to regular movie format
-          const movie = apiMovie[0];
+          const movie = apiMovieResult[0];
           
           // Transform categories to genreIds
           const genreMap: Record<string, number> = {

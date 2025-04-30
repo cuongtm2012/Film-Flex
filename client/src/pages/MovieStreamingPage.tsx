@@ -98,14 +98,8 @@ const MovieStreamingPage = () => {
   
   // Fetch movie data
   const { data: movie, isLoading, error, isError } = useQuery({
-    queryKey: ['/api/movies', movieId],
-    queryFn: async () => {
-      const response = await fetch(`/api/movies/${movieId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch movie');
-      }
-      return response.json();
-    },
+    queryKey: [`/api/movies`, movieId],
+    staleTime: 30 * 1000,
   });
 
   // Video player state
