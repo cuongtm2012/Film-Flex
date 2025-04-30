@@ -237,7 +237,8 @@ async function processPage(
         
         try {
           // Store in the database
-          await storage.createApiMovie({
+          // Create the new API movie
+          const newMovie = await storage.createApiMovie({
             slug: slimMovie.slug,
             title: slimMovie.title,
             originalTitle: slimMovie.originalTitle,
@@ -257,6 +258,18 @@ async function processPage(
             episodes: [],
             status: 'draft'
           } as InsertApiMovie);
+          
+          // Process movie categories if available
+          try {
+            if (slimMovie.categories && slimMovie.categories.length > 0) {
+              const { processMovieCategories } = await import('../../category/service');
+              await processMovieCategories(newMovie, slimMovie.categories);
+              log(`Processed categories for new movie ${newMovie.slug}`, 'phimapi');
+            }
+          } catch (categoryError) {
+            log(`Error processing categories for new movie ${newMovie.slug}: ${categoryError}`, 'phimapi');
+            // Continue anyway - we don't want to fail the whole import just because of categories
+          }
           
           // Add to existing slugs to avoid duplicates
           existingSlugs.add(slimMovie.slug);

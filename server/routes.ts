@@ -519,6 +519,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching movies by category" });
     }
   });
+  
+  // Test endpoint for category processing with different formats
+  router.post("/test/categories/process", async (req, res) => {
+    try {
+      const { movieId, categories, movieType = 'api' } = req.body;
+      
+      if (!movieId || !categories || !Array.isArray(categories)) {
+        return res.status(400).json({ 
+          message: "Invalid request. Requires movieId and categories array",
+          required: {
+            movieId: "number",
+            categories: "array - can be strings or objects with {id, name, slug}",
+            movieType: "string (optional) - 'api' or 'regular'"
+          }
+        });
+      }
+      
+      // Get the movie
+      const movie = await storage.getApiMovieById(movieId);
+      if (!movie) {
+        return res.status(404).json({ message: `Movie with ID ${movieId} not found` });
+      }
+      
+      // Process the categories
+      const { processMovieCategories } = await import('./services/category/service');
+      await processMovieCategories(movie, categories);
+      
+      // Get the linked categories for verification
+      const linkedCategories = await storage.getCategoriesByMovieId(movieId, movieType);
+      
+      res.status(200).json({
+        message: "Categories processed successfully",
+        movie: { id: movie.id, title: movie.title },
+        categories: categories,
+        linkedCategories
+      });
+    } catch (error) {
+      console.error("Error in category test endpoint:", error);
+      res.status(500).json({ 
+        message: "Failed to process categories", 
+        error: String(error)
+      });
+    }
+  });
 
   // User routes (favorites, watchlist, etc.)
   router.get("/user/:userId/favorites", async (req, res) => {

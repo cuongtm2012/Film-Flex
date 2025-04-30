@@ -79,6 +79,13 @@ export async function linkMovieCategories(
  */
 export async function processMovieCategories(movie: ApiMovie, categories: any[]): Promise<void> {
   try {
+    if (!categories || !Array.isArray(categories) || categories.length === 0) {
+      log(`No categories to process for movie ${movie.id} (${movie.title})`, 'category');
+      return;
+    }
+    
+    log(`Processing ${categories.length} categories for movie ${movie.id} (${movie.title}). Sample: ${JSON.stringify(categories[0])}`, 'category');
+    
     const categoryIds: number[] = [];
     
     // Process each category
@@ -88,6 +95,8 @@ export async function processMovieCategories(movie: ApiMovie, categories: any[])
         // If it's a string, create a slug from the category name
         const categoryName = category;
         const slug = categoryName.toLowerCase().replace(/\s+/g, '-');
+        
+        log(`Processing string category: '${categoryName}'`, 'category');
         
         // Create or update the category
         const categoryObj = await createOrUpdateCategory({
@@ -99,7 +108,15 @@ export async function processMovieCategories(movie: ApiMovie, categories: any[])
       } else if (typeof category === 'object' && category !== null) {
         // If it's an object with id, name, and slug properties (PhimAPI format)
         const categoryName = category.name;
+        
+        if (!categoryName) {
+          log(`Skipping invalid category object without name: ${JSON.stringify(category)}`, 'category');
+          continue;
+        }
+        
         const slug = category.slug || categoryName.toLowerCase().replace(/\s+/g, '-');
+        
+        log(`Processing object category: name='${categoryName}', slug='${slug}'`, 'category');
         
         // Create or update the category
         const categoryObj = await createOrUpdateCategory({
