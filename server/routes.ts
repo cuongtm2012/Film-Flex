@@ -458,7 +458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.post("/movies/:movieId/categories", async (req, res) => {
     try {
       const movieId = parseInt(req.params.movieId);
-      const { categoryIds } = req.body;
+      const { categoryIds, movieType = 'regular' } = req.body;
       
       if (isNaN(movieId)) {
         return res.status(400).json({ message: "Invalid movie ID" });
@@ -468,16 +468,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Category IDs must be a non-empty array" });
       }
       
+      // Validate movie type
+      if (movieType !== 'regular' && movieType !== 'api') {
+        return res.status(400).json({ message: "Movie type must be 'regular' or 'api'" });
+      }
+      
       // Import the category service
       const { linkMovieCategories } = await import('./services/category/service');
       
-      // Link the movie to categories
-      await linkMovieCategories(movieId, categoryIds);
+      // Link the movie to categories, specifying the movie type
+      await linkMovieCategories(movieId, categoryIds, movieType);
       
-      res.status(200).json({ message: "Movie linked to categories successfully" });
+      res.status(200).json({ 
+        message: "Movie linked to categories successfully",
+        movieId,
+        categoryIds,
+        movieType 
+      });
     } catch (error) {
       console.error("Error linking movie to categories:", error);
-      res.status(500).json({ message: "Failed to link movie to categories" });
+      res.status(500).json({ message: "Failed to link movie to categories", error: String(error) });
     }
   });
 

@@ -376,55 +376,130 @@ export class DatabaseStorage implements IStorage {
       .from(movieCategories)
       .where(eq(movieCategories.categoryId, categoryId));
     
-    const movieIds = movieCategoryLinks.map(link => link.movieId);
-    
-    if (movieIds.length === 0) {
+    if (movieCategoryLinks.length === 0) {
       return [];
     }
     
-    // Then get the actual movies with pagination
-    const movies = await db
-      .select()
-      .from(apiMovies)
-      .where(
-        // Only get published movies that are in this category
-        and(
-          inArray(apiMovies.id, movieIds),
-          eq(apiMovies.status, "published")
-        )
-      )
-      .orderBy(desc(apiMovies.id))
-      .limit(limit)
-      .offset(offset);
+    // Separate movie IDs by type
+    const apiMovieLinks = movieCategoryLinks.filter(link => link.movieType === 'api');
+    const regularMovieLinks = movieCategoryLinks.filter(link => link.movieType === 'regular');
     
-    return movies;
+    const apiMovieIds = apiMovieLinks.map(link => link.movieId);
+    const regularMovieIds = regularMovieLinks.map(link => link.movieId);
+    
+    let result: ApiMovie[] = [];
+    
+    // If we have API movies, fetch them
+    if (apiMovieIds.length > 0) {
+      const apiMoviesResult = await db
+        .select()
+        .from(apiMovies)
+        .where(
+          and(
+            inArray(apiMovies.id, apiMovieIds),
+            eq(apiMovies.status, "published")
+          )
+        )
+        .orderBy(desc(apiMovies.id))
+        .limit(limit)
+        .offset(offset);
+      
+      result = [...apiMoviesResult];
+    }
+    
+    // If we have regular movies, fetch and transform them to match ApiMovie structure
+    if (regularMovieIds.length > 0) {
+      const regularMoviesResult = await db
+        .select()
+        .from(movies)
+        .where(inArray(movies.id, regularMovieIds))
+        .orderBy(desc(movies.id))
+        .limit(limit - result.length) // Adjust limit based on how many API movies we already have
+        .offset(result.length === 0 ? offset : 0); // Only apply offset if we haven't fetched any API movies yet
+      
+      // Transform regular movies to match ApiMovie structure for consistent frontend handling
+      const transformedRegularMovies: ApiMovie[] = regularMoviesResult.map(movie => ({
+        id: movie.id,
+        slug: `regular-movie-${movie.id}`, // Generate a slug
+        title: movie.title,
+        originalTitle: movie.title,
+        description: movie.description,
+        posterUrl: movie.posterUrl,
+        backdropUrl: movie.backdropUrl,
+        releaseYear: movie.releaseYear,
+        quality: null,
+        language: null,
+        categories: [],
+        countries: [],
+        type: "movie",
+        views: movie.viewCount || 0,
+        duration: movie.duration ? movie.duration.toString() : null,
+        currentEpisode: null,
+        totalEpisodes: null,
+        trailerUrl: "",
+        actors: movie.cast || [],
+        directors: movie.director ? [movie.director] : [],
+        episodes: [],
+        embedUrl: null,
+        status: "published",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastCheckedAt: new Date(),
+      }));
+      
+      // Combine the results (API movies first, then regular movies)
+      result = [...result, ...transformedRegularMovies];
+    }
+    
+    return result;
   }
   
   async countMoviesByCategory(categoryId: number): Promise<number> {
-    // First get the movie IDs that belong to this category
+    // First get the movie-category links
     const movieCategoryLinks = await db
       .select()
       .from(movieCategories)
       .where(eq(movieCategories.categoryId, categoryId));
     
-    const movieIds = movieCategoryLinks.map(link => link.movieId);
-    
-    if (movieIds.length === 0) {
+    if (movieCategoryLinks.length === 0) {
       return 0;
     }
     
-    // Then count the published movies in this category
-    const result = await db
-      .select({ count: count() })
-      .from(apiMovies)
-      .where(
-        and(
-          inArray(apiMovies.id, movieIds),
-          eq(apiMovies.status, "published")
-        )
-      );
+    // Separate movie IDs by type
+    const apiMovieLinks = movieCategoryLinks.filter(link => link.movieType === 'api');
+    const regularMovieLinks = movieCategoryLinks.filter(link => link.movieType === 'regular');
     
-    return result[0]?.count || 0;
+    const apiMovieIds = apiMovieLinks.map(link => link.movieId);
+    const regularMovieIds = regularMovieLinks.map(link => link.movieId);
+    
+    let totalCount = 0;
+    
+    // Count API movies
+    if (apiMovieIds.length > 0) {
+      const apiMoviesCountResult = await db
+        .select({ count: count() })
+        .from(apiMovies)
+        .where(
+          and(
+            inArray(apiMovies.id, apiMovieIds),
+            eq(apiMovies.status, "published")
+          )
+        );
+      
+      totalCount += apiMoviesCountResult[0]?.count || 0;
+    }
+    
+    // Count regular movies
+    if (regularMovieIds.length > 0) {
+      const regularMoviesCountResult = await db
+        .select({ count: count() })
+        .from(movies)
+        .where(inArray(movies.id, regularMovieIds));
+      
+      totalCount += regularMoviesCountResult[0]?.count || 0;
+    }
+    
+    return totalCount;
   }
   
   async createMovieCategory(insertMovieCategory: InsertMovieCategory): Promise<MovieCategory> {
