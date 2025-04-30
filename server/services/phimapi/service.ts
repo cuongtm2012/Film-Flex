@@ -32,7 +32,18 @@ export async function fetchAndStorePage(page: number = 1): Promise<number> {
     // Fetch the movie list from API
     const movieList = await withRetry(() => fetchMovieList(page));
     
-    if (!movieList?.items?.length) {
+    // Check if the response is properly structured
+    if (!movieList || !movieList.items) {
+      log(`Invalid API response for page ${page}: ${JSON.stringify(movieList)}`, 'phimapi');
+      await storage.updateApiMovieJobLog(jobLog.id, {
+        status: 'failed',
+        details: { error: 'Invalid API response format', page, response: JSON.stringify(movieList).substring(0, 1000) },
+        completedAt: new Date()
+      });
+      return 0;
+    }
+    
+    if (!movieList.items.length) {
       log(`No movies found on page ${page}`, 'phimapi');
       await storage.updateApiMovieJobLog(jobLog.id, {
         status: 'failed',
@@ -97,10 +108,11 @@ export async function fetchAndStorePage(page: number = 1): Promise<number> {
       status: successCount > 0 ? 'success' : 'partial',
       details: { 
         page,
-        totalItems: movieList.paginate.totalItems,
-        totalPages: movieList.paginate.totalPages,
+        totalItems: movieList.paginate?.totalItems || 0,
+        totalPages: movieList.paginate?.totalPages || 1,
         newSlugs,
-        existingSlugs: existingSlugs.length
+        existingSlugs: existingSlugs.length,
+        hasPaginate: !!movieList.paginate
       },
       completedAt: new Date()
     });
