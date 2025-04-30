@@ -376,7 +376,7 @@ export function initScheduledSync(): void {
   setTimeout(async () => {
     try {
       log('Running initial movie sync...', 'phimapi');
-      await syncMovies(1, 2, 5); // Start with just 2 pages and 5 movies for details
+      await syncMovies(1, 20, 10); // Start with 20 pages and 10 movies for details
     } catch (error) {
       log(`Initial sync error: ${error}`, 'phimapi');
       // Log the error
@@ -395,6 +395,16 @@ export function initScheduledSync(): void {
         log(`Failed to create initial error log: ${logError}`, 'phimapi');
       }
     }
+    
+    // Then start a more extensive sync after the initial batch
+    setTimeout(async () => {
+      try {
+        log('Running extended movie sync...', 'phimapi');
+        await syncMovies(21, 50, 20); // Get more pages
+      } catch (error) {
+        log(`Extended sync error: ${error}`, 'phimapi');
+      }
+    }, 60000); // Start 1 minute after the initial sync
   }, 10000);
   
   // Schedule regular syncs every 12 hours

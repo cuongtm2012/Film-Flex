@@ -695,16 +695,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async countApiMovies(status?: string): Promise<number> {
-    let query = db
-      .select({ count: sql`count(*)` })
-      .from(apiMovies);
-    
-    if (status) {
-      query = query.where(eq(apiMovies.status, status));
+    try {
+      // Import sql function from drizzle-orm
+      const { sql } = await import('drizzle-orm');
+      
+      let query = db
+        .select({ count: sql`count(*)` })
+        .from(apiMovies);
+      
+      if (status) {
+        query = query.where(eq(apiMovies.status, status));
+      }
+      
+      const result = await query;
+      return Number(result[0].count);
+    } catch (error) {
+      console.error('Error counting API movies:', error);
+      return 0;
     }
-    
-    const result = await query;
-    return Number(result[0].count);
   }
 
   // ========== API JOB LOGGING ==========
