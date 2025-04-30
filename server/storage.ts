@@ -1,9 +1,11 @@
 import { 
   users, movies, genres, favorites, viewHistory, transactions, adminLogs, movieUploads,
+  apiMovies, apiMovieJobLogs,
   type User, type InsertUser, type Movie, type InsertMovie, type Genre, type InsertGenre,
   type Favorite, type InsertFavorite, type ViewHistory, type InsertViewHistory,
   type Transaction, type InsertTransaction, type AdminLog, type InsertAdminLog,
-  type MovieUpload, type InsertMovieUpload
+  type MovieUpload, type InsertMovieUpload, type ApiMovie, type InsertApiMovie,
+  type ApiMovieJobLog, type InsertApiMovieJobLog
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, or, like, gte, lte, isNull, isNotNull } from "drizzle-orm";
@@ -617,6 +619,129 @@ export class DatabaseStorage implements IStorage {
     if (adminId) {
       query = query.where(eq(adminLogs.adminId, adminId));
     }
+    
+    if (offset) {
+      query = query.offset(offset);
+    }
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    return query;
+  }
+
+  // ========== PHIMAPI MOVIE INTEGRATION ==========
+
+  async getApiMovieBySlug(slug: string): Promise<ApiMovie | undefined> {
+    const results = await db
+      .select()
+      .from(apiMovies)
+      .where(eq(apiMovies.slug, slug));
+    return results[0];
+  }
+
+  async createApiMovie(movie: InsertApiMovie): Promise<ApiMovie> {
+    const result = await db
+      .insert(apiMovies)
+      .values(movie)
+      .returning();
+    return result[0];
+  }
+
+  async updateApiMovie(id: number, updates: Partial<Omit<ApiMovie, 'id'>>): Promise<ApiMovie> {
+    const result = await db
+      .update(apiMovies)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(apiMovies.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async getApiMovies(limit?: number, offset?: number, status?: string): Promise<ApiMovie[]> {
+    let query = db
+      .select()
+      .from(apiMovies)
+      .orderBy(desc(apiMovies.updatedAt));
+    
+    if (status) {
+      query = query.where(eq(apiMovies.status, status));
+    }
+    
+    if (offset) {
+      query = query.offset(offset);
+    }
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    return query;
+  }
+
+  async getApiMoviesSlugs(): Promise<string[]> {
+    const results = await db
+      .select({ slug: apiMovies.slug })
+      .from(apiMovies);
+    
+    return results.map(item => item.slug);
+  }
+
+  async countApiMovies(status?: string): Promise<number> {
+    let query = db
+      .select({ count: sql`count(*)` })
+      .from(apiMovies);
+    
+    if (status) {
+      query = query.where(eq(apiMovies.status, status));
+    }
+    
+    const result = await query;
+    return Number(result[0].count);
+  }
+
+  // ========== API JOB LOGGING ==========
+
+  async createApiMovieJobLog(log: InsertApiMovieJobLog): Promise<ApiMovieJobLog> {
+    const result = await db
+      .insert(apiMovieJobLogs)
+      .values(log)
+      .returning();
+    return result[0];
+  }
+
+  async updateApiMovieJobLog(id: number, updates: Partial<Omit<ApiMovieJobLog, 'id'>>): Promise<ApiMovieJobLog> {
+    const result = await db
+      .update(apiMovieJobLogs)
+      .set(updates)
+      .where(eq(apiMovieJobLogs.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async getLatestApiMovieJobLog(jobType?: string): Promise<ApiMovieJobLog | undefined> {
+    let query = db
+      .select()
+      .from(apiMovieJobLogs)
+      .orderBy(desc(apiMovieJobLogs.startedAt))
+      .limit(1);
+    
+    if (jobType) {
+      query = query.where(eq(apiMovieJobLogs.jobType, jobType));
+    }
+    
+    const results = await query;
+    return results[0];
+  }
+
+  async getApiMovieJobLogs(limit?: number, offset?: number): Promise<ApiMovieJobLog[]> {
+    let query = db
+      .select()
+      .from(apiMovieJobLogs)
+      .orderBy(desc(apiMovieJobLogs.startedAt));
     
     if (offset) {
       query = query.offset(offset);
