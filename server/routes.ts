@@ -421,6 +421,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Category API routes
+  router.get("/categories", async (req, res) => {
+    try {
+      const categories = await storage.getAllCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      res.status(500).json({ message: "Failed to retrieve categories" });
+    }
+  });
+
+  // Get movies by category with pagination
+  router.get("/categories/:slug/movies", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const page = parseInt(req.query.page as string || "1");
+      const limit = parseInt(req.query.limit as string || "20");
+      
+      // Validate pagination parameters
+      if (isNaN(page) || page < 1) {
+        return res.status(400).json({ message: "Invalid page parameter" });
+      }
+      
+      if (isNaN(limit) || limit < 1 || limit > 100) {
+        return res.status(400).json({ message: "Invalid limit parameter. Must be between 1 and 100" });
+      }
+      
+      // Get movies by category with pagination
+      const result = await getMoviesByCategory(slug, page, limit);
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching movies by category:", error);
+      res.status(500).json({ message: "Error fetching movies by category" });
+    }
+  });
+
   // User routes (favorites, watchlist, etc.)
   router.get("/user/:userId/favorites", async (req, res) => {
     try {
