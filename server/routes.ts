@@ -22,8 +22,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.get("/movies", async (req, res) => {
     try {
       const movies = await storage.getAllMovies();
+      
+      // If source parameter is provided, filter by source
+      const source = req.query.source as string;
+      if (source === 'api') {
+        // Get API movies that are in published state
+        const apiMovies = await storage.getApiMovies(undefined, undefined, 'published');
+        
+        // Transform API movies to regular movie format
+        const transformedApiMovies = apiMovies.map(apiMovie => ({
+          id: apiMovie.id,
+          title: apiMovie.title,
+          description: apiMovie.description,
+          releaseYear: apiMovie.releaseYear,
+          duration: apiMovie.duration || '100 min',
+          rating: 0,
+          genres: apiMovie.categories,
+          posterUrl: apiMovie.posterUrl,
+          backdropUrl: apiMovie.backdropUrl,
+          videoUrl: apiMovie.episodes && apiMovie.episodes.length > 0 ? 
+            apiMovie.episodes[0].streamUrl || apiMovie.episodes[0].embedUrl : '',
+          trailerUrl: apiMovie.trailerUrl || '',
+          featured: false,
+          premium: false,
+          status: 'active',
+          createdAt: apiMovie.createdAt,
+          updatedAt: apiMovie.updatedAt,
+          source: 'api'
+        }));
+        
+        return res.json(transformedApiMovies);
+      } else if (source === 'all') {
+        // Get API movies that are in published state
+        const apiMovies = await storage.getApiMovies(undefined, undefined, 'published');
+        
+        // Transform API movies to regular movie format
+        const transformedApiMovies = apiMovies.map(apiMovie => ({
+          id: apiMovie.id + 10000, // Avoid ID conflicts with regular movies
+          title: apiMovie.title,
+          description: apiMovie.description,
+          releaseYear: apiMovie.releaseYear,
+          duration: apiMovie.duration || '100 min',
+          rating: 0,
+          genres: apiMovie.categories,
+          posterUrl: apiMovie.posterUrl,
+          backdropUrl: apiMovie.backdropUrl,
+          videoUrl: apiMovie.episodes && apiMovie.episodes.length > 0 ? 
+            apiMovie.episodes[0].streamUrl || apiMovie.episodes[0].embedUrl : '',
+          trailerUrl: apiMovie.trailerUrl || '',
+          featured: false,
+          premium: false,
+          status: 'active',
+          createdAt: apiMovie.createdAt,
+          updatedAt: apiMovie.updatedAt,
+          source: 'api'
+        }));
+        
+        // Combine both movie sources
+        return res.json([...movies, ...transformedApiMovies]);
+      }
+      
+      // Default: return only regular movies
       res.json(movies);
     } catch (error) {
+      console.error('Error fetching movies:', error);
       res.status(500).json({ message: "Failed to retrieve movies" });
     }
   });
