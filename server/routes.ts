@@ -22,15 +22,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
   router.get("/movies", async (req, res) => {
     try {
+      console.log("GET /api/movies request with query:", req.query);
+      
       // Check if pagination parameters are provided
       const page = req.query.page ? parseInt(req.query.page as string) : undefined;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
       
+      console.log(`Parsed pagination params: page=${page}, limit=${limit}`);
+      
       // Get the movies based on pagination or get all
       let movies;
       if (page !== undefined && limit !== undefined) {
+        console.log("Using paginated movie query");
         const result = await storage.getPaginatedMovies(page, limit);
-        return res.json({
+        console.log(`Got ${result.movies.length} movies of ${result.total} total (${result.totalPages} pages)`);
+        
+        const response = {
           data: result.movies,
           pagination: {
             current_page: page,
@@ -38,9 +45,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             total: result.total,
             per_page: limit
           }
-        });
+        };
+        
+        console.log("Sending paginated response with data structure:", 
+                    Object.keys(response), 
+                    `data array length: ${response.data.length}`);
+        
+        return res.json(response);
       } else {
+        console.log("Using non-paginated query");
         movies = await storage.getAllMovies();
+        console.log(`Got ${movies.length} movies from getAllMovies()`);
       }
       
       // If source parameter is provided, filter by source

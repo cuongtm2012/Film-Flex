@@ -51,11 +51,13 @@ interface PaginatedResponse<T> {
 
 // Movie card component
 const MovieCard = ({ movie }: { movie: Movie }) => {
+  console.log("MovieCard rendering with movie:", movie);
+  
   // Handle missing fields with fallback values
-  const posterUrl = movie.posterUrl || 'https://via.placeholder.com/300x450?text=No+Poster';
-  const imdbRating = movie.imdbRating || '0.0';
-  const duration = typeof movie.duration === 'number' ? `${movie.duration} min` : '90 min';
-  const releaseYear = movie.releaseYear || 2023;
+  const posterUrl = movie?.posterUrl || 'https://via.placeholder.com/300x450?text=No+Poster';
+  const imdbRating = movie?.imdbRating || '0.0';
+  const duration = typeof movie?.duration === 'number' ? `${movie.duration} min` : '90 min';
+  const releaseYear = movie?.releaseYear || 2023;
   
   return (
     <Link href={`/movie/${movie.id}`}>
@@ -173,12 +175,27 @@ const HomePage = () => {
   // Combined loading state
   const isLoading = isMoviesLoading || isCategoriesLoading;
   
-  // Get movies from the response - check if it's the new paginated format or old format
-  const movies = Array.isArray(moviesData) ? moviesData : moviesData?.data || [];
+  // Log full response data to see what we're receiving
+  console.log('Raw moviesData:', moviesData);
+  
+  // Get movies from the response with thorough validation
+  let movies = [];
+  if (Array.isArray(moviesData)) {
+    console.log('Movies data is an array');
+    movies = moviesData;
+  } else if (moviesData && Array.isArray(moviesData.data)) {
+    console.log('Movies data is paginated');
+    movies = moviesData.data;
+  } else {
+    console.log('Movies data is in unexpected format:', typeof moviesData, moviesData);
+  }
+  
+  console.log('Final movies array:', movies);
   
   // Get pagination data from the response - check if it's the new paginated format
   const pagination = !Array.isArray(moviesData) ? moviesData?.pagination : null;
   const totalPages = pagination?.total_pages || 1;
+  console.log('Pagination:', pagination);
   
   // Categories list with "All" option
   const categories = [
