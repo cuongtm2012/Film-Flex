@@ -24,7 +24,9 @@ import {
   ChevronUp,
   Copy,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw,
+  ArrowLeft
 } from 'lucide-react';
 
 // Define types for our movie data
@@ -436,6 +438,8 @@ const MovieStreamingPage = () => {
   // Track currently selected episode and server
   const [selectedEpisode, setSelectedEpisode] = useState(0);
   const [selectedServer, setSelectedServer] = useState(0);
+  const [episodePage, setEpisodePage] = useState(0);
+  const [episodesPerPage, setEpisodesPerPage] = useState(20);
   // Track video loading and error states
   const [videoError, setVideoError] = useState(false);
   const [isLoadingVideo, setIsLoadingVideo] = useState(true);
@@ -907,32 +911,99 @@ const MovieStreamingPage = () => {
               {/* Server selection tabs - only show if there are multiple servers */}
               {movie.episodes.some((ep: any) => ep.server_name) && movie.episodes.length > 1 && (
                 <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-white mb-2">Audio/Subtitles</h3>
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-lg font-semibold text-white">Server Selection</h3>
+                    <div className="flex items-center">
+                      <button
+                        className="text-gray-400 hover:text-white flex items-center text-xs"
+                        onClick={() => {
+                          toast({
+                            title: "Server Info",
+                            description: "Different servers may provide varying video quality, subtitles, or audio options. Try another server if the current one isn't working well.",
+                          });
+                        }}
+                      >
+                        <Info className="h-4 w-4 mr-1" />
+                        What is this?
+                      </button>
+                    </div>
+                  </div>
+                  
                   <div className="flex flex-wrap gap-2">
                     {movie.episodes.map((server: any, idx: number) => (
                       <button
                         key={idx}
                         onClick={() => {
-                          setSelectedServer(idx);
-                          setSelectedEpisode(0); // Reset episode when switching servers
+                          // Only take action if selecting a different server
+                          if (selectedServer !== idx) {
+                            setSelectedServer(idx);
+                            setSelectedEpisode(0); // Reset episode when switching servers
+                            setEpisodePage(0); // Reset to first page of episodes
+                            // Reset video states
+                            setVideoError(false);
+                            setIsLoadingVideo(true);
+                            // Scroll to player
+                            containerRef.current?.scrollIntoView({ behavior: 'smooth' });
+                            
+                            // Show toast with server info
+                            toast({
+                              title: `Server Changed: ${server.server_name.replace('#', '')}`,
+                              description: "Loading content from new server...",
+                            });
+                          }
                         }}
                         className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
                           selectedServer === idx
                             ? 'bg-red-600 text-white'
                             : 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'
-                        }`}
+                        } flex items-center`}
+                        title={`Switch to ${server.server_name.replace('#', '')} server`}
                       >
+                        {selectedServer === idx && (
+                          <span className="mr-1 text-xs">✓</span>
+                        )}
                         {server.server_name.replace('#', '')}
+                        {server.server_name.toLowerCase().includes('sub') && (
+                          <span className="ml-1 text-xs bg-blue-500 px-1 rounded">SUB</span>
+                        )}
+                        {server.server_name.toLowerCase().includes('dub') && (
+                          <span className="ml-1 text-xs bg-green-500 px-1 rounded">DUB</span>
+                        )}
                       </button>
                     ))}
+                  </div>
+                  
+                  <div className="text-xs text-gray-400 mt-2 italic">
+                    Tip: If video doesn't load or has issues, try switching to a different server
                   </div>
                 </div>
               )}
               
               {/* Episode selection */}
               <div>
-                <h3 className="text-lg font-semibold text-white mb-3">Episodes</h3>
-                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-white">Episodes</h3>
+                  
+                  {/* Controls for episode pagination */}
+                  <div className="flex items-center gap-2">
+                    <select 
+                      value={episodesPerPage}
+                      onChange={(e) => {
+                        setEpisodesPerPage(Number(e.target.value));
+                        setEpisodePage(0); // Reset to first page when changing items per page
+                      }}
+                      className="bg-zinc-800 text-white text-sm rounded px-2 py-1 border border-zinc-700"
+                    >
+                      <option value="10">10 per page</option>
+                      <option value="20">20 per page</option>
+                      <option value="50">50 per page</option>
+                      <option value="100">100 per page</option>
+                    </select>
+                  </div>
+                </div>
+                
+                {/* Episode grid */}
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2 mb-4">
                   {(() => {
                     // Get episodes from the currently selected server
                     let episodeList: any[] = [];
@@ -947,26 +1018,114 @@ const MovieStreamingPage = () => {
                       episodeList = movie.episodes;
                     }
                     
-                    return episodeList.map((episode, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setSelectedEpisode(index)}
-                        className={`px-3 py-2 rounded text-center text-sm font-medium transition-colors ${
-                          selectedEpisode === index
-                            ? 'bg-red-600 text-white'
-                            : 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'
-                        }`}
-                      >
-                        <span className="flex items-center justify-center">
-                          {selectedEpisode === index && (
-                            <span className="mr-1 text-xs">▶</span>
-                          )}
-                          {episode.name || `Ep ${index + 1}`}
-                        </span>
-                      </button>
-                    ));
+                    // Calculate pagination
+                    const totalEpisodes = episodeList.length;
+                    const totalPages = Math.ceil(totalEpisodes / episodesPerPage);
+                    
+                    // Get current page of episodes
+                    const startIdx = episodePage * episodesPerPage;
+                    const endIdx = Math.min(startIdx + episodesPerPage, totalEpisodes);
+                    const currentPageEpisodes = episodeList.slice(startIdx, endIdx);
+                    
+                    return currentPageEpisodes.map((episode, index) => {
+                      const actualIndex = startIdx + index;
+                      return (
+                        <button
+                          key={actualIndex}
+                          onClick={() => {
+                            setSelectedEpisode(actualIndex);
+                            // Auto-scroll to player when selecting episode
+                            containerRef.current?.scrollIntoView({ behavior: 'smooth' });
+                            // Reset error state when changing episode
+                            setVideoError(false);
+                            setIsLoadingVideo(true);
+                          }}
+                          className={`px-3 py-2 rounded text-center text-sm font-medium transition-colors ${
+                            selectedEpisode === actualIndex
+                              ? 'bg-red-600 text-white'
+                              : 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'
+                          }`}
+                          title={episode.name || `Episode ${actualIndex + 1}`}
+                        >
+                          <span className="flex items-center justify-center">
+                            {selectedEpisode === actualIndex && (
+                              <span className="mr-1 text-xs">▶</span>
+                            )}
+                            {episode.name || `Ep ${actualIndex + 1}`}
+                          </span>
+                        </button>
+                      );
+                    });
                   })()}
                 </div>
+                
+                {/* Episode pagination */}
+                {(() => {
+                  // Calculate pagination info
+                  let episodeList: any[] = [];
+                  
+                  if (movie.episodes.some((ep: any) => ep.server_name)) {
+                    const server = movie.episodes[selectedServer];
+                    if (server && server.server_data) {
+                      episodeList = server.server_data;
+                    }
+                  } else if (Array.isArray(movie.episodes)) {
+                    episodeList = movie.episodes;
+                  }
+                  
+                  const totalEpisodes = episodeList.length;
+                  const totalPages = Math.ceil(totalEpisodes / episodesPerPage);
+                  
+                  if (totalPages <= 1) return null;
+                  
+                  return (
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-400">
+                        Showing {episodePage * episodesPerPage + 1}-{Math.min((episodePage + 1) * episodesPerPage, totalEpisodes)} of {totalEpisodes} episodes
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setEpisodePage(0)}
+                          disabled={episodePage === 0}
+                          className={`p-1 rounded ${episodePage === 0 ? 'text-gray-600' : 'text-gray-300 hover:bg-zinc-800'}`}
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                          <ChevronLeft className="h-5 w-5 -ml-3" />
+                        </button>
+                        
+                        <button
+                          onClick={() => setEpisodePage(p => Math.max(0, p - 1))}
+                          disabled={episodePage === 0}
+                          className={`p-1 rounded ${episodePage === 0 ? 'text-gray-600' : 'text-gray-300 hover:bg-zinc-800'}`}
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                        </button>
+                        
+                        <span className="text-white">
+                          Page {episodePage + 1} of {totalPages}
+                        </span>
+                        
+                        <button
+                          onClick={() => setEpisodePage(p => Math.min(totalPages - 1, p + 1))}
+                          disabled={episodePage === totalPages - 1}
+                          className={`p-1 rounded ${episodePage === totalPages - 1 ? 'text-gray-600' : 'text-gray-300 hover:bg-zinc-800'}`}
+                        >
+                          <ChevronRight className="h-5 w-5" />
+                        </button>
+                        
+                        <button
+                          onClick={() => setEpisodePage(totalPages - 1)}
+                          disabled={episodePage === totalPages - 1}
+                          className={`p-1 rounded ${episodePage === totalPages - 1 ? 'text-gray-600' : 'text-gray-300 hover:bg-zinc-800'}`}
+                        >
+                          <ChevronRight className="h-5 w-5" />
+                          <ChevronRight className="h-5 w-5 -ml-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
