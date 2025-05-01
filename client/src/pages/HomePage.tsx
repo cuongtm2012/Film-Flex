@@ -116,39 +116,48 @@ const HomePage = () => {
     queryKey: [
       '/api/movies',
       selectedCategory,
-      currentPage
+      currentPage,
+      searchQuery // Include search query in the cache key
     ],
-    queryFn: async () => {
-      console.log(`Fetching movies: category=${selectedCategory}, page=${currentPage}`);
+    queryFn: async (): Promise<PaginatedResponse<Movie>> => {
+      console.log(`Fetching movies: category=${selectedCategory}, page=${currentPage}, search=${searchQuery}`);
+      
+      // Ensure we always send pagination parameters
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '50'
+      });
       
       let url = '';
       if (selectedCategory === 'all') {
-        url = `/api/movies?page=${currentPage}&limit=50`;
+        url = `/api/movies?${params}`;
       } else if (searchQuery) {
-        url = `/api/search?q=${encodeURIComponent(searchQuery)}&page=${currentPage}&limit=50`;
+        params.append('q', searchQuery);
+        url = `/api/search?${params}`;
       } else {
-        url = `/api/genre/${selectedCategory}/movies?page=${currentPage}&limit=50`;
+        url = `/api/genre/${selectedCategory}/movies?${params}`;
       }
       
       console.log(`API URL: ${url}`);
       const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch movies');
+        throw new Error(`Failed to fetch movies: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
       console.log('Movie data received:', data);
       
-      // Check if the response is already in paginated format (has data and pagination)
-      if (data && data.data && data.pagination) {
-        return data;
+      // Check if the response is already in the correct paginated format
+      if (data && typeof data === 'object' && 'data' in data && Array.isArray(data.data)) {
+        // Ensure the data conforms to our expected type
+        return data as PaginatedResponse<Movie>;
       }
       
-      // If it's an array, convert to paginated format
+      // If it's an array, wrap it in the paginated response format
       if (Array.isArray(data)) {
         return {
-          data: data,
+          data: data as Movie[],
           pagination: {
             current_page: 1,
             total_pages: 1,
@@ -158,7 +167,8 @@ const HomePage = () => {
         };
       }
       
-      // Fallback for unexpected format
+      // Fallback for unexpected format - return empty data
+      console.warn('Received unexpected data format:', data);
       return {
         data: [],
         pagination: {
@@ -178,22 +188,28 @@ const HomePage = () => {
   // Log full response data to see what we're receiving
   console.log('Raw moviesData:', moviesData);
   
+  // Create a safe typed version of our movies array
+  let movies: Movie[] = [];
+  
   // Get movies from the response with thorough validation
-  let movies = [];
-  if (Array.isArray(moviesData)) {
-    console.log('Movies data is an array');
-    movies = moviesData;
-  } else if (moviesData && Array.isArray(moviesData.data)) {
-    console.log('Movies data is paginated');
-    movies = moviesData.data;
+  if (moviesData && typeof moviesData === 'object' && 'data' in moviesData && Array.isArray(moviesData.data)) {
+    console.log('Movies data is in paginated format');
+    // This is the expected format from the server
+    movies = moviesData.data as Movie[];
+  } else if (Array.isArray(moviesData)) {
+    console.log('Movies data is a direct array');
+    movies = moviesData as Movie[];
   } else {
     console.log('Movies data is in unexpected format:', typeof moviesData, moviesData);
   }
   
   console.log('Final movies array:', movies);
   
-  // Get pagination data from the response - check if it's the new paginated format
-  const pagination = !Array.isArray(moviesData) ? moviesData?.pagination : null;
+  // Get pagination data from the response
+  const pagination = moviesData && typeof moviesData === 'object' && 'pagination' in moviesData 
+    ? moviesData.pagination 
+    : null;
+  
   const totalPages = pagination?.total_pages || 1;
   console.log('Pagination:', pagination);
   
