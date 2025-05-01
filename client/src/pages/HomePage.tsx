@@ -338,20 +338,38 @@ const HomePage = () => {
                 </div>
               ))}
             </div>
-          ) : movies.length > 0 ? (
+          ) : movies && movies.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
               {movies.map(movie => (
-                <MovieCard key={movie.id} movie={movie} />
+                movie && <MovieCard key={movie.id} movie={movie} />
               ))}
             </div>
           ) : (
             <div className="text-center py-10">
-              <p className="text-gray-400">No movies found</p>
+              <div className="bg-zinc-800/50 rounded-lg p-8 max-w-md mx-auto">
+                <div className="text-red-500 text-4xl mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-medium text-white mb-2">No Movies Found</h3>
+                <p className="text-gray-400 mb-4">
+                  {selectedCategory !== 'all'
+                    ? `There are no movies in the "${categoriesData?.find(c => c.slug === selectedCategory)?.name || selectedCategory}" category.`
+                    : "No movies match your current selection."}
+                </p>
+                <button
+                  onClick={() => handleCategoryChange('all')}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors inline-flex items-center"
+                >
+                  View All Movies
+                </button>
+              </div>
             </div>
           )}
           
           {/* Pagination from our new shared component */}
-          {!isLoading && movies.length > 0 && (
+          {!isLoading && movies && movies.length > 0 && (
             <Pagination 
               currentPage={currentPage}
               totalPages={totalPages}

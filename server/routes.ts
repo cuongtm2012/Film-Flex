@@ -398,8 +398,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.get("/categories", async (req, res) => {
     try {
       console.log("GET /api/categories");
-      const categories = await storage.getAllCategories();
-      return res.json(categories);
+      
+      // Get all categories first
+      const allCategories = await storage.getAllCategories();
+      
+      // Create an array to store categories that have movies
+      const categoriesWithMovies = [];
+      
+      // Filter out Vietnamese categories (those with names containing accented characters)
+      // Only include English categories
+      const englishCategories = allCategories.filter(category => {
+        // Check if the name has Vietnamese characters (simplistic approach)
+        const hasVietnameseChars = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ]/.test(category.name);
+        return !hasVietnameseChars;
+      });
+      
+      // For each category, check if it has movies
+      for (const category of englishCategories) {
+        // Count API movies for this category
+        const count = await storage.countApiMoviesByCategory(category.name);
+        
+        // If there are movies for this category, add it to the result
+        if (count > 0) {
+          categoriesWithMovies.push(category);
+        }
+      }
+      
+      console.log(`Filtered from ${allCategories.length} to ${categoriesWithMovies.length} categories with movies (English only)`);
+      
+      return res.json(categoriesWithMovies);
     } catch (error) {
       console.error(`Error fetching categories: ${error}`);
       return res.status(500).json({ 
