@@ -27,22 +27,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if pagination parameters are provided
       const page = req.query.page ? parseInt(req.query.page as string) : undefined;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const includeApi = req.query.includeApi !== 'false'; // Include API movies by default
       
-      console.log(`Parsed pagination params: page=${page}, limit=${limit}`);
+      console.log(`Parsed params: page=${page}, limit=${limit}, includeApi=${includeApi}`);
       
       // Get the movies based on pagination or get all
       let movies;
+      let apiMovies = [];
+      let totalCount = 0;
+      let totalPages = 1;
+      
+      // Get the regular movies
       if (page !== undefined && limit !== undefined) {
         console.log("Using paginated movie query");
         const result = await storage.getPaginatedMovies(page, limit);
-        console.log(`Got ${result.movies.length} movies of ${result.total} total (${result.totalPages} pages)`);
+        movies = result.movies;
+        console.log(`Got ${movies.length} regular movies of ${result.total} total`);
+        totalCount = result.total;
+        totalPages = result.totalPages;
+        
+        // Get API movies if requested
+        if (includeApi) {
+          // Fetch published API movies 
+          const apiMoviesResult = await storage.getApiMovies(
+            limit, // limit
+            (page - 1) * limit, // offset
+            'published' // status
+          );
+          apiMovies = apiMoviesResult || [];
+          console.log(`Got ${apiMovies.length} API movies`);
+          
+          // Get total API movie count for pagination
+          const apiMovieCount = await storage.countApiMovies('published');
+          console.log(`Total API movies: ${apiMovieCount}`);
+          
+          // Update totals
+          totalCount += apiMovieCount;
+          totalPages = Math.ceil(totalCount / limit);
+        }
+        
+        // Transform API movies to regular movie format
+        const transformedApiMovies = apiMovies.map(apiMovie => {
+          // Transform categories to genreIds by mapping to corresponding genre numbers
+          const genreMap: Record<string, number> = {
+            "Action": 1,
+            "Adventure": 2,
+            "Comedy": 3,
+            "Drama": 4, 
+            "Horror": 5,
+            "Science Fiction": 6,
+            "Thriller": 7,
+            "Documentary": 8,
+            "Animation": 9
+          };
+          
+          // Extract categories from API movie and ensure it's an array
+          const categories: string[] = Array.isArray(apiMovie.categories) ? apiMovie.categories : [];
+          // Map them to genre IDs or use default genre 1 (Action) if not found
+          const genreIds = categories.length > 0 
+            ? categories.map(cat => {
+                const genreId = genreMap[cat as keyof typeof genreMap];
+                return genreId || 1;
+              })
+            : [1]; // Default to Action genre if no categories
+        
+          // Handle various fields that might be missing or in different formats
+          const castArray = (() => {
+            if (!apiMovie.actors) return [];
+            if (Array.isArray(apiMovie.actors)) return apiMovie.actors;
+            if (typeof apiMovie.actors === 'string') return apiMovie.actors.split(',');
+            return [];
+          })();
+          
+          // Handle episodes
+          const videoUrl = (() => {
+            if (!apiMovie.episodes) return '';
+            if (!Array.isArray(apiMovie.episodes) || apiMovie.episodes.length === 0) return '';
+            const firstEpisode = apiMovie.episodes[0];
+            if (!firstEpisode) return '';
+            return firstEpisode.streamUrl || firstEpisode.embedUrl || '';
+          })();
+          
+          return {
+            id: apiMovie.id + 10000, // Add 10000 to avoid ID conflicts with regular movies
+            title: apiMovie.title || 'Unknown Title',
+            description: apiMovie.description || '',
+            releaseYear: parseInt(apiMovie.releaseYear as string) || 2023,
+            duration: apiMovie.duration || 100,
+            rating: "PG-13",
+            videoSources: [],
+            genreIds: genreIds,
+            director: apiMovie.director || "Unknown Director",
+            cast: castArray,
+            posterUrl: apiMovie.posterUrl || '',
+            backdropUrl: apiMovie.backdropUrl || '',
+            videoUrl: videoUrl,
+            trailerUrl: apiMovie.trailerUrl || '',
+            imdbRating: apiMovie.imdbRating || 7.5,
+            viewCount: 0,
+            createdAt: apiMovie.createdAt || new Date().toISOString(),
+            updatedAt: apiMovie.updatedAt || new Date().toISOString()
+          };
+        });
+        
+        // Combine regular and API movies
+        const allMovies = [...movies, ...transformedApiMovies];
+        console.log(`Total combined movies: ${allMovies.length}`);
         
         const response = {
-          data: result.movies,
+          data: allMovies,
           pagination: {
             current_page: page,
-            total_pages: result.totalPages,
-            total: result.total,
+            total_pages: totalPages,
+            total: totalCount,
             per_page: limit
           }
         };

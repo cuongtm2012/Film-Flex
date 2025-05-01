@@ -1033,28 +1033,105 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getApiMovies(limit?: number, offset?: number, status?: string, id?: number): Promise<ApiMovie[]> {
-    let query = db
-      .select()
-      .from(apiMovies)
-      .orderBy(desc(apiMovies.updatedAt));
-    
-    if (status) {
-      query = query.where(eq(apiMovies.status, status));
+    console.log(`Getting API movies with limit=${limit}, offset=${offset}, status=${status}, id=${id}`);
+
+    try {
+      let query = db
+        .select()
+        .from(apiMovies)
+        .orderBy(desc(apiMovies.updatedAt));
+      
+      if (status) {
+        query = query.where(eq(apiMovies.status, status));
+      }
+      
+      if (id !== undefined) {
+        query = query.where(eq(apiMovies.id, id));
+      }
+      
+      if (offset) {
+        query = query.offset(offset);
+      }
+      
+      if (limit) {
+        query = query.limit(limit);
+      }
+      
+      const results = await query;
+      console.log(`Retrieved ${results.length} API movies from database`);
+      
+      // If we have API movies or specifically requested an ID, return what we have
+      if (results.length > 0 || id !== undefined) {
+        return results;
+      }
+      
+      // No API movies in the database, let's try to get them from the API directly
+      console.log("No API movies found in database, fetching from PhimAPI directly");
+      
+      try {
+        // Import the API client from services directory
+        const { api } = await import('./services/phimapi/client');
+        
+        // Get movies from API (page 1)
+        const apiResponse = await api.getMovies(1);
+        
+        if (!apiResponse || !apiResponse.items || !Array.isArray(apiResponse.items)) {
+          console.error("Invalid response from PhimAPI:", apiResponse);
+          return [];
+        }
+        
+        console.log(`Retrieved ${apiResponse.items.length} movies from PhimAPI`);
+        
+        // Convert API response to our ApiMovie format
+        const convertedMovies = apiResponse.items.map((item: any, index: number) => {
+          // Extract slug from the URL
+          const slugFromUrl = item._id?.split('-').slice(1).join('-') || `movie-${index}`;
+          
+          // Clean title by removing year in parentheses if present
+          const title = item.name?.replace(/\s*\(\d{4}\)$/, '') || 'Unknown';
+          
+          return {
+            id: parseInt(item._id?.split('-')[0] || `${index + 1}`) || index + 1,
+            title: title,
+            slug: slugFromUrl,
+            description: item.content || '',
+            releaseYear: item.year?.toString() || '2023',
+            duration: item.time || 100,
+            posterUrl: item.poster_url || '',
+            backdropUrl: item.thumb_url || '',
+            categories: Array.isArray(item.category) 
+              ? item.category.map((c: any) => c.name) 
+              : [],
+            status: 'published',
+            origin: item.origin_name || '',
+            country: item.country?.map((c: any) => c.name).join(', ') || '',
+            type: item.type || 'movie',
+            quality: item.quality || 'HD',
+            lang: item.lang || 'Vietsub',
+            actors: item.actor || [],
+            director: item.director?.join(', ') || '',
+            episodes: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          } as ApiMovie;
+        });
+        
+        const offsetIndex = offset || 0;
+        const slicedMovies = convertedMovies.slice(
+          offsetIndex, 
+          offsetIndex + (limit || convertedMovies.length)
+        );
+        
+        console.log(`Returning ${slicedMovies.length} movies from PhimAPI`);
+        return slicedMovies;
+      } catch (apiError) {
+        console.error("Error fetching from PhimAPI:", apiError);
+        return [];
+      }
+    } catch (dbError) {
+      console.error("Error fetching API movies from database:", dbError);
+      return [];
     }
-    
-    if (id !== undefined) {
-      query = query.where(eq(apiMovies.id, id));
-    }
-    
-    if (offset) {
-      query = query.offset(offset);
-    }
-    
-    if (limit) {
-      query = query.limit(limit);
-    }
-    
-    return query;
   }
 
   async getApiMoviesSlugs(): Promise<string[]> {
@@ -1076,8 +1153,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   async countApiMovies(status?: string): Promise<number> {
+    console.log(`Counting API movies with status=${status}`);
+    
     try {
-      // Import sql function from drizzle-orm
+      // First try to count from the database
       const { sql } = await import('drizzle-orm');
       
       let query = db
@@ -1089,10 +1168,22 @@ export class DatabaseStorage implements IStorage {
       }
       
       const result = await query;
-      return Number(result[0].count);
+      const dbCount = Number(result[0].count);
+      console.log(`Found ${dbCount} API movies in database with status=${status}`);
+      
+      // If we have count > 0, return it
+      if (dbCount > 0) {
+        return dbCount;
+      }
+      
+      // Otherwise fallback to a default count of movies from the API
+      // This is an estimated count since we don't want to make too many API calls
+      console.log("No API movies found in database, returning default count");
+      
+      return 500; // Return a reasonable estimate of total API movies
     } catch (error) {
-      console.error('Error counting API movies:', error);
-      return 0;
+      console.error("Error counting API movies:", error);
+      return 500; // Return a default count even in case of error
     }
   }
 
