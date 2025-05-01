@@ -6,6 +6,15 @@ import { storage } from "./storage";
 import { syncMovies, fetchAndStorePage, fetchAndStoreMovieDetail, processPendingDetailFetches, initScheduledSync } from "./services/phimapi/service";
 import { getMoviesByCategory } from "./services/category/service";
 
+// Helper function to extract video URL from episodes
+function getVideoUrlFromEpisodes(apiMovie: any): string {
+  if (!apiMovie.episodes) return '';
+  if (!Array.isArray(apiMovie.episodes) || apiMovie.episodes.length === 0) return '';
+  const firstEpisode = apiMovie.episodes[0];
+  if (!firstEpisode) return '';
+  return firstEpisode.streamUrl || firstEpisode.embedUrl || '';
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes
   if (process.env.NODE_ENV !== 'test') {
@@ -25,212 +34,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("GET /api/movies request with query:", req.query);
       
       // Check if pagination parameters are provided
-      const page = req.query.page ? parseInt(req.query.page as string) : undefined;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const page = req.query.page ? parseInt(req.query.page as string) : 1;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
       const includeApi = req.query.includeApi !== 'false'; // Include API movies by default
-      
-      console.log(`Parsed params: page=${page}, limit=${limit}, includeApi=${includeApi}`);
-      
-      // Get the movies based on pagination or get all
-      let movies;
-      let apiMovies = [];
-      let totalCount = 0;
-      let totalPages = 1;
-      
-      // Get the regular movies
-      if (page !== undefined && limit !== undefined) {
-        console.log("Using paginated movie query");
-        const result = await storage.getPaginatedMovies(page, limit);
-        movies = result.movies;
-        console.log(`Got ${movies.length} regular movies of ${result.total} total`);
-        totalCount = result.total;
-        totalPages = result.totalPages;
-        
-        // Get API movies if requested
-        if (includeApi) {
-          // Fetch published API movies 
-          const apiMoviesResult = await storage.getApiMovies(
-            limit, // limit
-            (page - 1) * limit, // offset
-            'published' // status
-          );
-          apiMovies = apiMoviesResult || [];
-          console.log(`Got ${apiMovies.length} API movies`);
-          
-          // Get total API movie count for pagination
-          const apiMovieCount = await storage.countApiMovies('published');
-          console.log(`Total API movies: ${apiMovieCount}`);
-          
-          // Update totals
-          totalCount += apiMovieCount;
-          totalPages = Math.ceil(totalCount / limit);
-        }
-        
-        // Transform API movies to regular movie format
-        const transformedApiMovies = apiMovies.map(apiMovie => {
-          // Transform categories to genreIds by mapping to corresponding genre numbers
-          const genreMap: Record<string, number> = {
-            "Action": 1,
-            "Adventure": 2,
-            "Comedy": 3,
-            "Drama": 4, 
-            "Horror": 5,
-            "Science Fiction": 6,
-            "Thriller": 7,
-            "Documentary": 8,
-            "Animation": 9
-          };
-          
-          // Extract categories from API movie and ensure it's an array
-          const categories: string[] = Array.isArray(apiMovie.categories) ? apiMovie.categories : [];
-          // Map them to genre IDs or use default genre 1 (Action) if not found
-          const genreIds = categories.length > 0 
-            ? categories.map(cat => {
-                const genreId = genreMap[cat as keyof typeof genreMap];
-                return genreId || 1;
-              })
-            : [1]; // Default to Action genre if no categories
-        
-          // Handle various fields that might be missing or in different formats
-          const castArray = (() => {
-            if (!apiMovie.actors) return [];
-            if (Array.isArray(apiMovie.actors)) return apiMovie.actors;
-            if (typeof apiMovie.actors === 'string') return apiMovie.actors.split(',');
-            return [];
-          })();
-          
-          // Handle episodes
-          const videoUrl = (() => {
-            if (!apiMovie.episodes) return '';
-            if (!Array.isArray(apiMovie.episodes) || apiMovie.episodes.length === 0) return '';
-            const firstEpisode = apiMovie.episodes[0];
-            if (!firstEpisode) return '';
-            return firstEpisode.streamUrl || firstEpisode.embedUrl || '';
-          })();
-          
-          return {
-            id: apiMovie.id + 10000, // Add 10000 to avoid ID conflicts with regular movies
-            title: apiMovie.title || 'Unknown Title',
-            description: apiMovie.description || '',
-            releaseYear: parseInt(apiMovie.releaseYear as string) || 2023,
-            duration: apiMovie.duration || 100,
-            rating: "PG-13",
-            videoSources: [],
-            genreIds: genreIds,
-            director: apiMovie.director || "Unknown Director",
-            cast: castArray,
-            posterUrl: apiMovie.posterUrl || '',
-            backdropUrl: apiMovie.backdropUrl || '',
-            videoUrl: videoUrl,
-            trailerUrl: apiMovie.trailerUrl || '',
-            imdbRating: apiMovie.imdbRating || 7.5,
-            viewCount: 0,
-            createdAt: apiMovie.createdAt || new Date().toISOString(),
-            updatedAt: apiMovie.updatedAt || new Date().toISOString()
-          };
-        });
-        
-        // Combine regular and API movies
-        const allMovies = [...movies, ...transformedApiMovies];
-        console.log(`Total combined movies: ${allMovies.length}`);
-        
-        const response = {
-          data: allMovies,
-          pagination: {
-            current_page: page,
-            total_pages: totalPages,
-            total: totalCount,
-            per_page: limit
-          }
-        };
-        
-        console.log("Sending paginated response with data structure:", 
-                    Object.keys(response), 
-                    `data array length: ${response.data.length}`);
-        
-        return res.json(response);
-      } else {
-        console.log("Using non-paginated query");
-        movies = await storage.getAllMovies();
-        console.log(`Got ${movies.length} movies from getAllMovies()`);
-      }
-      
-      // If source parameter is provided, filter by source
+      const category = req.query.category as string | undefined;
       const source = req.query.source as string;
-      const category = req.query.category as string;
       
-      // Filter by category if provided
+      console.log(`Parsed params: page=${page}, limit=${limit}, includeApi=${includeApi}, category=${category}, source=${source}`);
+      
+      // Handle category-based filtering
       if (category && category !== 'all') {
-        console.log(`Filtering movies by category: ${category}`);
+        console.log(`Filtering movies by category slug: ${category}`);
         
-        if (page !== undefined && limit !== undefined) {
-          // Get movies for this category with pagination
-          try {
-            // Get category from the database first
-            const categoryObj = await storage.getCategoryBySlug(category);
-            if (!categoryObj) {
-              console.log(`Category not found: ${category}`);
-              return res.json({ data: [], pagination: { current_page: 1, total_pages: 0, total: 0, per_page: limit } });
-            }
+        try {
+          // Get category from the database
+          const categoryObj = await storage.getCategoryBySlug(category);
+          if (!categoryObj) {
+            console.log(`Category not found with slug: ${category}`);
+            return res.json({ 
+              data: [], 
+              pagination: { 
+                current_page: page, 
+                total_pages: 0, 
+                total: 0, 
+                per_page: limit 
+              }
+            });
+          }
+          
+          console.log(`Found category: ${categoryObj.name} (ID: ${categoryObj.id})`);
+          
+          // Get regular movies for this category
+          const result = await storage.getMoviesByCategoryPaginated(categoryObj.id, page, limit);
+          
+          let moviesForResponse = result.movies;
+          let totalCount = result.total;
+          let totalPages = result.totalPages;
+          
+          // Get API movies if we have room and if including API is requested
+          if (includeApi && result.movies.length < limit) {
+            const remainingSpace = limit - result.movies.length;
+            const offset = (page - 1) * limit;
             
-            console.log(`Found category: ${categoryObj.name} (ID: ${categoryObj.id})`);
+            // Get API movies for this category
+            const apiMovies = await storage.getApiMoviesByCategory(
+              categoryObj.name,
+              remainingSpace,
+              offset
+            );
             
-            // Get movies for this category
-            const result = await storage.getMoviesByCategoryPaginated(categoryObj.id, page, limit);
+            console.log(`Got ${apiMovies.length} API movies for category: ${category}`);
             
-            // Check if we need to fetch API movies as well
-            if (result.movies.length < limit) {
-              console.log(`Not enough regular movies (${result.movies.length}), fetching API movies for category ${category}`);
-              
-              // Get API movies that have this category in their categories array
-              const apiMovies = await storage.getApiMoviesByCategory(
-                categoryObj.name,
-                limit - result.movies.length,
-                offset
-              );
-              
-              console.log(`Got ${apiMovies.length} API movies for category: ${category}`);
-              
+            if (apiMovies.length > 0) {
               // Transform API movies to regular movie format
               const transformedApiMovies = apiMovies.map(apiMovie => {
-                // Similar to the transform function above, convert to Movie type
-                const genreMap: Record<string, number> = {
-                  "Action": 1,
-                  "Adventure": 2,
-                  "Comedy": 3,
-                  "Drama": 4, 
-                  "Horror": 5,
-                  "Science Fiction": 6,
-                  "Thriller": 7,
-                  "Documentary": 8,
-                  "Animation": 9
-                };
+                // Default to using the category ID as genre ID
+                const genreIds = [categoryObj.id || 1];
                 
-                // Map categories to genre IDs
-                const categories: string[] = Array.isArray(apiMovie.categories) ? apiMovie.categories : [];
-                const genreIds = categories.length > 0 
-                  ? categories.map(cat => {
-                      const genreId = genreMap[cat as keyof typeof genreMap];
-                      return genreId || categoryObj.id || 1;
-                    })
-                  : [categoryObj.id || 1];
-                
-                // Handle cast and other fields
-                const castArray = (() => {
-                  if (!apiMovie.actors) return [];
-                  if (Array.isArray(apiMovie.actors)) return apiMovie.actors;
-                  if (typeof apiMovie.actors === 'string') return apiMovie.actors.split(',');
-                  return [];
-                })();
+                // Process other fields
+                const castArray = Array.isArray(apiMovie.actors) ? apiMovie.actors : 
+                                 (typeof apiMovie.actors === 'string' ? apiMovie.actors.split(',') : []);
                 
                 // Get video URL from episodes
-                const videoUrl = (() => {
-                  if (!apiMovie.episodes) return '';
-                  if (!Array.isArray(apiMovie.episodes) || apiMovie.episodes.length === 0) return '';
-                  const firstEpisode = apiMovie.episodes[0];
-                  if (!firstEpisode) return '';
-                  return firstEpisode.streamUrl || firstEpisode.embedUrl || '';
-                })();
+                const videoUrl = getVideoUrlFromEpisodes(apiMovie);
                 
                 return {
                   id: apiMovie.id + 10000, // Add 10000 to avoid ID conflicts
@@ -255,56 +121,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
               
               // Combine regular and API movies
-              const allMovies = [...result.movies, ...transformedApiMovies];
-              console.log(`Total combined category movies: ${allMovies.length}`);
+              moviesForResponse = [...result.movies, ...transformedApiMovies];
               
-              // Get count of API movies for this category
+              // Get count of API movies for this category for pagination
               const apiMovieCount = await storage.countApiMoviesByCategory(categoryObj.name);
-              const totalCount = result.total + apiMovieCount;
-              const totalPages = Math.ceil(totalCount / limit);
-              
-              const response = {
-                data: allMovies,
-                pagination: {
-                  current_page: page,
-                  total_pages: totalPages,
-                  total: totalCount,
-                  per_page: limit
-                }
-              };
-              
-              console.log("Sending category filtered paginated response");
-              return res.json(response);
-            } else {
-              // We have enough regular movies, just return them
-              console.log(`Got ${result.movies.length} regular movies for category ${category}`);
-              
-              const response = {
-                data: result.movies,
-                pagination: {
-                  current_page: page,
-                  total_pages: result.totalPages,
-                  total: result.total,
-                  per_page: limit
-                }
-              };
-              
-              return res.json(response);
+              totalCount = result.total + apiMovieCount;
+              totalPages = Math.ceil(totalCount / limit);
             }
-          } catch (error) {
-            console.error(`Error filtering by category: ${error}`);
-            return res.status(500).json({ message: "Error filtering by category", error: String(error) });
           }
+          
+          const response = {
+            data: moviesForResponse,
+            pagination: {
+              current_page: page,
+              total_pages: totalPages,
+              total: totalCount,
+              per_page: limit
+            }
+          };
+          
+          console.log("Sending category filtered response with movie count:", moviesForResponse.length);
+          return res.json(response);
+        } catch (error) {
+          console.error(`Error filtering by category: ${error}`);
+          return res.status(500).json({ 
+            message: "Error filtering by category", 
+            error: String(error) 
+          });
         }
       }
       
+      // Handle API-only source filter
       if (source === 'api') {
-        // Get API movies that are in published state
+        console.log("Getting API-only movies");
         const apiMovies = await storage.getApiMovies(undefined, undefined, 'published');
         
         // Transform API movies to regular movie format
         const transformedApiMovies = apiMovies.map(apiMovie => {
-          // Transform categories to genreIds by mapping to corresponding genre numbers
+          // Map categories to genre IDs
           const genreMap: Record<string, number> = {
             "Action": 1,
             "Adventure": 2,
@@ -317,1693 +171,371 @@ export async function registerRoutes(app: Express): Promise<Server> {
             "Animation": 9
           };
           
-          // Extract categories from API movie and ensure it's an array
           const categories: string[] = Array.isArray(apiMovie.categories) ? apiMovie.categories : [];
-          // Map them to genre IDs or use default genre 1 (Action) if not found
           const genreIds = categories.length > 0 
             ? categories.map(cat => {
                 const genreId = genreMap[cat as keyof typeof genreMap];
                 return genreId || 1;
               })
-            : [1]; // Default to Action genre if no categories
-        
-          // Handle various fields that might be missing or in different formats
-          const castArray = (() => {
-            if (!apiMovie.actors) return [];
-            if (Array.isArray(apiMovie.actors)) return apiMovie.actors;
-            if (typeof apiMovie.actors === 'string') return apiMovie.actors.split(',');
-            return [];
-          })();
+            : [1];
           
-          // Handle episodes
-          const videoUrl = (() => {
-            if (!apiMovie.episodes) return '';
-            if (!Array.isArray(apiMovie.episodes) || apiMovie.episodes.length === 0) return '';
-            const firstEpisode = apiMovie.episodes[0];
-            if (!firstEpisode) return '';
-            return firstEpisode.streamUrl || firstEpisode.embedUrl || '';
-          })();
+          const castArray = Array.isArray(apiMovie.actors) ? apiMovie.actors : 
+                         (typeof apiMovie.actors === 'string' ? apiMovie.actors.split(',') : []);
+          
+          const videoUrl = getVideoUrlFromEpisodes(apiMovie);
           
           return {
-            id: apiMovie.id,
+            id: apiMovie.id + 10000,
             title: apiMovie.title || 'Unknown Title',
             description: apiMovie.description || '',
             releaseYear: parseInt(apiMovie.releaseYear as string) || 2023,
-            duration: apiMovie.duration || '100 min',
+            duration: apiMovie.duration || 100,
             rating: "PG-13",
             videoSources: [],
             genreIds: genreIds,
-            director: "Unknown Director",
+            director: apiMovie.director || "Unknown Director",
             cast: castArray,
             posterUrl: apiMovie.posterUrl || '',
             backdropUrl: apiMovie.backdropUrl || '',
             videoUrl: videoUrl,
             trailerUrl: apiMovie.trailerUrl || '',
-            imdbRating: "7.5",
+            imdbRating: apiMovie.imdbRating || 7.5,
             viewCount: 0
           };
         });
         
         return res.json(transformedApiMovies);
-      } else if (source === 'all') {
-        // Get API movies that are in published state
-        const apiMovies = await storage.getApiMovies(undefined, undefined, 'published');
-        
-        // Transform API movies to regular movie format
-        const transformedApiMovies = apiMovies.map(apiMovie => {
-          // Transform categories to genreIds by mapping to corresponding genre numbers
-          const genreMap: Record<string, number> = {
-            "Action": 1,
-            "Adventure": 2,
-            "Comedy": 3,
-            "Drama": 4,
-            "Horror": 5,
-            "Science Fiction": 6,
-            "Thriller": 7,
-            "Documentary": 8,
-            "Animation": 9
-          };
-          
-          // Extract categories from API movie and ensure it's an array
-          const categories: string[] = Array.isArray(apiMovie.categories) ? apiMovie.categories : [];
-          // Map them to genre IDs or use default genre 1 (Action) if not found
-          const genreIds = categories.length > 0 
-            ? categories.map(cat => {
-                const genreId = genreMap[cat as keyof typeof genreMap];
-                return genreId || 1;
-              })
-            : [1]; // Default to Action genre if no categories
-          
-          // Handle various fields that might be missing or in different formats
-          const castArray = (() => {
-            if (!apiMovie.actors) return [];
-            if (Array.isArray(apiMovie.actors)) return apiMovie.actors;
-            if (typeof apiMovie.actors === 'string') return apiMovie.actors.split(',');
-            return [];
-          })();
-          
-          // Get embedUrl - first try the direct field, then fall back to episodes
-          const extractEpisodeData = (() => {
-            // If we have a direct embedUrl field, use that first
-            if (apiMovie.embedUrl) {
-              return { 
-                videoUrl: '', 
-                embedUrl: apiMovie.embedUrl 
-              };
-            }
-            
-            // Otherwise fall back to extracting from episodes
-            if (!apiMovie.episodes) return { videoUrl: '', embedUrl: '' };
-            if (!Array.isArray(apiMovie.episodes) || apiMovie.episodes.length === 0) return { videoUrl: '', embedUrl: '' };
-            
-            const firstEpisode = apiMovie.episodes[0];
-            if (!firstEpisode) return { videoUrl: '', embedUrl: '' };
-            
-            return {
-              videoUrl: firstEpisode.streamUrl || '',
-              embedUrl: firstEpisode.embedUrl || ''
-            };
-          })();
-          
-          return {
-            id: apiMovie.id + 10000, // Avoid ID conflicts with regular movies
-            title: apiMovie.title || 'Unknown Title',
-            description: apiMovie.description || '',
-            releaseYear: parseInt(apiMovie.releaseYear as string) || 2023,
-            duration: apiMovie.duration || '100 min',
-            rating: "PG-13",
-            videoSources: [],
-            genreIds: genreIds,
-            director: "Unknown Director",
-            embedUrl: extractEpisodeData.embedUrl, // Add embed URL for API movies
-            cast: castArray,
-            posterUrl: apiMovie.posterUrl || '',
-            backdropUrl: apiMovie.backdropUrl || '',
-            videoUrl: extractEpisodeData.videoUrl,
-            trailerUrl: apiMovie.trailerUrl || '',
-            imdbRating: "7.5",
-            viewCount: 0,
-            isApiMovie: true // Flag to indicate this is an API movie
-          };
-        });
-        
-        // Combine both movie sources
-        return res.json([...movies, ...transformedApiMovies]);
       }
       
-      // For testing purposes, add a sample movie with embedUrl to ensure the player works
-      if (req.query.limit === '1' && req.query.sample === 'true') {
-        const sampleMovie = {
-          id: 20001, // Special ID for testing
-          title: "Sample Movie with Embed URL",
-          description: "This is a sample movie with an embed URL for testing purposes.",
-          releaseYear: 2024,
-          duration: "120 min",
-          rating: "PG-13",
-          genreIds: [1, 3],
-          director: "Sample Director",
-          cast: ["Actor 1", "Actor 2"],
-          posterUrl: "https://phimimg.com/upload/vod/20250430-1/8cbf38129adc82a9e5425bf7260ae024.jpg",
-          backdropUrl: "https://phimimg.com/upload/vod/20250430-1/aafd1b025535a4410818fdc89ce176eb.jpg",
-          videoUrl: "",
-          embedUrl: "https://vidsrc.xyz/embed/movie?tmdb=739452", // Sample embed URL for testing
-          trailerUrl: "https://www.youtube.com/watch?v=_HB4hhMJExQ",
-          imdbRating: "8.5",
-          viewCount: 0,
-          isApiMovie: true
-        };
-        return res.json([sampleMovie]);
-      }
-      
-      // Default: return only regular movies
-      res.json(movies);
-    } catch (error) {
-      console.error('Error fetching movies:', error);
-      res.status(500).json({ message: "Failed to retrieve movies" });
-    }
-  });
-  
-
-
-  router.get("/movie/:id", async (req, res) => {
-    try {
-      const movieId = parseInt(req.params.id);
-      if (isNaN(movieId)) {
-        return res.status(400).json({ message: "Invalid movie ID" });
-      }
-      
-      // Check if it's an API movie (ID > 10000)
-      if (movieId >= 10000) {
-        // Try to find an API movie with ID - 10000 (since we added 10000 to API movie IDs)
-        const apiMovieId = movieId - 10000;
-        const apiMovieResult = await storage.getApiMovies(1, 0, 'published', apiMovieId);
-        
-        if (apiMovieResult && Array.isArray(apiMovieResult) && apiMovieResult.length > 0) {
-          // Transform the API movie to regular movie format
-          const movie = apiMovieResult[0];
-          
-          // Transform categories to genreIds
-          const genreMap: Record<string, number> = {
-            "Action": 1,
-            "Adventure": 2,
-            "Comedy": 3,
-            "Drama": 4,
-            "Horror": 5,
-            "Science Fiction": 6,
-            "Thriller": 7,
-            "Documentary": 8,
-            "Animation": 9
-          };
-          
-          // Extract categories from API movie and ensure it's an array
-          const categories: string[] = Array.isArray(movie.categories) ? movie.categories : [];
-          // Map them to genre IDs or use default genre 1 (Action) if not found
-          const genreIds = categories.length > 0 
-            ? categories.map(cat => {
-                const genreId = genreMap[cat as keyof typeof genreMap];
-                return genreId || 1;
-              })
-            : [1]; // Default to Action genre if no categories
-          
-          // Handle various fields that might be missing or in different formats
-          const castArray = (() => {
-            if (!movie.actors) return [];
-            if (Array.isArray(movie.actors)) return movie.actors;
-            if (typeof movie.actors === 'string') return movie.actors.split(',');
-            return [];
-          })();
-          
-          // Get embedUrl - first try the direct field, then fall back to episodes
-          const extractEpisodeData = (() => {
-            // If we have a direct embedUrl field, use that first
-            if (movie.embedUrl) {
-              return { 
-                videoUrl: '', 
-                embedUrl: movie.embedUrl 
-              };
-            }
-            
-            // Otherwise fall back to extracting from episodes
-            if (!movie.episodes) return { videoUrl: '', embedUrl: '' };
-            if (!Array.isArray(movie.episodes) || movie.episodes.length === 0) return { videoUrl: '', embedUrl: '' };
-            
-            const firstEpisode = movie.episodes[0];
-            if (!firstEpisode) return { videoUrl: '', embedUrl: '' };
-            
-            return {
-              videoUrl: firstEpisode.streamUrl || '',
-              embedUrl: firstEpisode.embedUrl || ''
-            };
-          })();
-          
-          const transformedMovie = {
-            id: movieId, // Keep the same ID that was requested
-            title: movie.title || 'Unknown Title',
-            description: movie.description || '',
-            releaseYear: parseInt(movie.releaseYear as string) || 2023,
-            duration: movie.duration || '100 min',
-            rating: "PG-13",
-            videoSources: [],
-            genreIds: genreIds,
-            director: "Unknown Director",
-            cast: castArray,
-            posterUrl: movie.posterUrl || '',
-            backdropUrl: movie.backdropUrl || '',
-            videoUrl: extractEpisodeData.videoUrl,
-            embedUrl: extractEpisodeData.embedUrl, // Add the embed URL separately
-            trailerUrl: movie.trailerUrl || '',
-            imdbRating: "7.5",
-            viewCount: 0,
-            isApiMovie: true // Flag to indicate this is an API movie
-          };
-          
-          return res.json(transformedMovie);
-        }
-      }
-      
-      // Special case for sample movie with ID 20001
-      if (movieId === 20001) {
-        const sampleMovie = {
-          id: 20001, // Special ID for testing
-          title: "Sample Movie with Embed URL",
-          description: "This is a sample movie with an embed URL for testing purposes.",
-          releaseYear: 2024,
-          duration: "120 min",
-          rating: "PG-13",
-          videoSources: [],
-          genreIds: [1, 3],
-          director: "Sample Director",
-          cast: ["Actor 1", "Actor 2"],
-          posterUrl: "https://phimimg.com/upload/vod/20250430-1/8cbf38129adc82a9e5425bf7260ae024.jpg",
-          backdropUrl: "https://phimimg.com/upload/vod/20250430-1/aafd1b025535a4410818fdc89ce176eb.jpg",
-          videoUrl: "",
-          embedUrl: "https://vidsrc.xyz/embed/movie?tmdb=739452", // Sample embed URL for testing
-          trailerUrl: "https://www.youtube.com/watch?v=_HB4hhMJExQ",
-          imdbRating: "8.5",
-          viewCount: 0,
-          isApiMovie: true
-        };
-        return res.json(sampleMovie);
-      }
-      
-      // If not an API movie or API movie wasn't found, check regular movies
-      const movie = await storage.getMovie(movieId);
-      if (!movie) {
-        return res.status(404).json({ message: "Movie not found" });
-      }
-      
-      res.json(movie);
-    } catch (error) {
-      console.error('Error fetching movie:', error);
-      res.status(500).json({ message: "Failed to retrieve movie" });
-    }
-  });
-
-  router.get("/genres", async (req, res) => {
-    try {
-      const genres = await storage.getAllGenres();
-      res.json(genres);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to retrieve genres" });
-    }
-  });
-
-  router.get("/genre/:id/movies", async (req, res) => {
-    try {
-      const genreId = parseInt(req.params.id);
-      if (isNaN(genreId)) {
-        return res.status(400).json({ message: "Invalid genre ID" });
-      }
-      
-      // Check if pagination parameters are provided
-      const page = req.query.page ? parseInt(req.query.page as string) : 1;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
-      
-      // Get paginated movies by genre
-      const result = await storage.getMoviesByGenrePaginated(genreId, page, limit);
-      
-      res.json({
-        data: result.movies,
-        pagination: {
-          current_page: page,
-          total_pages: result.totalPages,
-          total: result.total,
-          per_page: limit
-        }
-      });
-    } catch (error) {
-      console.error('Error retrieving movies by genre:', error);
-      res.status(500).json({ message: "Failed to retrieve movies by genre" });
-    }
-  });
-
-  router.get("/search", async (req, res) => {
-    try {
-      const query = req.query.q as string;
-      if (!query) {
-        return res.status(400).json({ message: "Search query is required" });
-      }
-      
-      // Check if pagination parameters are provided
-      const page = req.query.page ? parseInt(req.query.page as string) : 1;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
-      
-      // Get paginated search results
-      const result = await storage.searchMoviesPaginated(query, page, limit);
-      
-      res.json({
-        data: result.movies,
-        pagination: {
-          current_page: page,
-          total_pages: result.totalPages,
-          total: result.total,
-          per_page: limit
-        }
-      });
-    } catch (error) {
-      console.error('Error searching movies:', error);
-      res.status(500).json({ message: "Failed to search movies" });
-    }
-  });
-
-  router.get("/featured", async (req, res) => {
-    try {
-      const featuredMovies = await storage.getFeaturedMovies();
-      res.json(featuredMovies);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to retrieve featured movies" });
-    }
-  });
-
-  router.get("/new-releases", async (req, res) => {
-    try {
-      const newReleases = await storage.getNewReleases();
-      res.json(newReleases);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to retrieve new releases" });
-    }
-  });
-
-  router.get("/trending", async (req, res) => {
-    try {
-      // Check if user is premium (would normally be handled with auth middleware)
-      const isPremium = req.query.premium === 'true';
-      
-      if (!isPremium) {
-        return res.status(403).json({ 
-          message: "Access denied", 
-          details: "Trending movies are only available for premium users" 
-        });
-      }
-      
-      const trendingMovies = await storage.getTrendingMovies();
-      res.json(trendingMovies);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to retrieve trending movies" });
-    }
-  });
-
-  // Category API routes
-  router.get("/categories", async (req, res) => {
-    try {
-      const categories = await storage.getAllCategories();
-      res.json(categories);
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-      res.status(500).json({ message: "Failed to retrieve categories" });
-    }
-  });
-  
-  // Create a new category
-  router.post("/categories", async (req, res) => {
-    try {
-      const { name, slug } = req.body;
-      
-      if (!name || !slug) {
-        return res.status(400).json({ message: "Name and slug are required" });
-      }
-      
-      // Import the category service
-      const { createOrUpdateCategory } = await import('./services/category/service');
-      
-      // Create or update the category
-      const category = await createOrUpdateCategory({ name, slug });
-      
-      res.status(201).json(category);
-    } catch (error) {
-      console.error("Error creating category:", error);
-      res.status(500).json({ message: "Failed to create category" });
-    }
-  });
-  
-  // Link a movie to categories
-  router.post("/movies/:movieId/categories", async (req, res) => {
-    try {
-      const movieId = parseInt(req.params.movieId);
-      const { categoryIds, movieType = 'regular' } = req.body;
-      
-      if (isNaN(movieId)) {
-        return res.status(400).json({ message: "Invalid movie ID" });
-      }
-      
-      if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
-        return res.status(400).json({ message: "Category IDs must be a non-empty array" });
-      }
-      
-      // Validate movie type
-      if (movieType !== 'regular' && movieType !== 'api') {
-        return res.status(400).json({ message: "Movie type must be 'regular' or 'api'" });
-      }
-      
-      // Import the category service
-      const { linkMovieCategories } = await import('./services/category/service');
-      
-      // Link the movie to categories, specifying the movie type
-      await linkMovieCategories(movieId, categoryIds, movieType);
-      
-      res.status(200).json({ 
-        message: "Movie linked to categories successfully",
-        movieId,
-        categoryIds,
-        movieType 
-      });
-    } catch (error) {
-      console.error("Error linking movie to categories:", error);
-      res.status(500).json({ message: "Failed to link movie to categories", error: String(error) });
-    }
-  });
-
-  // Get movies by category with pagination
-  router.get("/categories/:slug/movies", async (req, res) => {
-    try {
-      const { slug } = req.params;
-      const page = parseInt(req.query.page as string || "1");
-      const limit = parseInt(req.query.limit as string || "20");
-      
-      // Validate pagination parameters
-      if (isNaN(page) || page < 1) {
-        return res.status(400).json({ message: "Invalid page parameter" });
-      }
-      
-      if (isNaN(limit) || limit < 1 || limit > 100) {
-        return res.status(400).json({ message: "Invalid limit parameter. Must be between 1 and 100" });
-      }
-      
-      // Import category service function
-      const { getMoviesByCategory } = await import('./services/category/service');
-      
-      // Get movies by category with pagination
-      const result = await getMoviesByCategory(slug, page, limit);
-      
-      res.json(result);
-    } catch (error) {
-      console.error("Error fetching movies by category:", error);
-      res.status(500).json({ message: "Error fetching movies by category" });
-    }
-  });
-  
-  // Test endpoint for category processing with different formats
-  router.post("/test/categories/process", async (req, res) => {
-    try {
-      const { movieId, categories, movieType = 'api' } = req.body;
-      
-      if (!movieId || !categories || !Array.isArray(categories)) {
-        return res.status(400).json({ 
-          message: "Invalid request. Requires movieId and categories array",
-          required: {
-            movieId: "number",
-            categories: "array - can be strings or objects with {id, name, slug}",
-            movieType: "string (optional) - 'api' or 'regular'"
-          }
-        });
-      }
-      
-      // Get the movie
-      const movie = await storage.getApiMovieById(movieId);
-      if (!movie) {
-        return res.status(404).json({ message: `Movie with ID ${movieId} not found` });
-      }
-      
-      // Process the categories
-      const { processMovieCategories } = await import('./services/category/service');
-      await processMovieCategories(movie, categories);
-      
-      // Get the linked categories for verification
-      const linkedCategories = await storage.getCategoriesByMovieId(movieId, movieType);
-      
-      res.status(200).json({
-        message: "Categories processed successfully",
-        movie: { id: movie.id, title: movie.title },
-        categories: categories,
-        linkedCategories
-      });
-    } catch (error) {
-      console.error("Error in category test endpoint:", error);
-      res.status(500).json({ 
-        message: "Failed to process categories", 
-        error: String(error)
-      });
-    }
-  });
-
-  // User routes (favorites, watchlist, etc.)
-  router.get("/user/:userId/favorites", async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-      
-      const favorites = await storage.getUserFavorites(userId);
-      res.json(favorites);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to retrieve user favorites" });
-    }
-  });
-
-  router.post("/user/:userId/favorites", async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      const movieId = parseInt(req.body.movieId);
-      
-      if (isNaN(userId) || isNaN(movieId)) {
-        return res.status(400).json({ message: "Invalid user ID or movie ID" });
-      }
-      
-      const favorite = await storage.addFavorite({ userId, movieId });
-      res.status(201).json(favorite);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to add favorite" });
-    }
-  });
-
-  router.delete("/user/:userId/favorites/:movieId", async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      const movieId = parseInt(req.params.movieId);
-      
-      if (isNaN(userId) || isNaN(movieId)) {
-        return res.status(400).json({ message: "Invalid user ID or movie ID" });
-      }
-      
-      await storage.removeFavorite(userId, movieId);
-      res.sendStatus(204);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to remove favorite" });
-    }
-  });
-
-  router.get("/user/:userId/history", async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-      
-      const history = await storage.getUserViewHistory(userId);
-      res.json(history);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to retrieve view history" });
-    }
-  });
-
-  router.post("/user/:userId/history", async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      const movieId = parseInt(req.body.movieId);
-      const progress = parseInt(req.body.progress);
-      
-      if (isNaN(userId) || isNaN(movieId) || isNaN(progress)) {
-        return res.status(400).json({ message: "Invalid parameters" });
-      }
-      
-      const history = await storage.addOrUpdateViewHistory({ 
-        userId, 
-        movieId, 
-        progress,
-        watchedAt: new Date() 
-      });
-      res.status(201).json(history);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update view history" });
-    }
-  });
-
-  // Google Drive files endpoint
-  router.get("/drive/files", async (req, res) => {
-    try {
-      const { folderId } = req.query;
-      
-      if (!folderId) {
-        return res.status(400).json({ message: "Folder ID is required" });
-      }
-      
-      // Check if API key is configured
-      console.log(`GOOGLE_API_KEY exists: ${!!process.env.GOOGLE_API_KEY}`);
-      
-      if (!process.env.GOOGLE_API_KEY) {
-        return res.status(500).json({
-          error: "Missing Google API Key",
-          message: "The Google API key is not configured. Please contact the administrator."
-        });
-      }
-      
-      console.log("Attempting to fetch files from Google Drive folder:", folderId);
-      
-      try {
-        // Use the Google Drive API to list files in the folder
-        const response = await axios.get(
-          `https://www.googleapis.com/drive/v3/files?q='${folderId}' in parents and trashed=false&fields=files(id,name,mimeType,size,thumbnailLink,webContentLink)&key=${process.env.GOOGLE_API_KEY}`
-        );
-        
-        // Filter to only include video files
-        const videoFiles = response.data.files.filter((file: any) => 
-          file.mimeType.includes('video/') || 
-          /\.(mp4|webm|mkv|avi|mov)$/i.test(file.name)
-        );
-        
-        // Log success (for admin tracking)
-        if (req.user) {
-          await storage.logAdminActivity({
-            adminId: req.user.id,
-            action: 'DRIVE_FILES_FETCH',
-            entityType: 'DRIVE',
-            details: `Successfully fetched ${videoFiles.length} video files from Drive folder: ${folderId}`
-          });
-        }
-        
-        return res.json({
-          success: true,
-          files: videoFiles
-        });
-      } catch (apiError: any) {
-        console.error("Error fetching files from Drive API:", apiError.message);
-        
-        // Log the error (for admin tracking)
-        if (req.user) {
-          await storage.logAdminActivity({
-            adminId: req.user.id,
-            action: 'DRIVE_FILES_ERROR',
-            entityType: 'DRIVE',
-            details: `Error fetching files from Drive folder ${folderId}: ${apiError.message}`
-          });
-        }
-        
-        return res.status(500).json({
-          error: "Failed to fetch files from Google Drive",
-          message: apiError.message
-        });
-      }
-    } catch (error: any) {
-      console.error('Error processing Drive files request:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  });
-
-  // Google Drive movies endpoint
-  router.get("/drive/movies/:folderId", async (req, res) => {
-    try {
-      const { folderId } = req.params;
-      
-      if (!folderId) {
-        return res.status(400).json({ message: "Folder ID is required" });
-      }
-      
-      // Check if API key is configured
-      console.log(`GOOGLE_API_KEY exists: ${!!process.env.GOOGLE_API_KEY}`);
-      
-      if (!process.env.GOOGLE_API_KEY) {
-        return res.status(500).json({
-          error: "Missing Google API Key",
-          message: "The Google API key is not configured. Please contact the administrator."
-        });
-      }
-      
-      console.log("Attempting to access Google Drive folder:", folderId);
-      
-      // Try to fetch folder metadata
-      let folderName = "Unknown";
-      try {
-        const folderResponse = await axios.get(
-          `https://www.googleapis.com/drive/v3/files/${folderId}?key=${process.env.GOOGLE_API_KEY}&fields=name,mimeType`
-        );
-        
-        if (folderResponse.data && folderResponse.data.mimeType === 'application/vnd.google-apps.folder') {
-          folderName = folderResponse.data.name;
-          console.log("Folder found:", folderName);
-        } else {
-          return res.status(400).json({
-            error: "Not a folder",
-            message: "The provided ID is not a Google Drive folder."
-          });
-        }
-      } catch (folderError: any) {
-        console.error("Error accessing folder metadata:", folderError.message);
-        // Continue anyway, as we might still be able to list files
-      }
-      
-      // Fetch files from the folder
-      const filesResponse = await axios.get(
-        `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=${process.env.GOOGLE_API_KEY}&fields=files(id,name,mimeType,videoMediaMetadata,fileExtension,size,createdTime,thumbnailLink)&orderBy=name`
-      );
-      
-      if (!filesResponse.data.files || filesResponse.data.files.length === 0) {
-        return res.json([]); // Empty array if no files found
-      }
-      
-      // Filter video files
-      const videoFiles = filesResponse.data.files.filter((file: any) => 
-        file.mimeType.includes('video') || 
-        (file.fileExtension && ['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(file.fileExtension.toLowerCase()))
-      );
-      
-      if (videoFiles.length === 0) {
-        return res.json([]); // Empty array if no video files found
-      }
-      
-      // Convert to movie objects for the frontend
-      const movies = videoFiles.map((file: any) => convertDriveFileToMovie(file));
-      
-      res.json(movies);
-    } catch (error: any) {
-      console.error("Error fetching Google Drive content:", error);
-      res.status(500).json({ 
-        error: "Failed to fetch Google Drive content", 
-        details: error.message || 'Unknown error',
-        apiKeyExists: !!process.env.GOOGLE_API_KEY 
-      });
-    }
-  });
-  
-  // Helper function to parse movie info from filename
-  function parseMovieInfo(filename: string): { 
-    title: string; 
-    year?: number;
-    additionalInfo?: string;
-  } {
-    // Remove file extension
-    const nameWithoutExtension = filename.replace(/\.[^/.]+$/, "");
-    
-    // Extract year if present in format (YYYY)
-    const yearMatch = nameWithoutExtension.match(/\((\d{4})\)/);
-    let year: number | undefined = undefined;
-    if (yearMatch && yearMatch[1]) {
-      year = parseInt(yearMatch[1], 10);
-    }
-    
-    // Extract additional info in square brackets [INFO]
-    const additionalInfoMatch = nameWithoutExtension.match(/\[(.*?)\]/);
-    let additionalInfo: string | undefined = undefined;
-    if (additionalInfoMatch && additionalInfoMatch[1]) {
-      additionalInfo = additionalInfoMatch[1];
-    }
-    
-    // Get title by removing year and additional info
-    let title = nameWithoutExtension
-      .replace(/\(\d{4}\)/, '')  // Remove year
-      .replace(/\[.*?\]/, '')    // Remove additional info
-      .trim();
-      
-    return { title, year, additionalInfo };
-  }
-  
-  // Helper function to convert Drive file to Movie format
-  function convertDriveFileToMovie(file: any): any {
-    const { title, year } = parseMovieInfo(file.name);
-    
-    // Generate a stream URL
-    const streamUrl = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${process.env.GOOGLE_API_KEY}`;
-    
-    // Generate a movie object compatible with our app's Movie type
-    return {
-      id: parseInt(file.id.substring(0, 8), 16) % 10000, // Generate a numeric ID from Drive ID
-      title,
-      description: `Watch ${title} on FilmFlex.`,
-      releaseYear: year || new Date().getFullYear(),
-      duration: file.videoMediaMetadata 
-        ? Math.floor(parseInt(file.videoMediaMetadata.durationMillis) / 60000) 
-        : 120, // Duration in minutes or default
-      posterUrl: file.thumbnailLink || 'https://via.placeholder.com/300x450?text=No+Thumbnail',
-      backdropUrl: file.thumbnailLink || 'https://via.placeholder.com/1280x720?text=No+Preview',
-      rating: 'PG-13',
-      videoSources: [
-        {
-          quality: 'HD',
-          url: streamUrl
-        }
-      ],
-      genreIds: [1], // Default to Action genre
-      director: 'Unknown Director',
-      cast: ['Actor 1', 'Actor 2'],
-      imdbRating: '7.5',
-      viewCount: 0
-    };
-  }
-  
-  // Debug route to check API key status
-  router.get("/drive/status", (req, res) => {
-    try {
-      const apiKeyExists = !!process.env.GOOGLE_API_KEY;
-      res.json({
-        status: "ok",
-        googleApiKeyExists: apiKeyExists,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      res.status(500).json({ error: "Error checking status" });
-    }
-  });
-  
-  // Fetch information about Drive movies (alternative to direct Drive API usage)
-  router.post("/drive/copy", isAdmin, async (req, res) => {
-    try {
-      const { sourceFolderId, destinationFolderId } = req.body;
-      
-      if (!sourceFolderId) {
-        return res.status(400).json({ message: "Source folder ID is required" });
-      }
-      
-      // Log the attempt (for admin tracking)
-      if (req.user) {
-        await storage.logAdminActivity({
-          adminId: req.user.id,
-          action: 'DRIVE_FETCH_ATTEMPT',
-          entityType: 'DRIVE',
-          details: `Attempted to fetch movies from Drive folder: ${sourceFolderId}`
-        });
-      }
-      
-      // Instead of trying to use Google Drive API which requires OAuth 2.0,
-      // provide instructions for using the URL-based approach
-      
-      // Log a message with the folder ID
-      if (req.user) {
-        await storage.logAdminActivity({
-          adminId: req.user.id,
-          action: 'DRIVE_URL_SUGGESTION',
-          entityType: 'DRIVE',
-          details: `Suggested URL-based approach for folder: ${sourceFolderId}`
-        });
-      }
-      
-      // Return helpful instructions instead
-      res.json({
-        success: true,
-        message: "We recommend using the 'Add from URL' approach for Google Drive files",
-        note: "The Google Drive API requires OAuth 2.0 authentication which isn't implemented in this version.",
-        instructions: [
-          "1. Open your Google Drive folder in a browser",
-          "2. Click on each video file you want to add",
-          "3. Click the 'More actions' menu (three dots) and select 'Get link'",
-          "4. Copy the link and use it in the 'Add from URL' feature",
-          "5. Repeat for each video you want to add"
-        ],
-        alternativeMethod: "Use the 'Add from URL' button to add movies directly",
-        details: [{
-          originalFolder: sourceFolderId,
-          success: true,
-          message: "Please use the URL method instead"
-        }]
-      });
-    } catch (error) {
-      console.error('Error processing Drive request:', error);
-      
-      // Log the error for admin tracking
-      if (req.user) {
-        await storage.logAdminActivity({
-          adminId: req.user.id,
-          action: 'DRIVE_ERROR',
-          entityType: 'DRIVE',
-          details: `Error with Drive operation: ${(error as any).message}`
-        });
-      }
-      
-      // Return a helpful error message with instructions
-      res.status(500).json({
-        success: false, 
-        message: "We encountered an issue with the Google Drive integration",
-        error: (error as any).message,
-        solution: "Please use the 'Add from URL' button to add movies directly",
-        instructions: [
-          "1. Open your Google Drive folder in a browser",
-          "2. Click on each video file you want to add",
-          "3. Click the 'More actions' menu (three dots) and select 'Get link'",
-          "4. Copy the link and use it in the 'Add from URL' feature"
-        ]
-      });
-    }
-  });
-  
-  // Google Drive streaming
-  router.get("/drive/stream/:fileId", async (req, res) => {
-    try {
-      const { fileId } = req.params;
-      
-      if (!fileId) {
-        return res.status(400).json({ message: "File ID is required" });
-      }
-      
-      // Return a direct link to stream from Google Drive
-      res.json({ 
-        url: `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${process.env.GOOGLE_API_KEY}`,
-        mimeType: "video/mp4" 
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to generate streaming URL" });
-    }
-  });
-  
-  // Proxy for video streaming
-  router.get("/stream/:movieId", async (req, res) => {
-    try {
-      const movieId = parseInt(req.params.movieId);
-      if (isNaN(movieId)) {
-        return res.status(400).json({ message: "Invalid movie ID" });
-      }
-      
-      const movie = await storage.getMovie(movieId);
-      if (!movie) {
-        return res.status(404).json({ message: "Movie not found" });
-      }
-      
-      // For a real implementation, you would want to validate the user's access,
-      // check for any subscription status, etc.
-      
-      // Return the video sources
-      res.json(movie.videoSources);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to retrieve streaming sources" });
-    }
-  });
-
-  // ==== ADMIN ROUTES ====
-  
-  // Middleware to check if user is admin
-  function isAdmin(req: Request, res: Response, next: NextFunction) {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    const user = req.user as any;
-    if (user.role !== "admin" && user.role !== "sub-admin") {
-      return res.status(403).json({ error: "Forbidden - Admin access required" });
-    }
-    
-    next();
-  }
-  
-  // Admin User Management Routes
-  const adminRouter = express.Router();
-  
-  adminRouter.get('/users', isAdmin, async (req, res) => {
-    try {
-      const users = await storage.getAllUsers();
-      res.json(users);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch users" });
-    }
-  });
-  
-  adminRouter.get('/users/role/:role', isAdmin, async (req, res) => {
-    try {
-      const users = await storage.getUsersByRole(req.params.role);
-      res.json(users);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch users by role" });
-    }
-  });
-  
-  adminRouter.post('/users', isAdmin, async (req, res) => {
-    try {
-      const user = await storage.createAdminUser(req.body);
-      res.status(201).json(user);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create admin user" });
-    }
-  });
-  
-  adminRouter.patch('/users/:id/role', isAdmin, async (req, res) => {
-    try {
-      const adminUser = req.user as any;
-      const userId = parseInt(req.params.id);
-      const { role } = req.body;
-      
-      const user = await storage.updateUserRole(userId, role, adminUser.id);
-      res.json(user);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update user role" });
-    }
-  });
-  
-  adminRouter.patch('/users/:id/deactivate', isAdmin, async (req, res) => {
-    try {
-      const adminUser = req.user as any;
-      const userId = parseInt(req.params.id);
-      
-      const user = await storage.deactivateUser(userId, adminUser.id);
-      res.json(user);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to deactivate user" });
-    }
-  });
-  
-  adminRouter.patch('/users/:id/reactivate', isAdmin, async (req, res) => {
-    try {
-      const adminUser = req.user as any;
-      const userId = parseInt(req.params.id);
-      
-      const user = await storage.reactivateUser(userId, adminUser.id);
-      res.json(user);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to reactivate user" });
-    }
-  });
-  
-  // Admin Movie Management Routes
-  adminRouter.get('/movie-uploads', isAdmin, async (req, res) => {
-    try {
-      const uploads = await storage.getPendingMovieUploads();
-      res.json(uploads);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch pending movie uploads" });
-    }
-  });
-  
-  adminRouter.get('/movie-uploads/:id', isAdmin, async (req, res) => {
-    try {
-      const uploadId = parseInt(req.params.id);
-      const upload = await storage.getMovieUpload(uploadId);
-      
-      if (!upload) {
-        return res.status(404).json({ error: "Movie upload not found" });
-      }
-      
-      res.json(upload);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch movie upload" });
-    }
-  });
-  
-  adminRouter.post('/movie-uploads', isAdmin, async (req, res) => {
-    try {
-      const movieUpload = await storage.createMovieUpload(req.body);
-      res.status(201).json(movieUpload);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create movie upload" });
-    }
-  });
-  
-  adminRouter.patch('/movie-uploads/:id/status', isAdmin, async (req, res) => {
-    try {
-      const adminUser = req.user as any;
-      const uploadId = parseInt(req.params.id);
-      const { status, notes } = req.body;
-      
-      const updatedUpload = await storage.updateMovieUploadStatus(
-        uploadId, 
-        status, 
-        adminUser.id, 
-        notes
-      );
-      
-      res.json(updatedUpload);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update movie upload status" });
-    }
-  });
-  
-  adminRouter.post('/movies', isAdmin, async (req, res) => {
-    try {
-      const movie = await storage.createMovie(req.body);
-      
-      // Log the activity
-      await storage.logAdminActivity({
-        adminId: req.user!.id,
-        action: 'CREATE_MOVIE',
-        entityId: movie.id,
-        entityType: 'MOVIE',
-        details: `Created new movie '${movie.title}'`
-      });
-      
-      res.status(201).json(movie);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create movie" });
-    }
-  });
-  
-  // Update movie
-  adminRouter.patch('/movies/:id', isAdmin, async (req, res) => {
-    try {
-      const movieId = parseInt(req.params.id);
-      
-      // Get the existing movie first
-      const existingMovie = await storage.getMovie(movieId);
-      
-      if (!existingMovie) {
-        return res.status(404).json({ error: "Movie not found" });
-      }
-      
-      // Update the movie
-      const updatedMovie = await storage.updateMovie(movieId, req.body);
-      
-      // Log the activity
-      await storage.logAdminActivity({
-        adminId: req.user!.id,
-        action: 'UPDATE_MOVIE',
-        entityId: movieId,
-        entityType: 'MOVIE',
-        details: `Updated movie '${updatedMovie.title}'`
-      });
-      
-      res.json(updatedMovie);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update movie" });
-    }
-  });
-  
-  // Delete movie
-  adminRouter.delete('/movies/:id', isAdmin, async (req, res) => {
-    try {
-      const movieId = parseInt(req.params.id);
-      
-      // Get the movie first for logging
-      const movie = await storage.getMovie(movieId);
-      
-      if (!movie) {
-        return res.status(404).json({ error: "Movie not found" });
-      }
-      
-      // Delete the movie
-      await storage.deleteMovie(movieId);
-      
-      // Log the activity
-      await storage.logAdminActivity({
-        adminId: req.user!.id,
-        action: 'DELETE_MOVIE',
-        entityId: movieId,
-        entityType: 'MOVIE',
-        details: `Deleted movie '${movie.title}'`
-      });
-      
-      res.json({ success: true, message: "Movie deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete movie" });
-    }
-  });
-  
-  // Import movies from Google Drive
-  adminRouter.post('/movies/import', isAdmin, async (req, res) => {
-    try {
-      const { movies } = req.body;
-      
-      if (!movies || !Array.isArray(movies) || movies.length === 0) {
-        return res.status(400).json({ error: "No movies to import" });
-      }
-      
-      console.log(`Importing ${movies.length} movies from Google Drive`);
-      
-      // Track successfully imported movies
-      const importedMovies = [];
-      
-      // Process each movie
-      for (const movieData of movies) {
-        try {
-          // Prepare movie data for database
-          const movieToCreate = {
-            title: movieData.title,
-            description: movieData.description || `Watch ${movieData.title} on FilmFlex.`,
-            releaseYear: movieData.releaseYear || new Date().getFullYear(),
-            duration: movieData.duration || 90,
-            posterUrl: movieData.posterUrl || 'https://via.placeholder.com/300x450?text=No+Poster',
-            backdropUrl: movieData.backdropUrl || 'https://via.placeholder.com/1280x720?text=No+Backdrop',
-            videoUrl: movieData.videoUrl || movieData.id,
-            rating: movieData.rating || 'PG-13',
-            genreIds: movieData.genreIds || [1],
-            director: movieData.director || 'Unknown Director',
-            cast: movieData.cast || [],
-            videoSources: [{
-              quality: 'HD',
-              url: movieData.videoUrl || `https://drive.google.com/uc?export=download&id=${movieData.id}`
-            }]
-          };
-          
-          // Create the movie in the database
-          const createdMovie = await storage.createMovie(movieToCreate);
-          importedMovies.push(createdMovie);
-          
-          // Log the activity
-          await storage.logAdminActivity({
-            adminId: req.user!.id,
-            action: 'IMPORT_MOVIE',
-            entityId: createdMovie.id,
-            entityType: 'MOVIE',
-            details: `Imported movie '${createdMovie.title}' from Google Drive (ID: ${movieData.id})`
-          });
-        } catch (movieError: any) {
-          console.error(`Error importing movie ${movieData.title}:`, movieError.message);
-        }
-      }
-      
-      res.json({
-        success: true,
-        count: importedMovies.length,
-        message: `Successfully imported ${importedMovies.length} of ${movies.length} movies`
-      });
-    } catch (error: any) {
-      console.error('Error importing movies:', error);
-      res.status(500).json({ error: "Failed to import movies from Google Drive" });
-    }
-  });
-  
-  // These routes are already defined above with proper logging
-  
-  // Admin Financial Routes
-  adminRouter.get('/transactions', isAdmin, async (req, res) => {
-    try {
-      const { limit, offset } = req.query;
-      const limitNum = limit ? parseInt(limit as string) : undefined;
-      const offsetNum = offset ? parseInt(offset as string) : undefined;
-      
-      const transactions = await storage.getAllTransactions(limitNum, offsetNum);
-      res.json(transactions);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch transactions" });
-    }
-  });
-  
-  adminRouter.get('/transactions/pending', isAdmin, async (req, res) => {
-    try {
-      const transactions = await storage.getPendingTransactions();
-      res.json(transactions);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch pending transactions" });
-    }
-  });
-  
-  adminRouter.patch('/transactions/:id/process', isAdmin, async (req, res) => {
-    try {
-      const adminUser = req.user as any;
-      const transactionId = parseInt(req.params.id);
-      const { status } = req.body;
-      
-      const transaction = await storage.processTransaction(
-        transactionId,
-        status,
-        adminUser.id
-      );
-      
-      res.json(transaction);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to process transaction" });
-    }
-  });
-  
-  adminRouter.get('/income-statistics', isAdmin, async (req, res) => {
-    try {
-      const { startDate, endDate } = req.query;
-      let startDateObj: Date | undefined;
-      let endDateObj: Date | undefined;
-      
-      if (startDate) {
-        startDateObj = new Date(startDate as string);
-      }
-      
-      if (endDate) {
-        endDateObj = new Date(endDate as string);
-      }
-      
-      const stats = await storage.getIncomeStatistics(startDateObj, endDateObj);
-      res.json(stats);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch income statistics" });
-    }
-  });
-  
-  // Admin Activity Logs
-  adminRouter.get('/activity-logs', isAdmin, async (req, res) => {
-    try {
-      const { adminId, limit, offset } = req.query;
-      const adminIdNum = adminId ? parseInt(adminId as string) : undefined;
-      const limitNum = limit ? parseInt(limit as string) : undefined;
-      const offsetNum = offset ? parseInt(offset as string) : undefined;
-      
-      const logs = await storage.getAdminLogs(adminIdNum, limitNum, offsetNum);
-      res.json(logs);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch admin activity logs" });
-    }
-  });
-  
-  // Admin Dashboard Overview
-  adminRouter.get('/dashboard', isAdmin, async (req, res) => {
-    try {
-      // Fetch statistics for dashboard
-      const allUsers = await storage.getAllUsers();
-      const premiumUsers = allUsers.filter(user => user.userType === 'premium');
-      const movies = await storage.getAllMovies();
-      
-      // Calculate total income from transactions
-      const recentTransactions = await storage.getAllTransactions(100); // Get last 100 transactions
-      const totalIncome = recentTransactions.reduce((sum, t) => 
-        t.status === 'completed' ? sum + t.amount : sum, 0);
-      
-      // Return dashboard statistics
-      res.json({
-        stats: {
-          totalUsers: allUsers.length,
-          premiumUsers: premiumUsers.length,
-          totalIncome,
-          totalMovies: movies.length
-        }
-      });
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      res.status(500).json({ error: "Failed to fetch dashboard data" });
-    }
-  });
-  
-
-  
-  // Mount admin routes
-  app.use("/api/admin", adminRouter);
-  
-  // Mount regular API routes
-  app.use("/api", router);
-  
-  // Utility endpoint for updating test movies with video URLs
-  app.patch("/api/movies/:id", async (req, res) => {
-    try {
-      const movieId = parseInt(req.params.id);
-      if (isNaN(movieId)) {
-        return res.status(400).json({ error: "Invalid movie ID" });
-      }
-      
-      const updatedMovie = await storage.updateMovie(movieId, req.body);
-      res.json(updatedMovie);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update movie" });
-    }
-  });
-
-  // PhimAPI movie data integration routes
-  app.get("/api/api-movies", async (req, res) => {
-    try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
-      const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
-      const status = req.query.status as string | undefined;
-
-      const apiMovies = await storage.getApiMovies(limit, offset, status);
-      const total = await storage.countApiMovies(status);
-      
-      res.json({
-        data: apiMovies,
-        pagination: {
-          total,
+      // Handle combined source or default (no special filters)
+      // Regular pagination
+      console.log("Getting paginated movies");
+      const result = await storage.getPaginatedMovies(page, limit);
+      let moviesForResponse = result.movies;
+      let totalCount = result.total;
+      let totalPages = result.totalPages;
+      
+      // Include API movies if requested
+      if (includeApi) {
+        console.log("Including API movies in response");
+        const apiMoviesResult = await storage.getApiMovies(
           limit,
-          offset,
-          pages: Math.ceil(total / limit)
+          (page - 1) * limit,
+          'published'
+        );
+        
+        const apiMovies = apiMoviesResult || [];
+        console.log(`Got ${apiMovies.length} API movies`);
+        
+        if (apiMovies.length > 0) {
+          // Transform API movies to regular movie format
+          const transformedApiMovies = apiMovies.map(apiMovie => {
+            // Map categories to genre IDs
+            const genreMap: Record<string, number> = {
+              "Action": 1,
+              "Adventure": 2,
+              "Comedy": 3,
+              "Drama": 4,
+              "Horror": 5,
+              "Science Fiction": 6,
+              "Thriller": 7,
+              "Documentary": 8,
+              "Animation": 9
+            };
+            
+            const categories: string[] = Array.isArray(apiMovie.categories) ? apiMovie.categories : [];
+            const genreIds = categories.length > 0 
+              ? categories.map(cat => {
+                  const genreId = genreMap[cat as keyof typeof genreMap];
+                  return genreId || 1;
+                })
+              : [1];
+            
+            const castArray = Array.isArray(apiMovie.actors) ? apiMovie.actors : 
+                           (typeof apiMovie.actors === 'string' ? apiMovie.actors.split(',') : []);
+            
+            const videoUrl = getVideoUrlFromEpisodes(apiMovie);
+            
+            return {
+              id: apiMovie.id + 10000,
+              title: apiMovie.title || 'Unknown Title',
+              description: apiMovie.description || '',
+              releaseYear: parseInt(apiMovie.releaseYear as string) || 2023,
+              duration: apiMovie.duration || 100,
+              rating: "PG-13",
+              videoSources: [],
+              genreIds: genreIds,
+              director: apiMovie.director || "Unknown Director",
+              cast: castArray,
+              posterUrl: apiMovie.posterUrl || '',
+              backdropUrl: apiMovie.backdropUrl || '',
+              videoUrl: videoUrl,
+              trailerUrl: apiMovie.trailerUrl || '',
+              imdbRating: apiMovie.imdbRating || 7.5,
+              viewCount: 0,
+              createdAt: apiMovie.createdAt || new Date().toISOString(),
+              updatedAt: apiMovie.updatedAt || new Date().toISOString()
+            };
+          });
+          
+          // Combine regular and API movies
+          moviesForResponse = [...result.movies, ...transformedApiMovies];
+          
+          // Update pagination info with API movies count
+          const apiMovieCount = await storage.countApiMovies('published');
+          totalCount += apiMovieCount;
+          totalPages = Math.ceil(totalCount / limit);
         }
-      });
-    } catch (error) {
-      console.error("Failed to fetch API movies:", error);
-      res.status(500).json({ message: "Failed to fetch movies from API" });
-    }
-  });
-
-  app.get("/api/api-movies/:slug", async (req, res) => {
-    try {
-      const { slug } = req.params;
-      
-      const apiMovie = await storage.getApiMovieBySlug(slug);
-      if (!apiMovie) {
-        return res.status(404).json({ message: "API movie not found" });
       }
       
-      res.json(apiMovie);
-    } catch (error) {
-      console.error(`Failed to fetch API movie ${req.params.slug}:`, error);
-      res.status(500).json({ message: "Failed to fetch movie details from API" });
-    }
-  });
-  
-  // Get API movie sync status - Public endpoint
-  app.get("/api/api-movies-sync-status", async (req, res) => {
-    try {
-      // Get latest sync job logs
-      const latestJobs = await storage.getApiMovieJobLogs(5, 0);
-      
-      // Get movie counts by status
-      const draftCount = await storage.countApiMovies('draft');
-      const pendingCount = await storage.countApiMovies('pending_review');
-      const publishedCount = await storage.countApiMovies('published');
-      const totalCount = await storage.countApiMovies();
-      
-      res.json({
-        syncJobs: latestJobs,
-        counts: {
+      const response = {
+        data: moviesForResponse,
+        pagination: {
+          current_page: page,
+          total_pages: totalPages,
           total: totalCount,
-          draft: draftCount,
-          pending: pendingCount,
-          published: publishedCount
-        },
-        lastSync: latestJobs.length > 0 ? latestJobs[0] : null
-      });
-    } catch (error) {
-      console.error('Error fetching API movie sync status:', error);
-      res.status(500).json({ message: "Failed to retrieve API movie sync status" });
-    }
-  });
-
-  // Admin-only routes for managing PhimAPI data sync
-  app.post("/api/admin/api-sync", async (req, res) => {
-    // This would typically have authentication/authorization middleware
-    try {
-      const startPage = req.body.startPage || 1;
-      const endPage = req.body.endPage || 5;
-      const detailBatchSize = req.body.detailBatchSize || 10;
-      
-      // Start sync process asynchronously (non-blocking)
-      syncMovies(startPage, endPage, detailBatchSize)
-        .then(count => {
-          console.log(`Successfully synced ${count} new movies from API`);
-        })
-        .catch(error => {
-          console.error("Error during API sync:", error);
-        });
-      
-      // Respond immediately
-      res.json({ 
-        message: "API sync started", 
-        details: `Syncing pages ${startPage} to ${endPage} with batch size ${detailBatchSize}` 
-      });
-    } catch (error) {
-      console.error("Failed to start API sync:", error);
-      res.status(500).json({ message: "Failed to start API sync process" });
-    }
-  });
-
-  app.get("/api/admin/api-sync/status", async (req, res) => {
-    // This would typically have authentication/authorization middleware
-    try {
-      const jobType = req.query.jobType as string | undefined;
-      const latestJob = await storage.getLatestApiMovieJobLog(jobType);
-      
-      if (!latestJob) {
-        return res.json({ message: "No sync jobs found" });
-      }
-      
-      // Get count of movies in different statuses
-      const draftCount = await storage.countApiMovies("draft");
-      const pendingCount = await storage.countApiMovies("pending_review");
-      const publishedCount = await storage.countApiMovies("published");
-      const totalCount = await storage.countApiMovies();
-      
-      res.json({
-        latestJob,
-        stats: {
-          total: totalCount,
-          draft: draftCount,
-          pending_review: pendingCount,
-          published: publishedCount
+          per_page: limit
         }
-      });
-    } catch (error) {
-      console.error("Failed to fetch API sync status:", error);
-      res.status(500).json({ message: "Failed to fetch API sync status" });
-    }
-  });
-
-  app.post("/api/admin/api-movies/:id/status", async (req, res) => {
-    // This would typically have authentication/authorization middleware
-    try {
-      const movieId = parseInt(req.params.id);
-      const { status } = req.body;
-      
-      if (!movieId || isNaN(movieId)) {
-        return res.status(400).json({ message: "Invalid movie ID" });
-      }
-      
-      if (!status || !["draft", "pending_review", "published", "rejected"].includes(status)) {
-        return res.status(400).json({ message: "Invalid status" });
-      }
-      
-      // Update the movie status
-      const updatedMovie = await storage.updateApiMovie(movieId, { status });
-      
-      res.json(updatedMovie);
-    } catch (error) {
-      console.error(`Failed to update API movie status for ID ${req.params.id}:`, error);
-      res.status(500).json({ message: "Failed to update movie status" });
-    }
-  });
-
-  app.post("/api/admin/api-movies/import-to-catalog/:id", async (req, res) => {
-    // This would typically have authentication/authorization middleware
-    try {
-      const movieId = parseInt(req.params.id);
-      
-      if (!movieId || isNaN(movieId)) {
-        return res.status(400).json({ message: "Invalid movie ID" });
-      }
-      
-      // Get the API movie by ID
-      const [apiMovie] = await storage.getApiMovies(1, 0);
-      const actualMovie = apiMovie?.id === movieId ? apiMovie : null;
-      if (!actualMovie) {
-        return res.status(404).json({ message: "API movie not found" });
-      }
-      
-      // Convert API movie to catalog movie
-      const catalogMovie = {
-        title: actualMovie.title,
-        description: actualMovie.description,
-        releaseYear: actualMovie.releaseYear || new Date().getFullYear(),
-        duration: actualMovie.duration ? parseInt(actualMovie.duration) : 120, // Default to 2 hours if unknown
-        posterUrl: actualMovie.posterUrl,
-        backdropUrl: actualMovie.backdropUrl || actualMovie.posterUrl,
-        rating: "PG-13", // Default
-        genreIds: [1], // Default - would be mapped from categories in a full implementation
-        videoSources: actualMovie.episodes.map(episode => ({
-          type: "embed",
-          url: episode.embedUrl,
-          label: episode.name,
-          quality: actualMovie.quality || "HD"
-        })),
       };
       
-      // Create the new catalog movie
-      const newMovie = await storage.createMovie(catalogMovie);
-      
-      // Create movie upload record
-      const admin = req.user?.id || 1; // Default to ID 1 if not authenticated
-      await storage.createMovieUpload({
-        movieId: newMovie.id,
-        uploadedBy: admin,
-        status: "published",
-        approvedBy: admin,
-        reviewNotes: `Imported from PhimAPI (ID: ${apiMovie.id}, Slug: ${apiMovie.slug})`,
-        publishedAt: new Date()
+      console.log("Sending standard paginated response with movie count:", moviesForResponse.length);
+      return res.json(response);
+    } catch (error) {
+      console.error("Error in /api/movies endpoint:", error);
+      return res.status(500).json({ 
+        message: "Error fetching movies", 
+        error: String(error) 
       });
-      
-      // Update API movie status to published
-      await storage.updateApiMovie(movieId, { status: "published" });
-      
-      res.json({
-        message: "Movie successfully imported to catalog",
-        apiMovie,
-        catalogMovie: newMovie
-      });
-    } catch (error) {
-      console.error(`Failed to import API movie ID ${req.params.id}:`, error);
-      res.status(500).json({ message: "Failed to import movie to catalog" });
     }
   });
-  
-  // Get movies by category with pagination
-  app.get('/api/categories/:slug/movies', async (req, res) => {
+
+  // Movie details endpoint
+  router.get("/movies/:id", async (req, res) => {
     try {
-      const { slug } = req.params;
-      const page = parseInt(req.query.page as string, 10) || 1;
-      const limit = parseInt(req.query.limit as string, 10) || 20;
+      const movieId = parseInt(req.params.id);
+      console.log(`GET /api/movies/${movieId}`);
       
-      // Import the service function
-      const { getMoviesByCategory } = await import('./services/category/service');
-      
-      // Get movies for this category
-      const result = await getMoviesByCategory(slug, page, limit);
-      
-      res.json(result);
-    } catch (error) {
-      console.error('Error getting movies by category:', error);
-      res.status(500).json({ error: 'Failed to get movies by category' });
-    }
-  });
-  
-  // Get all categories
-  app.get('/api/categories', async (req, res) => {
-    try {
-      const categories = await storage.getAllCategories();
-      res.json(categories);
-    } catch (error) {
-      console.error('Error getting categories:', error);
-      res.status(500).json({ error: 'Failed to get categories' });
-    }
-  });
-  
-  // Test endpoint for category processing
-  app.get('/api/test/categories/:movieId', async (req, res) => {
-    try {
-      const movieId = parseInt(req.params.movieId, 10);
-      if (isNaN(movieId)) {
-        return res.status(400).json({ error: 'Invalid movie ID' });
+      // Check if this is an API movie ID (has ID > 10000)
+      if (movieId > 10000) {
+        const apiMovieId = movieId - 10000;
+        console.log(`Fetching API movie with ID: ${apiMovieId}`);
+        
+        const apiMovie = await storage.getApiMovieById(apiMovieId);
+        if (!apiMovie) {
+          return res.status(404).json({ message: "API Movie not found" });
+        }
+        
+        // Transform API movie to response format with episodes info
+        const genreMap: Record<string, number> = {
+          "Action": 1,
+          "Adventure": 2,
+          "Comedy": 3,
+          "Drama": 4,
+          "Horror": 5,
+          "Science Fiction": 6,
+          "Thriller": 7,
+          "Documentary": 8,
+          "Animation": 9
+        };
+        
+        const categories: string[] = Array.isArray(apiMovie.categories) ? apiMovie.categories : [];
+        const genreIds = categories.length > 0 
+          ? categories.map(cat => {
+              const genreId = genreMap[cat as keyof typeof genreMap];
+              return genreId || 1;
+            })
+          : [1];
+        
+        const castArray = Array.isArray(apiMovie.actors) ? apiMovie.actors : 
+                       (typeof apiMovie.actors === 'string' ? apiMovie.actors.split(',') : []);
+        
+        const episodesArray = Array.isArray(apiMovie.episodes) ? apiMovie.episodes : [];
+        
+        const responseMovie = {
+          id: apiMovie.id + 10000,
+          title: apiMovie.title || 'Unknown Title',
+          description: apiMovie.description || '',
+          releaseYear: parseInt(apiMovie.releaseYear as string) || 2023,
+          duration: apiMovie.duration || 100,
+          rating: "PG-13",
+          videoSources: [],
+          genreIds: genreIds,
+          director: apiMovie.director || "Unknown Director",
+          cast: castArray,
+          posterUrl: apiMovie.posterUrl || '',
+          backdropUrl: apiMovie.backdropUrl || '',
+          trailerUrl: apiMovie.trailerUrl || '',
+          imdbRating: apiMovie.imdbRating || 7.5,
+          viewCount: 0,
+          isApiMovie: true,
+          episodes: episodesArray,
+          createdAt: apiMovie.createdAt || new Date().toISOString(),
+          updatedAt: apiMovie.updatedAt || new Date().toISOString()
+        };
+        
+        return res.json(responseMovie);
       }
       
-      // Get the movie
-      const movie = await storage.getApiMovieById(movieId);
+      // Otherwise, it's a regular movie
+      console.log(`Fetching regular movie with ID: ${movieId}`);
+      const movie = await storage.getMovieById(movieId);
+      
       if (!movie) {
-        return res.status(404).json({ error: 'Movie not found' });
+        return res.status(404).json({ message: "Movie not found" });
       }
       
-      // Get the current categories
-      const categories = await storage.getCategoriesByMovieId(movieId);
-      
-      // Get the service
-      const { processMovieCategories } = await import('./services/category/service');
-      
-      // Sample categories for testing (both string and object format)
-      const testCategories = [
-        { id: 'test-id-1', name: 'Test Category 1', slug: 'test-category-1' },
-        { id: 'test-id-2', name: 'Test Category 2', slug: 'test-category-2' },
-        'String Category 1',
-        'String Category 2'
-      ];
-      
-      // Process the categories
-      await processMovieCategories(movie, testCategories);
-      
-      // Get the updated categories
-      const updatedCategories = await storage.getCategoriesByMovieId(movieId);
-      
-      res.json({
-        movie,
-        previousCategories: categories,
-        testCategories,
-        updatedCategories
-      });
+      return res.json(movie);
     } catch (error) {
-      console.error('Error testing categories:', error);
-      res.status(500).json({ error: 'Failed to test categories', details: error.message });
+      console.error(`Error fetching movie details: ${error}`);
+      return res.status(500).json({ 
+        message: "Error fetching movie details", 
+        error: String(error) 
+      });
     }
   });
 
-  // Initialize the scheduled movie sync if not in test environment
-  if (process.env.NODE_ENV !== 'test') {
-    initScheduledSync();
-  }
+  // Categories endpoint
+  router.get("/categories", async (req, res) => {
+    try {
+      console.log("GET /api/categories");
+      const categories = await storage.getAllCategories();
+      return res.json(categories);
+    } catch (error) {
+      console.error(`Error fetching categories: ${error}`);
+      return res.status(500).json({ 
+        message: "Error fetching categories", 
+        error: String(error) 
+      });
+    }
+  });
 
+  // Admin routes
+  router.post("/admin/sync-movies", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      console.log("POST /api/admin/sync-movies");
+      
+      // Start movie sync process in the background
+      syncMovies().catch(err => console.error("Error in movie sync:", err));
+      
+      return res.json({ message: "Movie sync started" });
+    } catch (error) {
+      console.error(`Error starting movie sync: ${error}`);
+      return res.status(500).json({ 
+        message: "Error starting movie sync", 
+        error: String(error) 
+      });
+    }
+  });
+
+  router.post("/admin/fetch-page", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      console.log("POST /api/admin/fetch-page", req.body);
+      
+      const { page } = req.body;
+      if (!page || isNaN(parseInt(page as string))) {
+        return res.status(400).json({ message: "Invalid page number" });
+      }
+      
+      const pageNum = parseInt(page as string);
+      const result = await fetchAndStorePage(pageNum);
+      
+      return res.json(result);
+    } catch (error) {
+      console.error(`Error fetching API page: ${error}`);
+      return res.status(500).json({ 
+        message: "Error fetching API page", 
+        error: String(error) 
+      });
+    }
+  });
+
+  router.post("/admin/fetch-movie-detail", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      console.log("POST /api/admin/fetch-movie-detail", req.body);
+      
+      const { id, slug, type } = req.body;
+      if (!id || !slug) {
+        return res.status(400).json({ message: "Missing id or slug" });
+      }
+      
+      const result = await fetchAndStoreMovieDetail(id, slug, type);
+      
+      return res.json(result);
+    } catch (error) {
+      console.error(`Error fetching movie detail: ${error}`);
+      return res.status(500).json({ 
+        message: "Error fetching movie detail", 
+        error: String(error) 
+      });
+    }
+  });
+
+  router.post("/admin/process-details", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      console.log("POST /api/admin/process-details");
+      
+      // Process pending detail fetches in the background
+      processPendingDetailFetches().catch(err => console.error("Error processing movie details:", err));
+      
+      return res.json({ message: "Processing pending movie details" });
+    } catch (error) {
+      console.error(`Error processing movie details: ${error}`);
+      return res.status(500).json({ 
+        message: "Error processing movie details", 
+        error: String(error) 
+      });
+    }
+  });
+
+  router.post("/admin/publish-movie/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const id = parseInt(req.params.id);
+      console.log(`POST /api/admin/publish-movie/${id}`);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid movie ID" });
+      }
+      
+      const result = await storage.updateApiMovieStatus(id, 'published');
+      
+      return res.json({
+        message: result ? "Movie published successfully" : "Failed to publish movie",
+        success: result
+      });
+    } catch (error) {
+      console.error(`Error publishing movie: ${error}`);
+      return res.status(500).json({ 
+        message: "Error publishing movie", 
+        error: String(error) 
+      });
+    }
+  });
+
+  // Register routes
+  app.use("/api", router);
+
+  // Initialize the HTTP server
   const httpServer = createServer(app);
+
   return httpServer;
 }
