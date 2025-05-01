@@ -1,0 +1,105 @@
+{
+  "status": true,
+  "msg": "",
+  "movie": {
+    "tmdb": {
+      "type": "movie",
+      "id": "1233069",
+      "season": null,
+      "vote_average": 5,
+      "vote_count": 2
+    },
+    "imdb": {
+      "id": null
+    },
+    "created": {
+      "time": "2025-05-01T07:31:32.000Z"
+    },
+    "modified": {
+      "time": "2025-05-01T07:31:32.000Z"
+    },
+    "_id": "8141c60e393b72d67396df39cdda9c1e",
+    "name": "Ngoài Lãnh Thổ",
+    "slug": "ngoai-lanh-tho",
+    "origin_name": "Exterritorial",
+    "content": "Trong bộ phim hành động giật gân này do Christian Zübert (&quot;Lommbock&quot;) đạo diễn, một cựu quân nhân chiến đấu tại lãnh sự quán Hoa Kỳ để tìm cậu con trai mất tích.",
+    "type": "single",
+    "status": "completed",
+    "poster_url": "https://phimimg.com/upload/vod/20250501-1/51a02fb87bf8a79399bca21ff12b669f.jpg",
+    "thumb_url": "https://phimimg.com/upload/vod/20250501-1/df170367d789cbebd097b5579a4c5c7e.jpg",
+    "is_copyright": false,
+    "sub_docquyen": false,
+    "chieurap": false,
+    "trailer_url": "https://www.youtube.com/watch?v=tlLsFEDHtWs",
+    "time": "109 phút",
+    "episode_current": "Full",
+    "episode_total": "1",
+    "quality": "FHD",
+    "lang": "Vietsub",
+    "notify": "",
+    "showtimes": "",
+    "year": 2025,
+    "view": 0,
+    "actor": [
+      "Jeanne Goursaud",
+      "Dougray Scott",
+      "Lera Abova",
+      "Emanuel Fellmer",
+      "Annabelle Mandeng",
+      "Kayode Akinyemi",
+      "Nina Liu",
+      "Susanne Michel",
+      "Kris Saddler",
+      "Anon Mall",
+      "Samia Hofmann",
+      "Jeremy Schuetze",
+      "Michael Rogers",
+      "Lara Babalola",
+      "Samuel Tehrani",
+      "Melissa Holroyd",
+      "Thomas Perk"
+    ],
+    "director": [
+      "Christian Zübert"
+    ],
+    "category": [
+      {
+        "id": "a7b065b92ad356387ef2e075dee66529",
+        "name": "Tâm Lý",
+        "slug": "tam-ly"
+      },
+      {
+        "id": "9822be111d2ccc29c7172c78b8af8ff5",
+        "name": "Hành Động",
+        "slug": "hanh-dong"
+      }
+    ],
+    "country": [
+      {
+        "id": "2e384758a7de3c0ff62a431a03957335",
+        "name": "Áo",
+        "slug": "ao"
+      },
+      {
+        "id": "24a5bf049aeef94ab79bad1f73f16b92",
+        "name": "Đức",
+        "slug": "duc"
+      }
+    ]
+  },
+  "episodes": [
+    {
+      "server_name": "#Hà Nội (Vietsub)",
+      "server_data": [
+        {
+          "name": "Full",
+          "slug": "full",
+          "filename": "Ngoài Lãnh Thổ - Exterritorial - 2025 - 1080p - Vietsub - Full",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250501/tyI8DksG/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250501/tyI8DksG/index.m3u8"
+        }
+      ]
+    }
+  ]
+}
+Explain
