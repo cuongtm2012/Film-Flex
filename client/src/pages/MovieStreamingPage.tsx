@@ -309,6 +309,8 @@ const MovieStreamingPage = () => {
   const [videoSrc, setVideoSrc] = useState('');
   // Track if it's an embed source (like iframe for API movies)
   const [isEmbedSource, setIsEmbedSource] = useState(false);
+  // Track currently selected episode
+  const [selectedEpisode, setSelectedEpisode] = useState(0);
   
   // Load video source when movie data changes
   useEffect(() => {
@@ -319,6 +321,9 @@ const MovieStreamingPage = () => {
         setIsEmbedSource(true);
         // Prioritize embedUrl for API movies, fall back to videoUrl
         setVideoSrc(movie.embedUrl || movie.videoUrl || '');
+        
+        // Reset selected episode when movie changes
+        setSelectedEpisode(0);
       } else {
         // Regular movies use the existing flow
         setIsEmbedSource(false);
@@ -326,6 +331,43 @@ const MovieStreamingPage = () => {
       }
     }
   }, [movie]);
+  
+  // Handle episode selection for API movies
+  useEffect(() => {
+    if (movie?.isApiMovie && movie.episodes && Array.isArray(movie.episodes)) {
+      try {
+        // The episodes data structure can be complex with servers and multiple episodes
+        // We need to find the appropriate embed URL based on the selected episode index
+        let allEpisodes: any[] = [];
+        let currentEpisodeUrl = '';
+        
+        // PhimAPI format has servers with arrays of episodes
+        if (movie.episodes.some(ep => ep.server_name)) {
+          // Get the first server's episodes as default
+          const firstServer = movie.episodes[0];
+          if (firstServer && firstServer.server_data && Array.isArray(firstServer.server_data)) {
+            allEpisodes = firstServer.server_data;
+            if (allEpisodes[selectedEpisode]) {
+              currentEpisodeUrl = allEpisodes[selectedEpisode].link_embed;
+            }
+          }
+        } else if (Array.isArray(movie.episodes)) {
+          // Simple array of episodes
+          allEpisodes = movie.episodes;
+          if (allEpisodes[selectedEpisode] && allEpisodes[selectedEpisode].link_embed) {
+            currentEpisodeUrl = allEpisodes[selectedEpisode].link_embed;
+          }
+        }
+        
+        if (currentEpisodeUrl) {
+          console.log('Setting episode URL:', currentEpisodeUrl);
+          setVideoSrc(currentEpisodeUrl);
+        }
+      } catch (error) {
+        console.error('Error processing episodes:', error);
+      }
+    }
+  }, [movie, selectedEpisode]);
 
   // Handle comment submission
   const handleCommentSubmit = (e: React.FormEvent) => {
