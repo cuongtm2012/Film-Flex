@@ -224,13 +224,12 @@ const Pagination = ({ currentPage, totalPages, onChange }: {
   );
 };
 
-// Define a MovieWithPagination interface
-interface MovieWithPagination {
-  movies: Movie[];
-  total: number;
-  totalPages: number;
-}
-
+// This interface is unused since the API returns an array directly
+// interface MovieWithPagination {
+//   movies: Movie[];
+//   total: number;
+//   totalPages: number;
+// }
 
 
 // Main component
