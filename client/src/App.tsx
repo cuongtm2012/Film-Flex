@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import NewHomePage from "@/pages/NewHomePage";
+import HomePage from "@/pages/HomePage"; // Import our new HomePage with pagination
 import MovieDetails from "@/pages/MovieDetails";
 import WatchMovie from "@/pages/WatchMovie";
 import MovieStreamingPage from "@/pages/MovieStreamingPage";
