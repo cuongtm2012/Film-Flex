@@ -923,23 +923,25 @@ const MovieStreamingPage = () => {
 
           {/* Movie actions */}
           <div className="flex items-center justify-between mb-6 bg-zinc-900 p-4 rounded-lg">
-            <div className="flex items-center space-x-6">
+            <div className="flex flex-wrap gap-3">
               <button 
-                className={`flex items-center space-x-2 ${isLiked ? 'text-red-500' : 'text-white hover:text-red-500'} transition-colors`}
+                className={`flex items-center space-x-2 px-3 py-1.5 rounded-full ${isLiked ? 'bg-red-600 text-white' : 'bg-zinc-800 text-white hover:bg-zinc-700'} transition-colors`}
                 onClick={() => {
                   likeMovieMutation.mutate(!isLiked);
                   setIsLiked(!isLiked);
                 }}
                 disabled={likeMovieMutation.isPending}
+                aria-label={isLiked ? "Remove from favorites" : "Add to favorites"}
               >
-                <ThumbsUp className={`h-5 w-5 ${likeMovieMutation.isPending ? 'animate-pulse' : ''}`} />
+                <Heart className={`h-5 w-5 ${isLiked ? 'fill-white' : ''} ${likeMovieMutation.isPending ? 'animate-pulse' : ''}`} />
                 <span>{isLiked ? 'Liked' : 'Like'}</span>
               </button>
               
               <div className="relative">
                 <button 
-                  className={`flex items-center space-x-2 ${shareOpen ? 'text-blue-500' : 'text-white hover:text-red-500'} transition-colors`}
+                  className={`flex items-center space-x-2 px-3 py-1.5 rounded-full ${shareOpen ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-white hover:bg-zinc-700'} transition-colors`}
                   onClick={() => setShareOpen(!shareOpen)}
+                  aria-label="Share this movie"
                 >
                   <Share2 className="h-5 w-5" />
                   <span>Share</span>
@@ -949,19 +951,27 @@ const MovieStreamingPage = () => {
                   <div className="absolute top-full left-0 mt-2 p-3 bg-zinc-800 rounded-lg shadow-xl z-50 w-72">
                     <h4 className="font-medium text-white mb-2">Share this movie</h4>
                     <div className="flex space-x-3 mb-3">
-                      <button className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700">
+                      <a 
+                        href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors"
+                        aria-label="Share on Facebook"
+                      >
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"></path></svg>
-                      </button>
-                      <button className="bg-blue-400 text-white p-2 rounded-full hover:bg-blue-500">
+                      </a>
+                      
+                      <a 
+                        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Watching ${movie?.title || 'this movie'} on FilmFlex`)}&url=${encodeURIComponent(window.location.href)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-blue-400 text-white p-2 rounded-full hover:bg-blue-500 transition-colors"
+                        aria-label="Share on Twitter"
+                      >
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M22.162 5.656a8.384 8.384 0 0 1-2.402.658A4.196 4.196 0 0 0 21.6 4c-.82.488-1.719.83-2.656 1.015a4.182 4.182 0 0 0-7.126 3.814 11.874 11.874 0 0 1-8.62-4.37 4.168 4.168 0 0 0-.566 2.103c0 1.45.738 2.731 1.86 3.481a4.168 4.168 0 0 1-1.894-.523v.052a4.185 4.185 0 0 0 3.355 4.101 4.21 4.21 0 0 1-1.89.072A4.185 4.185 0 0 0 7.97 16.65a8.394 8.394 0 0 1-6.191 1.732 11.83 11.83 0 0 0 6.41 1.88c7.693 0 11.9-6.373 11.9-11.9 0-.18-.005-.362-.013-.54a8.496 8.496 0 0 0 2.087-2.165z"></path></svg>
-                      </button>
-                      <button className="bg-green-600 text-white p-2 rounded-full hover:bg-green-700">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20 10.8044C20 15.1235 16.5956 18.6088 12 18.6088C10.5346 18.6088 9.1571 18.1885 8 17.4568L4 18.6088L5.15217 15.3035C4.36285 14.0479 3.91304 12.5034 3.91304 10.8731C3.91304 6.55404 7.31739 3 11.913 3C16.5087 3 20 6.48539 20 10.8044ZM12 4.24705C8.0326 4.24705 4.82609 7.20264 4.82609 10.8731C4.82609 12.4862 5.35869 13.9621 6.25 15.0254L5.55435 17.0611L7.73913 16.3979C8.80435 17.1297 10.4174 17.5501 12.0087 17.5501C15.9761 17.5501 19.0913 14.5258 19.0913 10.8553C19.0826 7.1337 15.9674 4.24705 12 4.24705ZM16.0304 12.8377C16.2913 12.9065 16.4695 12.9409 16.5304 13.0441C16.5826 13.1473 16.5826 13.6708 16.3304 14.2973C16.0783 14.9237 14.9043 15.5501 14.4261 15.603C13.9478 15.6707 13.5391 15.6707 13.0957 15.5329C12.8 15.4502 12.4174 15.3419 11.9391 15.1681C9.93043 14.3331 8.66087 12.4862 8.47826 12.2437C8.29565 12.0012 7.4 10.8221 7.4 9.5946C7.4 8.36712 8.02174 7.78101 8.24348 7.54852C8.46522 7.31603 8.7391 7.24737 8.9043 7.24737C9.06956 7.24737 9.2348 7.24737 9.38261 7.2561C9.53913 7.26483 9.73913 7.26483 9.93913 7.81768C10.1478 8.38791 10.6957 9.62412 10.7652 9.72605C10.8348 9.828 10.8348 9.94737 10.7826 10.0665C10.7304 10.1857 10.6783 10.3221 10.5565 10.459C10.4348 10.5958 10.3043 10.7584 10.1957 10.8644C10.087 10.9703 9.97391 11.0934 10.1 11.3014C10.2261 11.5095 10.6957 12.2524 11.4 12.8721C12.2957 13.6535 13.0435 13.911 13.2522 14.0144C13.4609 14.1179 13.5826 14.0919 13.7043 13.9581C13.8261 13.8243 14.2696 13.3009 14.4174 13.0684C14.5652 12.8358 14.713 12.8721 14.9043 12.9237C15.0957 12.9753 16.3391 13.5799 16.5478 13.688C16.7565 13.7961 16.8957 13.8473 16.9652 13.9063C17.0348 13.9495 17.0348 14.419 16.8174 14.9718C16.6 15.5247 15.6739 16.0309 15.1304 16.0309C14.587 16.0309 12.0435 15.1441 10.0087 13.2454C9.36522 12.6408 8.83913 11.9534 8.43478 11.2316C8.03913 10.5195 7.71739 9.76339 7.4 9.01112C7.06956 8.15582 7.86956 7.50603 8.24348 7.24737L8.25217 7.24737C8.47391 7.02362 8.73043 6.95496 8.9043 6.95496H9.38261C9.54783 6.95496 9.73913 6.95496 9.93913 7.50781C10.1478 8.07801 10.6957 9.31424 10.7652 9.41617C10.8261 9.50056 10.8348 9.62848 10.7826 9.7477C10.7478 9.82072 10.7304 9.88938 10.6783 9.96677C10.5478 10.1575 10.4348 10.3027 10.3217 10.4159C10.213 10.5219 10.1 10.6537 10.2261 10.8618C10.3522 11.0699 10.8217 11.8127 11.5261 12.4324L11.5261 12.4325C12.4217 13.2139 13.1696 13.4714 13.3696 13.5748L13.3783 13.5748C13.587 13.6783 13.7087 13.6522 13.8304 13.5184C13.9522 13.3847 14.3957 12.8612 14.5435 12.6287C14.6913 12.3962 14.8391 12.4324 15.0304 12.484L16.0304 12.8377Z"></path></svg>
-                      </button>
-                      <button className="bg-pink-600 text-white p-2 rounded-full hover:bg-pink-700">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12a10 10 0 0 0 10 10c5.5 0 10-4.5 10-10S17.5 2 12 2zm5.75 11.9c-.15.3-.47.5-.85.5H7.1c-.38 0-.7-.2-.85-.5-.16-.31-.16-.7.01-1l4.08-8.5c.14-.31.47-.5.84-.5s.7.19.85.5l4.08 8.5c.16.3.16.69-.01 1z"></path></svg>
-                      </button>
+                      </a>
                     </div>
+                    
                     <div className="relative flex items-center">
                       <input 
                         type="text" 
@@ -974,9 +984,10 @@ const MovieStreamingPage = () => {
                         onClick={() => {
                           navigator.clipboard.writeText(window.location.href);
                           toast({
-                            title: "Copied!",
-                            description: "Link copied to clipboard",
+                            title: "Link copied",
+                            description: "Movie link copied to clipboard"
                           });
+                          setShareOpen(false);
                         }}
                       >
                         Copy
@@ -986,25 +997,61 @@ const MovieStreamingPage = () => {
                 )}
               </div>
               
+              <button 
+                className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-zinc-800 text-white hover:bg-zinc-700 transition-colors"
+                onClick={() => {
+                  toast({
+                    title: "Added to list",
+                    description: "Movie has been added to your watchlist"
+                  });
+                }}
+                aria-label="Add to watchlist"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Add to List</span>
+              </button>
+              
               <a 
                 href="#comments"
-                className="flex items-center space-x-2 text-white hover:text-red-500 transition-colors"
+                className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-zinc-800 text-white hover:bg-zinc-700 transition-colors"
+                aria-label="Go to comments"
               >
                 <MessageSquare className="h-5 w-5" />
                 <span>Comment</span>
               </a>
+              
+              {movie?.trailerUrl && (
+                <button 
+                  className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-zinc-800 text-white hover:bg-zinc-700 transition-colors"
+                  onClick={() => {
+                    window.open(movie.trailerUrl || '', '_blank');
+                  }}
+                  aria-label="Watch trailer"
+                >
+                  <Play className="h-5 w-5" />
+                  <span>Trailer</span>
+                </button>
+              )}
             </div>
-            <button 
-              className={`flex items-center space-x-2 ${isLiked ? 'text-red-500' : 'text-white hover:text-red-500'} transition-colors`}
-              onClick={() => {
-                likeMovieMutation.mutate(!isLiked);
-                setIsLiked(!isLiked);
-              }}
-              disabled={likeMovieMutation.isPending}
-            >
-              <Heart className={`h-5 w-5 ${likeMovieMutation.isPending ? 'animate-pulse' : ''} ${isLiked ? 'fill-current' : ''}`} />
-              <span>{isLiked ? 'Favorited' : 'Favorite'}</span>
-            </button>
+              
+            <div className="hidden md:flex items-center space-x-2">
+              {movie?.imdbRating > 0 && (
+                <div className="flex items-center space-x-1 bg-yellow-500 text-black px-2 py-1 rounded text-sm font-medium">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                  </svg>
+                  <span>{movie.imdbRating.toFixed(1)}</span>
+                </div>
+              )}
+              
+              <div className="flex items-center space-x-1 bg-zinc-700 text-white px-2 py-1 rounded text-sm">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                <span>{movie.viewCount || 0}</span>
+              </div>
+            </div>
           </div>
           
           {/* Movie details */}
@@ -1034,10 +1081,10 @@ const MovieStreamingPage = () => {
           </div>
           
           {/* Comments section */}
-          <div className="mb-8 bg-zinc-900 p-6 rounded-lg">
+          <div id="comments" className="mb-8 bg-zinc-900 p-6 rounded-lg scroll-mt-20">
             <h2 className="text-xl font-bold mb-4 flex items-center">
               <MessageSquare className="h-5 w-5 mr-2" />
-              Comments
+              Comments and Reviews
             </h2>
             
             {/* Comment form */}
@@ -1049,51 +1096,109 @@ const MovieStreamingPage = () => {
                 <div className="flex-1">
                   <textarea
                     className="w-full p-3 bg-zinc-800 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-red-500"
-                    placeholder="Add a comment..."
+                    placeholder="Add a comment or review..."
                     rows={3}
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
+                    aria-label="Add your comment"
                   ></textarea>
-                  <div className="flex justify-end mt-2">
+                  
+                  <div className="flex justify-between items-center mt-2">
+                    <div className="flex items-center text-gray-400 text-sm">
+                      <span>Remember to follow community guidelines</span>
+                    </div>
                     <button 
                       type="submit"
-                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center space-x-1"
                       disabled={!commentText.trim()}
                     >
-                      Comment
+                      <MessageSquare className="h-4 w-4" />
+                      <span>Comment</span>
                     </button>
                   </div>
                 </div>
               </div>
             </form>
             
-            {/* Sample comments */}
+            {/* Comment filters */}
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800">
+              <div className="flex space-x-2">
+                <button className="px-3 py-1 bg-zinc-800 rounded-full text-white text-sm hover:bg-zinc-700 transition-colors">
+                  All Comments
+                </button>
+                <button className="px-3 py-1 text-gray-400 text-sm hover:text-white transition-colors">
+                  Top Rated
+                </button>
+                <button className="px-3 py-1 text-gray-400 text-sm hover:text-white transition-colors">
+                  Newest
+                </button>
+              </div>
+              <div className="text-sm text-gray-400">
+                <span>25 comments</span>
+              </div>
+            </div>
+            
+            {/* Comments list */}
             <div className="space-y-6">
-              <div className="flex items-start space-x-4">
-                <div className="w-10 h-10 rounded-full bg-blue-500 flex-shrink-0 flex items-center justify-center text-white font-medium">
-                  J
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center mb-1">
-                    <h4 className="font-medium text-white mr-2">John Doe</h4>
-                    <span className="text-xs text-gray-400">2 days ago</span>
+              {/* Comment with replies */}
+              <div className="space-y-4">
+                <div className="flex items-start space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-blue-500 flex-shrink-0 flex items-center justify-center text-white font-medium">
+                    J
                   </div>
-                  <p className="text-gray-300">
-                    This is an amazing movie! The cinematography and acting were outstanding. I would definitely recommend it to anyone who enjoys this genre.
-                  </p>
-                  <div className="flex items-center space-x-4 mt-2 text-sm text-gray-400">
-                    <button className="flex items-center space-x-1 hover:text-white">
-                      <ThumbsUp className="h-4 w-4" />
-                      <span>23</span>
-                    </button>
-                    <button className="hover:text-white flex items-center space-x-1">
-                      <CornerUpRight className="h-4 w-4" />
-                      <span>Reply</span>
-                    </button>
+                  <div className="flex-1">
+                    <div className="flex items-center mb-1">
+                      <h4 className="font-medium text-white mr-2">John Doe</h4>
+                      <span className="text-xs text-gray-400">2 days ago</span>
+                    </div>
+                    <p className="text-gray-300">
+                      This is an amazing movie! The cinematography and acting were outstanding. I would definitely recommend it to anyone who enjoys this genre.
+                    </p>
+                    <div className="flex items-center space-x-4 mt-2 text-sm text-gray-400">
+                      <button className="flex items-center space-x-1 hover:text-white transition-colors">
+                        <ThumbsUp className="h-4 w-4" />
+                        <span>23</span>
+                      </button>
+                      <button className="flex items-center space-x-1 hover:text-white transition-colors">
+                        <CornerUpRight className="h-4 w-4" />
+                        <span>Reply</span>
+                      </button>
+                      <button className="hover:text-white transition-colors">
+                        <span>Report</span>
+                      </button>
+                    </div>
+                    
+                    {/* Reply */}
+                    <div className="pl-8 mt-4 space-y-4">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 rounded-full bg-purple-500 flex-shrink-0 flex items-center justify-center text-white font-medium text-sm">
+                          M
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center mb-1">
+                            <h4 className="font-medium text-white mr-2">Mike Johnson</h4>
+                            <span className="text-xs text-gray-400">1 day ago</span>
+                          </div>
+                          <p className="text-gray-300 text-sm">
+                            I agree! The director really outdid themselves on this one. The score was phenomenal too!
+                          </p>
+                          <div className="flex items-center space-x-4 mt-2 text-xs text-gray-400">
+                            <button className="flex items-center space-x-1 hover:text-white transition-colors">
+                              <ThumbsUp className="h-3 w-3" />
+                              <span>7</span>
+                            </button>
+                            <button className="hover:text-white transition-colors">
+                              <span>Report</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
               
+              {/* Regular comment */}
               <div className="flex items-start space-x-4">
                 <div className="w-10 h-10 rounded-full bg-green-500 flex-shrink-0 flex items-center justify-center text-white font-medium">
                   S
@@ -1107,17 +1212,59 @@ const MovieStreamingPage = () => {
                     I had high expectations for this one and it didn't disappoint. The plot twists kept me on the edge of my seat the entire time!
                   </p>
                   <div className="flex items-center space-x-4 mt-2 text-sm text-gray-400">
-                    <button className="flex items-center space-x-1 hover:text-white">
+                    <button className="flex items-center space-x-1 hover:text-white transition-colors">
                       <ThumbsUp className="h-4 w-4" />
                       <span>15</span>
                     </button>
-                    <button className="hover:text-white flex items-center space-x-1">
+                    <button className="flex items-center space-x-1 hover:text-white transition-colors">
                       <CornerUpRight className="h-4 w-4" />
                       <span>Reply</span>
+                    </button>
+                    <button className="hover:text-white transition-colors">
+                      <span>Report</span>
                     </button>
                   </div>
                 </div>
               </div>
+              
+              {/* Additional comment with spoiler warning */}
+              <div className="flex items-start space-x-4">
+                <div className="w-10 h-10 rounded-full bg-yellow-500 flex-shrink-0 flex items-center justify-center text-white font-medium">
+                  R
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center mb-1">
+                    <h4 className="font-medium text-white mr-2">Robert Chen</h4>
+                    <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full mr-2">Spoiler Alert</span>
+                    <span className="text-xs text-gray-400">3 days ago</span>
+                  </div>
+                  <div className="p-3 bg-zinc-800 rounded-md">
+                    <p className="text-gray-300">
+                      Click to reveal spoiler content
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-4 mt-2 text-sm text-gray-400">
+                    <button className="flex items-center space-x-1 hover:text-white transition-colors">
+                      <ThumbsUp className="h-4 w-4" />
+                      <span>9</span>
+                    </button>
+                    <button className="flex items-center space-x-1 hover:text-white transition-colors">
+                      <CornerUpRight className="h-4 w-4" />
+                      <span>Reply</span>
+                    </button>
+                    <button className="hover:text-white transition-colors">
+                      <span>Report</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Load more button */}
+            <div className="mt-8 flex justify-center">
+              <button className="px-4 py-2 bg-zinc-800 rounded-full text-white hover:bg-zinc-700 transition-colors">
+                Load More Comments
+              </button>
             </div>
           </div>
         </div>
