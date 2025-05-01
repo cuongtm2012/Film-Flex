@@ -382,9 +382,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid genre ID" });
       }
       
-      const movies = await storage.getMoviesByGenre(genreId);
-      res.json(movies);
+      // Check if pagination parameters are provided
+      const page = req.query.page ? parseInt(req.query.page as string) : 1;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      
+      // Get paginated movies by genre
+      const result = await storage.getMoviesByGenrePaginated(genreId, page, limit);
+      
+      res.json({
+        data: result.movies,
+        pagination: {
+          current_page: page,
+          total_pages: result.totalPages,
+          total: result.total,
+          per_page: limit
+        }
+      });
     } catch (error) {
+      console.error('Error retrieving movies by genre:', error);
       res.status(500).json({ message: "Failed to retrieve movies by genre" });
     }
   });
@@ -396,9 +411,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Search query is required" });
       }
       
-      const movies = await storage.searchMovies(query);
-      res.json(movies);
+      // Check if pagination parameters are provided
+      const page = req.query.page ? parseInt(req.query.page as string) : 1;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      
+      // Get paginated search results
+      const result = await storage.searchMoviesPaginated(query, page, limit);
+      
+      res.json({
+        data: result.movies,
+        pagination: {
+          current_page: page,
+          total_pages: result.totalPages,
+          total: result.total,
+          per_page: limit
+        }
+      });
     } catch (error) {
+      console.error('Error searching movies:', error);
       res.status(500).json({ message: "Failed to search movies" });
     }
   });

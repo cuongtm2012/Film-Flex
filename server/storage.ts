@@ -196,11 +196,12 @@ export class DatabaseStorage implements IStorage {
     // Calculate total pages
     const totalPages = Math.ceil(total / limit);
     
-    // Get paginated movies
+    // Get paginated movies - use id for ordering until migration is complete
+    // We'll switch to createdAt after the migration
     const movieResults = await db
       .select()
       .from(movies)
-      .orderBy(desc(movies.createdAt))
+      .orderBy(desc(movies.id))
       .limit(limit)
       .offset(offset);
     
@@ -242,12 +243,12 @@ export class DatabaseStorage implements IStorage {
     // Calculate total pages
     const totalPages = Math.ceil(total / limit);
     
-    // Get paginated movies
+    // Get paginated movies - use id for ordering until migration is complete
     const movieResults = await db
       .select()
       .from(movies)
       .where(eq(movies.genreIds, [genreId]))
-      .orderBy(desc(movies.createdAt))
+      .orderBy(desc(movies.id))
       .limit(limit)
       .offset(offset);
     
@@ -290,7 +291,7 @@ export class DatabaseStorage implements IStorage {
     // Calculate total pages
     const totalPages = Math.ceil(total / limit);
     
-    // Get paginated movies
+    // Get paginated movies - use id for ordering until migration is complete
     const movieResults = await db
       .select()
       .from(movies)
@@ -300,7 +301,7 @@ export class DatabaseStorage implements IStorage {
           like(movies.description, `%${query}%`)
         )
       )
-      .orderBy(desc(movies.createdAt))
+      .orderBy(desc(movies.id))
       .limit(limit)
       .offset(offset);
     
