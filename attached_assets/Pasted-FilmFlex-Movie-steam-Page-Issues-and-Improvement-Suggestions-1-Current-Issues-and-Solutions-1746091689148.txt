@@ -1,0 +1,51 @@
+FilmFlex Movie steam Page - Issues and Improvement Suggestions
+
+## 1. Current Issues and Solutions
+
+- **Issue: Movie cannot be played**
+  - The video player iframe does not load the movie, likely because data from the movie API (phimapi) is not fetched or the embed URL is missing/incorrect.
+  - **Suggested Solution:** Resync the movie data from the phimapi to ensure the embed URLs are correctly fetched and updated in the frontend. Also, implement error handling and fallback messages if the video fails to load.
+
+- **Issue: Error when clicking on recommended movies**
+  - Clicking on movies in the "Recommended For You" section causes errors, possibly due to broken links, incomplete data, or routing issues.
+  - **Suggested Solution:** Verify the URLs and data for recommended movies, ensure frontend routing handles movie links correctly, and add error handling for incomplete or missing data.
+
+---
+
+## 2. Additional Recommendations to Improve the Movie Detail Page
+
+- **Improve Video Playback Experience**
+  - Add a loading indicator while the video is loading.
+  - Show clear error messages if the movie cannot be played.
+  - Support selecting video quality (e.g., HD, SD) if available.
+
+- **Episodes Section**
+  - If the movie is a series, display a clickable episode list.
+  - Highlight watched episodes and support easy episode navigation.
+
+- **Recommended For You Section**
+  - Show complete movie posters, titles, release years, and durations.
+  - Add a "Show more" button to load additional recommendations.
+  - Improve recommendation algorithm based on genre or user watch history.
+
+- **Comments and Reviews**
+  - Enable threaded replies to comments.
+  - Add like/dislike buttons for each comment.
+  - Implement automatic moderation to filter inappropriate language.
+  - Update comments in real-time without page reload.
+
+- **Movie Info Panel**
+  - Display accurate, real-time view counts.
+  - Add user rating functionality alongside IMDB ratings.
+  - Show tags or genres clearly to improve searchability.
+
+- **UI/UX Enhancements**
+  - Add a "Back to Top" button for easier navigation.
+  - Clearly show user login status and encourage login for interaction.
+  - Add tooltips for action buttons like Like, Share, and Add to List.
+  - Optimize page load speed, especially for video and images.
+
+- **Data and API Management**
+  - Implement periodic data synchronization with the movie API to avoid missing data.
+  - Add logging and error reporting for data fetch failures.
+  - Use API caching to reduce load on the movie API.
