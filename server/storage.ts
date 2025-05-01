@@ -31,9 +31,12 @@ export interface IStorage {
   
   // Movie methods
   getAllMovies(): Promise<Movie[]>;
+  getPaginatedMovies(page: number, limit: number): Promise<{ movies: Movie[], total: number, totalPages: number }>;
   getMovie(id: number): Promise<Movie | undefined>;
   getMoviesByGenre(genreId: number): Promise<Movie[]>;
+  getMoviesByGenrePaginated(genreId: number, page: number, limit: number): Promise<{ movies: Movie[], total: number, totalPages: number }>;
   searchMovies(query: string): Promise<Movie[]>;
+  searchMoviesPaginated(query: string, page: number, limit: number): Promise<{ movies: Movie[], total: number, totalPages: number }>;
   getFeaturedMovies(): Promise<Movie[]>;
   getNewReleases(): Promise<Movie[]>;
   getTrendingMovies(): Promise<Movie[]>; // For premium users
@@ -181,6 +184,32 @@ export class DatabaseStorage implements IStorage {
   async getAllMovies(): Promise<Movie[]> {
     return db.select().from(movies);
   }
+  
+  async getPaginatedMovies(page: number, limit: number): Promise<{ movies: Movie[], total: number, totalPages: number }> {
+    // Calculate offset based on page and limit
+    const offset = (page - 1) * limit;
+    
+    // Get total count for pagination metadata
+    const countResult = await db.select({ count: sql`COUNT(*)` }).from(movies);
+    const total = Number(countResult[0]?.count || 0);
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(total / limit);
+    
+    // Get paginated movies
+    const movieResults = await db
+      .select()
+      .from(movies)
+      .orderBy(desc(movies.createdAt))
+      .limit(limit)
+      .offset(offset);
+    
+    return {
+      movies: movieResults,
+      total,
+      totalPages
+    };
+  }
 
   async getMovie(id: number): Promise<Movie | undefined> {
     const result = await db.select().from(movies).where(eq(movies.id, id));
@@ -197,6 +226,37 @@ export class DatabaseStorage implements IStorage {
         eq(movies.genreIds, [genreId])
       );
   }
+  
+  async getMoviesByGenrePaginated(genreId: number, page: number, limit: number): Promise<{ movies: Movie[], total: number, totalPages: number }> {
+    // Calculate offset based on page and limit
+    const offset = (page - 1) * limit;
+    
+    // Get total count for pagination metadata
+    const countResult = await db
+      .select({ count: sql`COUNT(*)` })
+      .from(movies)
+      .where(eq(movies.genreIds, [genreId]));
+    
+    const total = Number(countResult[0]?.count || 0);
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(total / limit);
+    
+    // Get paginated movies
+    const movieResults = await db
+      .select()
+      .from(movies)
+      .where(eq(movies.genreIds, [genreId]))
+      .orderBy(desc(movies.createdAt))
+      .limit(limit)
+      .offset(offset);
+    
+    return {
+      movies: movieResults,
+      total,
+      totalPages
+    };
+  }
 
   async searchMovies(query: string): Promise<Movie[]> {
     return db
@@ -208,6 +268,47 @@ export class DatabaseStorage implements IStorage {
           like(movies.description, `%${query}%`)
         )
       );
+  }
+  
+  async searchMoviesPaginated(query: string, page: number, limit: number): Promise<{ movies: Movie[], total: number, totalPages: number }> {
+    // Calculate offset based on page and limit
+    const offset = (page - 1) * limit;
+    
+    // Get total count for pagination metadata
+    const countResult = await db
+      .select({ count: sql`COUNT(*)` })
+      .from(movies)
+      .where(
+        or(
+          like(movies.title, `%${query}%`),
+          like(movies.description, `%${query}%`)
+        )
+      );
+    
+    const total = Number(countResult[0]?.count || 0);
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(total / limit);
+    
+    // Get paginated movies
+    const movieResults = await db
+      .select()
+      .from(movies)
+      .where(
+        or(
+          like(movies.title, `%${query}%`),
+          like(movies.description, `%${query}%`)
+        )
+      )
+      .orderBy(desc(movies.createdAt))
+      .limit(limit)
+      .offset(offset);
+    
+    return {
+      movies: movieResults,
+      total,
+      totalPages
+    };
   }
 
   async getFeaturedMovies(): Promise<Movie[]> {
