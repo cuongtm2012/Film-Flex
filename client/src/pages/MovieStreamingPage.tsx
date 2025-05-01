@@ -22,23 +22,27 @@ import {
   Info,
   CornerUpRight,
   ChevronUp,
-  Facebook,
-  Twitter,
   Copy,
-  Alert,
-  CheckCircle
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 
 // Define types for our movie data
 interface Episode {
   name: string;
-  url: string;
-  index: number;
+  url?: string;
+  index?: number;
+  slug?: string;
+  filename?: string;
+  link_embed?: string;
+  link_m3u8?: string;
 }
 
 interface Server {
   name: string;
-  episodes: Episode[];
+  server_name?: string;
+  server_data?: Episode[];
+  episodes?: Episode[];
 }
 
 interface ApiMovie {
@@ -154,7 +158,7 @@ const MovieStreamingPage = () => {
   const movieId = parseInt(window.location.pathname.split('/').pop() || '0');
   
   // Fetch movie data
-  const { data: movie, isLoading, error, isError } = useQuery({
+  const { data: movie, isLoading, error, isError } = useQuery<ApiMovie>({
     queryKey: [`/api/movies/${movieId}`],
     staleTime: 30 * 1000,
   });
@@ -187,9 +191,9 @@ const MovieStreamingPage = () => {
   
   // Fetch recommended movies
   const { 
-    data: recommendedMovies = [], 
+    data: recommendedMovies = [] as ApiMovie[], 
     isLoading: isLoadingRecommendations 
-  } = useQuery({
+  } = useQuery<ApiMovie[]>({
     queryKey: [`/api/movies/${movieId}/recommendations`],
     staleTime: 60 * 1000,
     // Only fetch if we have the movie data
