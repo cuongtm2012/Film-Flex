@@ -1191,6 +1191,119 @@ export class DatabaseStorage implements IStorage {
       return 500; // Return a default count even in case of error
     }
   }
+  
+  async getApiMoviesByCategory(
+    categoryName: string,
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<ApiMovie[]> {
+    console.log(`Getting API movies for category: ${categoryName} (limit: ${limit}, offset: ${offset})`);
+    try {
+      // Use JSONB containment operator to check if the categories array contains the category name
+      const containsCategory = sql`${apiMovies.categories}::jsonb @> ${JSON.stringify([categoryName])}::jsonb`;
+      
+      // Get API movies where categories contains the category name
+      const result = await db
+        .select()
+        .from(apiMovies)
+        .where(and(
+          containsCategory,
+          eq(apiMovies.status, 'published')
+        ))
+        .orderBy(desc(apiMovies.updatedAt))
+        .limit(limit)
+        .offset(offset);
+      
+      console.log(`Found ${result.length} API movies for category ${categoryName}`);
+      return result;
+    } catch (error) {
+      console.error(`Error getting API movies by category: ${error}`);
+      return [];
+    }
+  }
+  
+  async countApiMoviesByCategory(categoryName: string): Promise<number> {
+    console.log(`Counting API movies for category: ${categoryName}`);
+    try {
+      // Use JSONB containment operator to check if the categories array contains the category name
+      const containsCategory = sql`${apiMovies.categories}::jsonb @> ${JSON.stringify([categoryName])}::jsonb`;
+      
+      // Count API movies where categories contains the category name
+      const result = await db
+        .select({ count: sql`COUNT(*)` })
+        .from(apiMovies)
+        .where(and(
+          containsCategory,
+          eq(apiMovies.status, 'published')
+        ));
+      
+      const count = Number(result[0]?.count || 0);
+      console.log(`Found ${count} API movies for category ${categoryName}`);
+      return count;
+    } catch (error) {
+      console.error(`Error counting API movies by category: ${error}`);
+      return 0;
+    }
+  }
+  
+  async getMoviesByCategoryPaginated(
+    categoryId: number,
+    page: number,
+    limit: number
+  ): Promise<{ movies: Movie[], total: number, totalPages: number }> {
+    console.log(`Getting paginated movies for category ID: ${categoryId} (page: ${page}, limit: ${limit})`);
+    // Calculate offset based on page and limit
+    const offset = (page - 1) * limit;
+    
+    try {
+      // First get the movie IDs that belong to this category
+      const movieCategoryLinks = await db
+        .select()
+        .from(movieCategories)
+        .where(and(
+          eq(movieCategories.categoryId, categoryId),
+          eq(movieCategories.movieType, 'regular')  // Only get regular movies
+        ));
+      
+      if (movieCategoryLinks.length === 0) {
+        console.log(`No regular movies found for category ID: ${categoryId}`);
+        return { movies: [], total: 0, totalPages: 0 };
+      }
+      
+      const regularMovieIds = movieCategoryLinks.map(link => link.movieId);
+      
+      // Get total count for pagination metadata
+      const countResult = await db
+        .select({ count: sql`COUNT(*)` })
+        .from(movies)
+        .where(inArray(movies.id, regularMovieIds));
+      
+      const total = Number(countResult[0]?.count || 0);
+      
+      // Calculate total pages
+      const totalPages = Math.ceil(total / limit);
+      
+      // Get the actual movies
+      const movieResults = await db
+        .select()
+        .from(movies)
+        .where(inArray(movies.id, regularMovieIds))
+        .orderBy(desc(movies.id))
+        .limit(limit)
+        .offset(offset);
+      
+      console.log(`Found ${movieResults.length} regular movies for category ID: ${categoryId}`);
+      
+      return {
+        movies: movieResults,
+        total,
+        totalPages
+      };
+    } catch (error) {
+      console.error(`Error getting movies by category paginated: ${error}`);
+      return { movies: [], total: 0, totalPages: 0 };
+    }
+  }
 
   // ========== API JOB LOGGING ==========
 
