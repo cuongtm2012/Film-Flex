@@ -1272,8 +1272,30 @@ const MovieStreamingPage = () => {
         {/* Sidebar */}
         <div className="w-full lg:w-1/4 mt-6 lg:mt-0">
           {/* Up Next / Recommendations */}
-          <div className="bg-zinc-900 p-6 rounded-lg">
-            <h2 className="text-xl font-bold mb-4">Recommended For You</h2>
+          <div className="bg-zinc-900 p-6 rounded-lg mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Recommended For You</h2>
+              {recommendedMovies.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button 
+                    className="p-1 rounded-full hover:bg-zinc-800 transition-colors"
+                    aria-label="View as grid"
+                  >
+                    <svg className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zm-9 9h7v7H4v-7zm9 0h7v7h-7v-7z" />
+                    </svg>
+                  </button>
+                  <button 
+                    className="p-1 rounded-full hover:bg-zinc-800 transition-colors"
+                    aria-label="View as list"
+                  >
+                    <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
             
             <div className="space-y-4">
               {isLoadingRecommendations ? (
@@ -1281,39 +1303,61 @@ const MovieStreamingPage = () => {
                   <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
                 </div>
               ) : recommendedMovies.length === 0 ? (
-                <div className="py-4 text-center text-gray-400">
-                  No recommendations available
+                <div className="py-8 text-center text-gray-400 flex flex-col items-center">
+                  <AlertTriangle className="w-10 h-10 mb-2 text-gray-500" />
+                  <p>No recommendations available</p>
+                  <p className="text-sm mt-1">Try exploring our categories</p>
                 </div>
               ) : (
                 displayedRecommendations.map((recMovie: any) => (
                   <div 
                     key={recMovie.id} 
-                    className="flex items-start space-x-3 cursor-pointer"
+                    className="flex items-start space-x-3 hover:bg-zinc-800 p-2 rounded-lg cursor-pointer transition-colors"
                     onClick={() => setLocation(`/watch/${recMovie.id}`)}
                   >
-                    <div className="w-24 h-16 rounded bg-zinc-800 overflow-hidden flex-shrink-0">
+                    <div className="w-24 h-16 rounded-md bg-zinc-800 overflow-hidden flex-shrink-0 relative group">
                       {recMovie.posterUrl ? (
                         <img 
                           src={recMovie.posterUrl} 
                           alt={recMovie.title}
                           className="w-full h-full object-cover"
+                          loading="lazy"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-zinc-700 to-zinc-800"></div>
+                        <div className="w-full h-full bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center">
+                          <Info className="w-6 h-6 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100">
+                        <Play className="w-8 h-8 text-white" />
+                      </div>
+                      {recMovie.quality === 'HD' && (
+                        <span className="absolute bottom-1 right-1 bg-red-600 text-white text-xs px-1 rounded">HD</span>
                       )}
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-white font-medium mb-1 truncate">{recMovie.title}</h3>
-                      <p className="text-xs text-gray-400">
-                        {recMovie.releaseYear} • {recMovie.categories ? recMovie.categories.slice(0, 2).join(', ') : 'Action'}
-                      </p>
+                      <h3 className="text-white font-medium mb-1 truncate hover:text-red-500 transition-colors">{recMovie.title}</h3>
+                      <div className="flex items-center text-xs text-gray-400 space-x-2 mb-1">
+                        <span>{recMovie.releaseYear || 'Unknown'}</span>
+                        <span className="w-1 h-1 rounded-full bg-gray-500"></span>
+                        <span>{recMovie.categories ? recMovie.categories.slice(0, 2).join(', ') : 'Action'}</span>
+                      </div>
                       <div className="flex items-center mt-1">
-                        <div className="h-1.5 w-20 bg-gray-700 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-red-600 rounded-full"
-                            style={{ width: '65%' }}
-                          ></div>
-                        </div>
+                        {recMovie.imdbRating > 0 ? (
+                          <div className="flex items-center">
+                            <svg className="w-3 h-3 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                            </svg>
+                            <span className="text-xs text-gray-300 ml-1">{recMovie.imdbRating.toFixed(1)}</span>
+                          </div>
+                        ) : (
+                          <div className="h-1.5 w-20 bg-gray-700 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-red-600 rounded-full"
+                              style={{ width: `${recMovie.viewCount ? Math.min(recMovie.viewCount/10, 100) : 65}%` }}
+                            ></div>
+                          </div>
+                        )}
                         <span className="text-xs text-gray-400 ml-2">
                           {typeof recMovie.duration === 'number' ? `${recMovie.duration} min` : recMovie.duration || '90 min'}
                         </span>
@@ -1327,15 +1371,71 @@ const MovieStreamingPage = () => {
             {recommendedMovies.length > 4 && (
               <button 
                 onClick={() => setShowMoreRecommendations(!showMoreRecommendations)}
-                className="w-full mt-4 py-2 text-center text-red-600 hover:text-red-500 transition-colors"
+                className="w-full mt-4 py-2 text-center bg-zinc-800 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-zinc-700 transition-colors"
               >
-                {showMoreRecommendations ? 'Show less' : 'Show more'}
+                {showMoreRecommendations ? (
+                  <span className="flex items-center justify-center">
+                    <ChevronUp className="w-4 h-4 mr-1" />
+                    Show less
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center">
+                    <ChevronRight className="w-4 h-4 mr-1" />
+                    Show more ({recommendedMovies.length - 4} more)
+                  </span>
+                )}
               </button>
             )}
           </div>
           
+          {/* Related Categories */}
+          <div className="bg-zinc-900 p-6 rounded-lg mb-6">
+            <h2 className="text-xl font-bold mb-4">Browse Categories</h2>
+            <div className="flex flex-wrap gap-2">
+              {movie?.categories ? movie.categories.map((category, index) => (
+                <a
+                  key={index}
+                  href={`/category/${category.toLowerCase().replace(/\s+/g, '-')}`}
+                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-full text-sm text-white transition-colors"
+                >
+                  {category}
+                </a>
+              )) : (
+                ['Action', 'Drama', 'Comedy'].map((category, index) => (
+                  <a
+                    key={index}
+                    href={`/category/${category.toLowerCase()}`}
+                    className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-full text-sm text-white transition-colors"
+                  >
+                    {category}
+                  </a>
+                ))
+              )}
+              <a
+                href="/categories"
+                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-full text-sm text-white transition-colors flex items-center"
+              >
+                <span>View All</span>
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </a>
+            </div>
+          </div>
+          
+          {/* Recently Viewed */}
+          <div className="bg-zinc-900 p-6 rounded-lg mb-6">
+            <h2 className="text-xl font-bold mb-4">Recently Viewed</h2>
+            <div className="space-y-3">
+              <div className="flex items-center justify-center py-6 text-gray-400 text-sm">
+                <div className="flex flex-col items-center">
+                  <CheckCircle className="w-10 h-10 mb-2 text-gray-500" />
+                  <p>Sign in to see your watch history</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           {/* Movie Info */}
-          <div className="bg-zinc-900 p-6 rounded-lg mt-6">
+          <div className="bg-zinc-900 p-6 rounded-lg">
             <h2 className="text-xl font-bold mb-4 flex items-center">
               <Info className="h-5 w-5 mr-2" />
               Movie Info
