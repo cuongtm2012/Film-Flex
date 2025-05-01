@@ -101,6 +101,18 @@ Publishes pending movies that have been imported but not yet made visible.
 tsx scripts/publish-movies.ts 500
 ```
 
+### 7. Update Embed URLs Script
+
+Specifically targets movies with missing embed URLs and updates them by fetching details from the API.
+
+```bash
+# Update embed URLs for up to 50 movies with null embedUrl values
+tsx scripts/update-movie-embed-urls.ts 50
+
+# Update embed URLs for all movies with null embedUrl values
+tsx scripts/update-movie-embed-urls.ts 500
+```
+
 ## Workflow
 
 1. Start with a bulk import to get initial movie data:
@@ -108,17 +120,22 @@ tsx scripts/publish-movies.ts 500
    tsx scripts/movie-cli.ts import --start=1 --end=50
    ```
 
-2. Publish imported movies to make them visible:
+2. Update missing embed URLs for better video playback:
+   ```bash
+   tsx scripts/update-movie-embed-urls.ts 100
+   ```
+
+3. Publish imported movies to make them visible:
    ```bash
    tsx scripts/movie-cli.ts publish --count=100
    ```
 
-3. Set up scheduled updates to keep content fresh:
+4. Set up scheduled updates to keep content fresh:
    ```bash
    tsx scripts/movie-cli.ts scheduled
    ```
 
-4. Alternatively, run manual sync when needed:
+5. Alternatively, run manual sync when needed:
    ```bash
    tsx scripts/movie-cli.ts sync
    ```
@@ -151,3 +168,12 @@ The `api_movies` table stores all imported movies with the following key fields:
 - Use `--retry-failed` to retry failed pages
 - If you encounter rate limiting, increase the `--wait` parameter
 - For large imports, use chunk-based importing instead of trying to do everything at once
+- If movies are missing embed URLs, run the `update-movie-embed-urls.ts` script
+- If videos don't play, check the `embedUrl` values in the database with SQL queries
+  ```sql
+  -- Check how many movies have embed URLs
+  SELECT COUNT(*) FROM api_movies WHERE embed_url IS NOT NULL;
+  
+  -- Check for specific movie embed URLs
+  SELECT id, title, embed_url FROM api_movies WHERE id = 123;
+  ```
