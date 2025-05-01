@@ -129,13 +129,17 @@ const HomePage = () => {
       });
       
       let url = '';
-      if (selectedCategory === 'all') {
-        url = `/api/movies?${params}`;
-      } else if (searchQuery) {
+      if (searchQuery) {
+        // Search takes precedence over category
         params.append('q', searchQuery);
         url = `/api/search?${params}`;
+      } else if (selectedCategory !== 'all') {
+        // Category filtering
+        params.append('category', selectedCategory);
+        url = `/api/movies?${params}`;
       } else {
-        url = `/api/genre/${selectedCategory}/movies?${params}`;
+        // Default: all movies
+        url = `/api/movies?${params}`;
       }
       
       console.log(`API URL: ${url}`);
