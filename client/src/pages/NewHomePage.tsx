@@ -242,7 +242,7 @@ const NewHomePage = () => {
   
   // Fetch categories from API
   const { data: categoriesData, isLoading: isCategoriesLoading } = useQuery<Category[]>({
-    queryKey: [`${API_BASE_URL}/categories`],
+    queryKey: ['/api/categories'],
     staleTime: 60 * 60 * 1000, // Cache for 1 hour
   });
   
@@ -255,7 +255,7 @@ const NewHomePage = () => {
   // Fetch movies from API
   const { data: moviesData, isLoading: isMoviesLoading } = useQuery<MovieWithPagination>({
     queryKey: [
-      'movies',
+      '/api/movies',
       selectedCategory,
       currentPage
     ],
