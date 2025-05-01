@@ -119,6 +119,11 @@ export interface IStorage {
   getLatestApiMovieJobLog(jobType?: string): Promise<ApiMovieJobLog | undefined>;
   getApiMovieJobLogs(limit?: number, offset?: number): Promise<ApiMovieJobLog[]>;
   getApiMovieJobLog(id: number): Promise<ApiMovieJobLog | undefined>;
+  
+  // Category-specific API Movie methods
+  getApiMoviesByCategory(categoryName: string, limit?: number, offset?: number): Promise<ApiMovie[]>;
+  countApiMoviesByCategory(categoryName: string): Promise<number>;
+  getMoviesByCategoryPaginated(categoryId: number, page: number, limit: number): Promise<{ movies: Movie[], total: number, totalPages: number }>;
 }
 
 // Set up Postgres store for session

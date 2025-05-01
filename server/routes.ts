@@ -157,6 +157,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If source parameter is provided, filter by source
       const source = req.query.source as string;
+      const category = req.query.category as string;
+      
+      // Filter by category if provided
+      if (category && category !== 'all') {
+        console.log(`Filtering movies by category: ${category}`);
+        
+        if (page !== undefined && limit !== undefined) {
+          // Get movies for this category with pagination
+          try {
+            // Get category from the database first
+            const categoryObj = await storage.getCategoryBySlug(category);
+            if (!categoryObj) {
+              console.log(`Category not found: ${category}`);
+              return res.json({ data: [], pagination: { current_page: 1, total_pages: 0, total: 0, per_page: limit } });
+            }
+            
+            console.log(`Found category: ${categoryObj.name} (ID: ${categoryObj.id})`);
+            
+            // Get movies for this category
+            const result = await storage.getMoviesByCategoryPaginated(categoryObj.id, page, limit);
+            
+            // Check if we need to fetch API movies as well
+            if (result.movies.length < limit) {
+              console.log(`Not enough regular movies (${result.movies.length}), fetching API movies for category ${category}`);
+              
+              // Get API movies that have this category in their categories array
+              const apiMovies = await storage.getApiMoviesByCategory(
+                categoryObj.name,
+                limit - result.movies.length,
+                offset
+              );
+              
+              console.log(`Got ${apiMovies.length} API movies for category: ${category}`);
+              
+              // Transform API movies to regular movie format
+              const transformedApiMovies = apiMovies.map(apiMovie => {
+                // Similar to the transform function above, convert to Movie type
+                const genreMap: Record<string, number> = {
+                  "Action": 1,
+                  "Adventure": 2,
+                  "Comedy": 3,
+                  "Drama": 4, 
+                  "Horror": 5,
+                  "Science Fiction": 6,
+                  "Thriller": 7,
+                  "Documentary": 8,
+                  "Animation": 9
+                };
+                
+                // Map categories to genre IDs
+                const categories: string[] = Array.isArray(apiMovie.categories) ? apiMovie.categories : [];
+                const genreIds = categories.length > 0 
+                  ? categories.map(cat => {
+                      const genreId = genreMap[cat as keyof typeof genreMap];
+                      return genreId || categoryObj.id || 1;
+                    })
+                  : [categoryObj.id || 1];
+                
+                // Handle cast and other fields
+                const castArray = (() => {
+                  if (!apiMovie.actors) return [];
+                  if (Array.isArray(apiMovie.actors)) return apiMovie.actors;
+                  if (typeof apiMovie.actors === 'string') return apiMovie.actors.split(',');
+                  return [];
+                })();
+                
+                // Get video URL from episodes
+                const videoUrl = (() => {
+                  if (!apiMovie.episodes) return '';
+                  if (!Array.isArray(apiMovie.episodes) || apiMovie.episodes.length === 0) return '';
+                  const firstEpisode = apiMovie.episodes[0];
+                  if (!firstEpisode) return '';
+                  return firstEpisode.streamUrl || firstEpisode.embedUrl || '';
+                })();
+                
+                return {
+                  id: apiMovie.id + 10000, // Add 10000 to avoid ID conflicts
+                  title: apiMovie.title || 'Unknown Title',
+                  description: apiMovie.description || '',
+                  releaseYear: parseInt(apiMovie.releaseYear as string) || 2023,
+                  duration: apiMovie.duration || 100,
+                  rating: "PG-13",
+                  videoSources: [],
+                  genreIds: genreIds,
+                  director: apiMovie.director || "Unknown Director",
+                  cast: castArray,
+                  posterUrl: apiMovie.posterUrl || '',
+                  backdropUrl: apiMovie.backdropUrl || '',
+                  videoUrl: videoUrl,
+                  trailerUrl: apiMovie.trailerUrl || '',
+                  imdbRating: apiMovie.imdbRating || 7.5,
+                  viewCount: 0,
+                  createdAt: apiMovie.createdAt || new Date().toISOString(),
+                  updatedAt: apiMovie.updatedAt || new Date().toISOString()
+                };
+              });
+              
+              // Combine regular and API movies
+              const allMovies = [...result.movies, ...transformedApiMovies];
+              console.log(`Total combined category movies: ${allMovies.length}`);
+              
+              // Get count of API movies for this category
+              const apiMovieCount = await storage.countApiMoviesByCategory(categoryObj.name);
+              const totalCount = result.total + apiMovieCount;
+              const totalPages = Math.ceil(totalCount / limit);
+              
+              const response = {
+                data: allMovies,
+                pagination: {
+                  current_page: page,
+                  total_pages: totalPages,
+                  total: totalCount,
+                  per_page: limit
+                }
+              };
+              
+              console.log("Sending category filtered paginated response");
+              return res.json(response);
+            } else {
+              // We have enough regular movies, just return them
+              console.log(`Got ${result.movies.length} regular movies for category ${category}`);
+              
+              const response = {
+                data: result.movies,
+                pagination: {
+                  current_page: page,
+                  total_pages: result.totalPages,
+                  total: result.total,
+                  per_page: limit
+                }
+              };
+              
+              return res.json(response);
+            }
+          } catch (error) {
+            console.error(`Error filtering by category: ${error}`);
+            return res.status(500).json({ message: "Error filtering by category", error: String(error) });
+          }
+        }
+      }
+      
       if (source === 'api') {
         // Get API movies that are in published state
         const apiMovies = await storage.getApiMovies(undefined, undefined, 'published');
