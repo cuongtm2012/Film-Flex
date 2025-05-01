@@ -396,7 +396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Otherwise, it's a regular movie
       console.log(`Fetching regular movie with ID: ${movieId}`);
-      const movie = await storage.getMovieById(movieId);
+      const movie = await storage.getMovie(movieId);
       
       if (!movie) {
         return res.status(404).json({ message: "Movie not found" });
@@ -434,7 +434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } else {
         // For regular movies, use genres
-        const movie = await storage.getMovieById(movieId);
+        const movie = await storage.getMovie(movieId);
         if (movie && Array.isArray(movie.genreIds)) {
           // Convert genre IDs to names for consistency with API movie categories
           const genreIdToName: Record<number, string> = {
