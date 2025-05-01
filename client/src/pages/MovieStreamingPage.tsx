@@ -309,8 +309,9 @@ const MovieStreamingPage = () => {
   const [videoSrc, setVideoSrc] = useState('');
   // Track if it's an embed source (like iframe for API movies)
   const [isEmbedSource, setIsEmbedSource] = useState(false);
-  // Track currently selected episode
+  // Track currently selected episode and server
   const [selectedEpisode, setSelectedEpisode] = useState(0);
+  const [selectedServer, setSelectedServer] = useState(0);
   
   // Load video source when movie data changes
   useEffect(() => {
@@ -319,11 +320,16 @@ const MovieStreamingPage = () => {
       if (movie.isApiMovie) {
         console.log('Loading API movie source:', movie.embedUrl || movie.videoUrl);
         setIsEmbedSource(true);
-        // Prioritize embedUrl for API movies, fall back to videoUrl
-        setVideoSrc(movie.embedUrl || movie.videoUrl || '');
         
-        // Reset selected episode when movie changes
+        // Reset selected episode and server when movie changes
         setSelectedEpisode(0);
+        setSelectedServer(0);
+        
+        // If the movie has episodes, we'll set the source through the episode selection effect
+        // Otherwise, use the default embedUrl
+        if (!movie.episodes || !Array.isArray(movie.episodes) || movie.episodes.length === 0) {
+          setVideoSrc(movie.embedUrl || movie.videoUrl || '');
+        }
       } else {
         // Regular movies use the existing flow
         setIsEmbedSource(false);
@@ -337,16 +343,16 @@ const MovieStreamingPage = () => {
     if (movie?.isApiMovie && movie.episodes && Array.isArray(movie.episodes)) {
       try {
         // The episodes data structure can be complex with servers and multiple episodes
-        // We need to find the appropriate embed URL based on the selected episode index
+        // We need to find the appropriate embed URL based on the selected server and episode
         let allEpisodes: any[] = [];
         let currentEpisodeUrl = '';
         
         // PhimAPI format has servers with arrays of episodes
-        if (movie.episodes.some(ep => ep.server_name)) {
-          // Get the first server's episodes as default
-          const firstServer = movie.episodes[0];
-          if (firstServer && firstServer.server_data && Array.isArray(firstServer.server_data)) {
-            allEpisodes = firstServer.server_data;
+        if (movie.episodes.some((ep: any) => ep.server_name)) {
+          // Get the server based on selectedServer index
+          const server = movie.episodes[selectedServer];
+          if (server && server.server_data && Array.isArray(server.server_data)) {
+            allEpisodes = server.server_data;
             if (allEpisodes[selectedEpisode]) {
               currentEpisodeUrl = allEpisodes[selectedEpisode].link_embed;
             }
@@ -360,14 +366,14 @@ const MovieStreamingPage = () => {
         }
         
         if (currentEpisodeUrl) {
-          console.log('Setting episode URL:', currentEpisodeUrl);
+          console.log(`Setting episode URL from server ${selectedServer}, episode ${selectedEpisode}:`, currentEpisodeUrl);
           setVideoSrc(currentEpisodeUrl);
         }
       } catch (error) {
         console.error('Error processing episodes:', error);
       }
     }
-  }, [movie, selectedEpisode]);
+  }, [movie, selectedEpisode, selectedServer]);
 
   // Handle comment submission
   const handleCommentSubmit = (e: React.FormEvent) => {
@@ -690,44 +696,72 @@ const MovieStreamingPage = () => {
             </div>
           </div>
           
-          {/* Episode Selection for API movies */}
+          {/* Episode and Server Selection for API movies */}
           {movie.isApiMovie && movie.episodes && Array.isArray(movie.episodes) && (
             <div className="mb-6 bg-zinc-900 p-4 rounded-lg">
-              <h3 className="text-lg font-semibold text-white mb-3">Episodes</h3>
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
-                {(() => {
-                  // Get episodes from the correct data structure
-                  let episodeList: any[] = [];
-                  
-                  // Handle phimapi.com format with servers
-                  if (movie.episodes.some((ep: any) => ep.server_name)) {
-                    const firstServer = movie.episodes[0];
-                    if (firstServer && firstServer.server_data) {
-                      episodeList = firstServer.server_data;
+              {/* Server selection tabs - only show if there are multiple servers */}
+              {movie.episodes.some((ep: any) => ep.server_name) && movie.episodes.length > 1 && (
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-white mb-2">Audio/Subtitles</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {movie.episodes.map((server: any, idx: number) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setSelectedServer(idx);
+                          setSelectedEpisode(0); // Reset episode when switching servers
+                        }}
+                        className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                          selectedServer === idx
+                            ? 'bg-red-600 text-white'
+                            : 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'
+                        }`}
+                      >
+                        {server.server_name.replace('#', '')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Episode selection */}
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-3">Episodes</h3>
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+                  {(() => {
+                    // Get episodes from the currently selected server
+                    let episodeList: any[] = [];
+                    
+                    // Handle phimapi.com format with servers
+                    if (movie.episodes.some((ep: any) => ep.server_name)) {
+                      const server = movie.episodes[selectedServer];
+                      if (server && server.server_data) {
+                        episodeList = server.server_data;
+                      }
+                    } else if (Array.isArray(movie.episodes)) {
+                      episodeList = movie.episodes;
                     }
-                  } else if (Array.isArray(movie.episodes)) {
-                    episodeList = movie.episodes;
-                  }
-                  
-                  return episodeList.map((episode, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedEpisode(index)}
-                      className={`px-3 py-2 rounded text-center text-sm font-medium transition-colors ${
-                        selectedEpisode === index
-                          ? 'bg-red-600 text-white'
-                          : 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'
-                      }`}
-                    >
-                      <span className="flex items-center justify-center">
-                        {selectedEpisode === index && (
-                          <span className="mr-1 text-xs">▶</span>
-                        )}
-                        {episode.name || `Ep ${index + 1}`}
-                      </span>
-                    </button>
-                  ));
-                })()}
+                    
+                    return episodeList.map((episode, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setSelectedEpisode(index)}
+                        className={`px-3 py-2 rounded text-center text-sm font-medium transition-colors ${
+                          selectedEpisode === index
+                            ? 'bg-red-600 text-white'
+                            : 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center">
+                          {selectedEpisode === index && (
+                            <span className="mr-1 text-xs">▶</span>
+                          )}
+                          {episode.name || `Ep ${index + 1}`}
+                        </span>
+                      </button>
+                    ));
+                  })()}
+                </div>
               </div>
             </div>
           )}

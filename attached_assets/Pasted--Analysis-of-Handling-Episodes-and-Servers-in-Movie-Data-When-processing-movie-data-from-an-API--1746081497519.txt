@@ -1,0 +1,65 @@
+# Analysis of Handling Episodes and Servers in Movie Data
+
+When processing movie data from an API that includes multiple episodes and multiple servers for streaming, it is important to structure and manage the data properly to support flexible playback and user experience.
+
+## 1. Data Structure Understanding
+
+- **Episodes Array:**  
+  The `episodes` field is an array where each element represents a streaming server or source (e.g., "#Hà Nội (Vietsub)", "#Hà Nội (Lồng Tiếng)").
+
+- **Server Data:**  
+  Each server contains a `server_data` array listing individual episodes available on that server.
+
+- **Episode Details:**  
+  Each episode object includes:
+  - `name`: episode name or number (e.g., "Tập 01").
+  - `slug`: unique identifier for the episode.
+  - `filename`: descriptive filename or label.
+  - `link_embed`: URL for embedded video player.
+  - `link_m3u8`: direct streaming link (HLS format).
+
+## 2. Processing Approach
+
+### A. Normalize Data
+
+- Extract all servers and their episodes.
+- For each episode, associate it with its server.
+- Maintain a mapping of episodes by their unique identifiers (`slug`).
+
+### B. Data Storage
+
+- Create database tables or collections for:
+  - **Servers:** Each server with an ID and name.
+  - **Episodes:** Each episode with metadata and foreign key linking to server and movie.
+- Store streaming URLs (`link_embed`, `link_m3u8`) for playback.
+
+### C. Playback Logic
+
+- When the user selects a movie:
+  - Display available servers as options (e.g., "Vietsub", "Lồng Tiếng").
+  - For the selected server, show the list of episodes.
+  - Allow the user to select an episode to play.
+- Provide fallback or switching capability between servers if one link fails.
+
+### D. Pagination and Performance
+
+- If episode count is large, implement pagination or lazy loading on episode lists.
+- Cache streaming URLs for faster access.
+
+### E. Updating and Synchronization
+
+- When updating movie data:
+  - Check for new servers or episodes.
+  - Update existing entries or add new ones.
+  - Remove deprecated streaming links if necessary.
+
+## 3. Example Workflow for AI Implementation
+
+1. Parse API response to extract `episodes` array.
+2. For each server in `episodes`:
+   - Save server info.
+   - For each episode in `server_data`:
+     - Save episode info with reference to server and movie.
+3. Provide an API endpoint to query episodes by movie and server.
+4. Frontend allows user to select server and episode, then plays the video using `link_embed` or `link_m3u8`.
+5. Support switching servers and episodes seamlessly.

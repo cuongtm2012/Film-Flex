@@ -1,0 +1,273 @@
+{
+  "status": true,
+  "msg": "",
+  "movie": {
+    "tmdb": {
+      "type": "tv",
+      "id": "99966",
+      "season": 2,
+      "vote_average": 8.287,
+      "vote_count": 4010
+    },
+    "imdb": {
+      "id": null
+    },
+    "created": {
+      "time": "2024-05-24T02:45:20.000Z"
+    },
+    "modified": {
+      "time": "2025-03-25T17:16:13.000Z"
+    },
+    "_id": "15341840eedadf2f53ad8571ac6078a2",
+    "name": "Ngôi Trường Xác Sống",
+    "slug": "ngoi-truong-xac-song",
+    "origin_name": "All of Us Are Dead",
+    "content": "Một trường cấp ba trở thành điểm bùng phát virus thây ma. Các học sinh mắc kẹt phải nỗ lực thoát ra – hoặc biến thành một trong những người nhiễm bệnh hung tợn.",
+    "type": "series",
+    "status": "completed",
+    "poster_url": "https://phimimg.com/upload/vod/20250325-1/6db202d6161c123d96b0180c2da9b1e5.jpg",
+    "thumb_url": "https://phimimg.com/upload/vod/20250325-1/6985255433cba78af7f28fe63c5126c9.jpg",
+    "is_copyright": false,
+    "sub_docquyen": false,
+    "chieurap": false,
+    "trailer_url": "https://www.youtube.com/watch?v=IN5TD4VRcSM",
+    "time": "65 phút/tập",
+    "episode_current": "Hoàn Tất (12/12)",
+    "episode_total": "12",
+    "quality": "FHD",
+    "lang": "Vietsub + Lồng Tiếng",
+    "notify": "",
+    "showtimes": "",
+    "year": 2022,
+    "view": 1,
+    "actor": [
+      "Park Ji-hu",
+      "Yoon Chan-young",
+      "Cho Yi-hyun",
+      "Lomon",
+      "Yoo In-soo",
+      "Lee You-mi",
+      "Kim Byung-chul",
+      "Lee Kyoo-hyung",
+      "Jeon Bae-soo"
+    ],
+    "director": [
+      "Đang cập nhật"
+    ],
+    "category": [
+      {
+        "id": "9822be111d2ccc29c7172c78b8af8ff5",
+        "name": "Hành Động",
+        "slug": "hanh-dong"
+      },
+      {
+        "id": "66c78b23908113d478d8d85390a244b4",
+        "name": "Phiêu Lưu",
+        "slug": "phieu-luu"
+      },
+      {
+        "id": "37a7b38b6184a5ebd3c43015aa20709d",
+        "name": "Chính Kịch",
+        "slug": "chinh-kich"
+      },
+      {
+        "id": "0bcf4077916678de9b48c89221fcf8ae",
+        "name": "Khoa Học",
+        "slug": "khoa-hoc"
+      },
+      {
+        "id": "68564911f00849030f9c9c144ea1b931",
+        "name": "Viễn Tưởng",
+        "slug": "vien-tuong"
+      }
+    ],
+    "country": [
+      {
+        "id": "05de95be5fc404da9680bbb3dd8262e6",
+        "name": "Hàn Quốc",
+        "slug": "han-quoc"
+      }
+    ]
+  },
+  "episodes": [
+    {
+      "server_name": "#Hà Nội (Vietsub)",
+      "server_data": [
+        {
+          "name": "Tập 01",
+          "slug": "tap-01",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Vietsub - Tập 01",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/15U0OSx5/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/15U0OSx5/index.m3u8"
+        },
+        {
+          "name": "Tập 02",
+          "slug": "tap-02",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Vietsub - Tập 02",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/L13mtaK3/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/L13mtaK3/index.m3u8"
+        },
+        {
+          "name": "Tập 03",
+          "slug": "tap-03",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Vietsub - Tập 03",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/xqyp5Z1I/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/xqyp5Z1I/index.m3u8"
+        },
+        {
+          "name": "Tập 04",
+          "slug": "tap-04",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Vietsub - Tập 04",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/urYLPIR6/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/urYLPIR6/index.m3u8"
+        },
+        {
+          "name": "Tập 05",
+          "slug": "tap-05",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Vietsub - Tập 05",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/PzPUQ6vI/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/PzPUQ6vI/index.m3u8"
+        },
+        {
+          "name": "Tập 06",
+          "slug": "tap-06",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Vietsub - Tập 06",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/BqradtcC/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/BqradtcC/index.m3u8"
+        },
+        {
+          "name": "Tập 07",
+          "slug": "tap-07",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Vietsub - Tập 07",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/NOt6t0Kl/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/NOt6t0Kl/index.m3u8"
+        },
+        {
+          "name": "Tập 08",
+          "slug": "tap-08",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Vietsub - Tập 08",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/7lkLmHTd/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/7lkLmHTd/index.m3u8"
+        },
+        {
+          "name": "Tập 09",
+          "slug": "tap-09",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Vietsub - Tập 09",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/CX7skR5r/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/CX7skR5r/index.m3u8"
+        },
+        {
+          "name": "Tập 10",
+          "slug": "tap-10",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Vietsub - Tập 10",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/BceIVv5Y/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/BceIVv5Y/index.m3u8"
+        },
+        {
+          "name": "Tập 11",
+          "slug": "tap-11",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Vietsub - Tập 11",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/maF3oplG/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/maF3oplG/index.m3u8"
+        },
+        {
+          "name": "Tập 12",
+          "slug": "tap-12",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Vietsub - Tập 12",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/YbkatJrM/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/YbkatJrM/index.m3u8"
+        }
+      ]
+    },
+    {
+      "server_name": "#Hà Nội (Lồng Tiếng)",
+      "server_data": [
+        {
+          "name": "Tập 01",
+          "slug": "tap-01",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Lồng Tiếng - Tập 01",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/JpYZg7Jp/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/JpYZg7Jp/index.m3u8"
+        },
+        {
+          "name": "Tập 02",
+          "slug": "tap-02",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Lồng Tiếng - Tập 02",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/1dVXUeaC/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/1dVXUeaC/index.m3u8"
+        },
+        {
+          "name": "Tập 03",
+          "slug": "tap-03",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Lồng Tiếng - Tập 03",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/RI9PdPPK/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/RI9PdPPK/index.m3u8"
+        },
+        {
+          "name": "Tập 04",
+          "slug": "tap-04",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Lồng Tiếng - Tập 04",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/8uxFiwTD/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/8uxFiwTD/index.m3u8"
+        },
+        {
+          "name": "Tập 05",
+          "slug": "tap-05",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Lồng Tiếng - Tập 05",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/ZIgjYXZN/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/ZIgjYXZN/index.m3u8"
+        },
+        {
+          "name": "Tập 06",
+          "slug": "tap-06",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Lồng Tiếng - Tập 06",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/KgGB3Yva/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/KgGB3Yva/index.m3u8"
+        },
+        {
+          "name": "Tập 07",
+          "slug": "tap-07",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Lồng Tiếng - Tập 07",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/ZnlWLvub/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/ZnlWLvub/index.m3u8"
+        },
+        {
+          "name": "Tập 08",
+          "slug": "tap-08",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Lồng Tiếng - Tập 08",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/3mBOdB1h/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/3mBOdB1h/index.m3u8"
+        },
+        {
+          "name": "Tập 09",
+          "slug": "tap-09",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Lồng Tiếng - Tập 09",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/fBrzVXfH/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/fBrzVXfH/index.m3u8"
+        },
+        {
+          "name": "Tập 10",
+          "slug": "tap-10",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Lồng Tiếng - Tập 10",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/faYd8qAt/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/faYd8qAt/index.m3u8"
+        },
+        {
+          "name": "Tập 11",
+          "slug": "tap-11",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Lồng Tiếng - Tập 11",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/xLFFPtQq/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/xLFFPtQq/index.m3u8"
+        },
+        {
+          "name": "Tập 12",
+          "slug": "tap-12",
+          "filename": "Ngôi Trường Xác Sống - All of Us Are Dead - 2022 - 1080p - Lồng Tiếng - Tập 12",
+          "link_embed": "https://player.phimapi.com/player/?url=https://s4.phim1280.tv/20250325/RgQ9zXvf/index.m3u8",
+          "link_m3u8": "https://s4.phim1280.tv/20250325/RgQ9zXvf/index.m3u8"
+        }
+      ]
+    }
+  ]
+}
+Explain
