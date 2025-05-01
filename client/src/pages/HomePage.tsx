@@ -145,11 +145,12 @@ const HomePage = () => {
   // Combined loading state
   const isLoading = isMoviesLoading || isCategoriesLoading;
   
-  // Get movies from the response or empty array
-  const movies = moviesData?.data || [];
+  // Get movies from the response - check if it's the new paginated format or old format
+  const movies = Array.isArray(moviesData) ? moviesData : moviesData?.data || [];
   
-  // Get pagination data
-  const totalPages = moviesData?.pagination?.total_pages || 1;
+  // Get pagination data from the response - check if it's the new paginated format
+  const pagination = !Array.isArray(moviesData) ? moviesData?.pagination : null;
+  const totalPages = pagination?.total_pages || 1;
   
   // Categories list with "All" option
   const categories = [
