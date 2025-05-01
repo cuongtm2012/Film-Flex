@@ -501,6 +501,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // Movie comments endpoints
+  router.get("/movies/:id/comments", async (req, res) => {
+    try {
+      const movieId = parseInt(req.params.id);
+      console.log(`GET /api/movies/${movieId}/comments`);
+      
+      // For now, we'll return sample comments
+      // In a real implementation, these would come from a database
+      const comments = [
+        {
+          id: 1,
+          movieId,
+          userId: 1,
+          username: "John Doe",
+          text: "This is an amazing movie! The cinematography and acting were outstanding. I would definitely recommend it to anyone who enjoys this genre.",
+          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          likes: 23,
+          userLiked: false
+        },
+        {
+          id: 2,
+          movieId,
+          userId: 2,
+          username: "Sarah Kim",
+          text: "I had high expectations for this one and it didn't disappoint. The plot twists kept me on the edge of my seat the entire time!",
+          createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          likes: 15,
+          userLiked: false
+        }
+      ];
+      
+      return res.json(comments);
+    } catch (error) {
+      console.error(`Error fetching movie comments: ${error}`);
+      return res.status(500).json({
+        message: "Error fetching movie comments",
+        error: String(error)
+      });
+    }
+  });
+  
+  router.post("/movies/:id/comments", async (req, res) => {
+    try {
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "You must be logged in to comment" });
+      }
+      
+      const movieId = parseInt(req.params.id);
+      const { text } = req.body;
+      
+      if (!text || typeof text !== 'string' || text.trim().length === 0) {
+        return res.status(400).json({ message: "Comment text is required" });
+      }
+      
+      console.log(`POST /api/movies/${movieId}/comments`);
+      
+      // In a real implementation, we would save this to the database
+      // For now, we'll just return a success response with the new comment
+      const newComment = {
+        id: Math.floor(Math.random() * 1000) + 3,
+        movieId,
+        userId: req.user.id,
+        username: req.user.username,
+        text,
+        createdAt: new Date().toISOString(),
+        likes: 0,
+        userLiked: false
+      };
+      
+      return res.status(201).json(newComment);
+    } catch (error) {
+      console.error(`Error adding movie comment: ${error}`);
+      return res.status(500).json({
+        message: "Error adding movie comment",
+        error: String(error)
+      });
+    }
+  });
+  
+  // Movie like/unlike endpoint
+  router.post("/movies/:id/like", async (req, res) => {
+    try {
+      // Check if user is authenticated
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "You must be logged in to like/unlike a movie" });
+      }
+      
+      const movieId = parseInt(req.params.id);
+      const { like } = req.body;
+      const userId = req.user.id;
+      
+      console.log(`POST /api/movies/${movieId}/like`, { userId, like });
+      
+      // In a real implementation, we would update the favorites in the database
+      // For now, we'll just return a success response
+      return res.json({
+        movieId,
+        userId,
+        liked: !!like
+      });
+    } catch (error) {
+      console.error(`Error updating movie like status: ${error}`);
+      return res.status(500).json({
+        message: "Error updating movie like status",
+        error: String(error)
+      });
+    }
+  });
 
   // Categories endpoint
   router.get("/categories", async (req, res) => {
