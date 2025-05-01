@@ -1199,8 +1199,8 @@ export class DatabaseStorage implements IStorage {
   ): Promise<ApiMovie[]> {
     console.log(`Getting API movies for category: ${categoryName} (limit: ${limit}, offset: ${offset})`);
     try {
-      // Use JSONB containment operator to check if the categories array contains the category name
-      const containsCategory = sql`${apiMovies.categories}::jsonb @> ${JSON.stringify([categoryName])}::jsonb`;
+      // Use array contains operator to check if the categories array contains the category name
+      const containsCategory = sql`${categoryName} = ANY(${apiMovies.categories})`;
       
       // Get API movies where categories contains the category name
       const result = await db
@@ -1225,8 +1225,8 @@ export class DatabaseStorage implements IStorage {
   async countApiMoviesByCategory(categoryName: string): Promise<number> {
     console.log(`Counting API movies for category: ${categoryName}`);
     try {
-      // Use JSONB containment operator to check if the categories array contains the category name
-      const containsCategory = sql`${apiMovies.categories}::jsonb @> ${JSON.stringify([categoryName])}::jsonb`;
+      // Use array contains operator to check if the categories array contains the category name
+      const containsCategory = sql`${categoryName} = ANY(${apiMovies.categories})`;
       
       // Count API movies where categories contains the category name
       const result = await db
