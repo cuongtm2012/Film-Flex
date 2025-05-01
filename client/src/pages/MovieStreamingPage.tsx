@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAccessibility } from '@/hooks/use-accessibility';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import {
   Pause, 
   Play,
@@ -20,8 +20,63 @@ import {
   Plus, 
   Heart,
   Info,
-  CornerUpRight
+  CornerUpRight,
+  ChevronUp,
+  Facebook,
+  Twitter,
+  Copy,
+  Alert,
+  CheckCircle
 } from 'lucide-react';
+
+// Define types for our movie data
+interface Episode {
+  name: string;
+  url: string;
+  index: number;
+}
+
+interface Server {
+  name: string;
+  episodes: Episode[];
+}
+
+interface ApiMovie {
+  id: number;
+  title: string;
+  slug: string;
+  description: string;
+  releaseYear: string;
+  duration: number;
+  posterUrl: string;
+  backdropUrl: string;
+  categories: string[];
+  status: string;
+  origin: string;
+  country: string;
+  type: string;
+  quality: string;
+  lang: string;
+  actors: string[];
+  director: string;
+  episodes: Server[];
+  embedUrl: string | null;
+  videoUrl: string | null;
+  videoSources?: {
+    url: string;
+    quality: string;
+    type: string;
+  }[];
+  isApiMovie: boolean;
+  viewCount: number;
+  likesCount: number;
+  imdbRating: number;
+  trailerUrl: string | null;
+  cast: string[];
+  genreIds: number[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 // Custom hook to handle keyboard shortcuts
 function useKeyboardShortcuts(handlers: {

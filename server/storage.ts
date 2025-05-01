@@ -12,7 +12,7 @@ import {
   type Category, type InsertCategory, type MovieCategory, type InsertMovieCategory
 } from "@shared/schema-categories";
 import { db } from "./db";
-import { eq, and, desc, asc, or, like, gte, lte, isNull, isNotNull, inArray, count, sql } from "drizzle-orm";
+import { eq, and, desc, asc, or, like, gte, lte, isNull, isNotNull, inArray, count, sql, ne } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import session from "express-session";
 import { pool } from "./db";
@@ -1006,7 +1006,7 @@ export class DatabaseStorage implements IStorage {
         .from(apiMovies)
         .where(
           and(
-            neq(apiMovies.id, currentMovieId),
+            ne(apiMovies.id, currentMovieId),
             eq(apiMovies.status, 'published')
           )
         )
@@ -1055,7 +1055,7 @@ export class DatabaseStorage implements IStorage {
       const regularMovies = await db
         .select()
         .from(movies)
-        .where(neq(movies.id, currentMovieId))
+        .where(ne(movies.id, currentMovieId))
         .limit(limit);
         
       return regularMovies;
