@@ -98,7 +98,7 @@ const MovieStreamingPage = () => {
   
   // Fetch movie data
   const { data: movie, isLoading, error, isError } = useQuery({
-    queryKey: [`/api/movie/${movieId}`],
+    queryKey: [`/api/movies/${movieId}`],
     staleTime: 30 * 1000,
   });
 
