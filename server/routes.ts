@@ -351,6 +351,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const episodesArray = Array.isArray(apiMovie.episodes) ? apiMovie.episodes : [];
         
+        // Extract the video/embed URL from the movie or episodes
+        const embedUrl = apiMovie.embedUrl || '';
+        const videoUrl = apiMovie.videoUrl || '';
+        
+        // Log debug information about the movie and episodes
+        console.log('API Movie raw data:', {
+          id: apiMovie.id,
+          title: apiMovie.title,
+          embedUrl: apiMovie.embedUrl,
+          videoUrl: apiMovie.videoUrl,
+          episodesCount: episodesArray.length,
+          hasEpisodeData: episodesArray.length > 0 && episodesArray[0]?.link_embed ? true : false
+        });
+        
         const responseMovie = {
           id: apiMovie.id + 10000,
           title: apiMovie.title || 'Unknown Title',
@@ -368,6 +382,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           imdbRating: apiMovie.imdbRating || 7.5,
           viewCount: 0,
           isApiMovie: true,
+          // Include the direct video URLs in the response
+          embedUrl: embedUrl,
+          videoUrl: videoUrl,
           episodes: episodesArray,
           createdAt: apiMovie.createdAt || new Date().toISOString(),
           updatedAt: apiMovie.updatedAt || new Date().toISOString()

@@ -316,6 +316,8 @@ const MovieStreamingPage = () => {
   // Load video source when movie data changes
   useEffect(() => {
     if (movie) {
+      console.log('Movie data loaded:', movie);
+      
       // Handle API movies differently
       if (movie.isApiMovie) {
         console.log('Loading API movie source:', movie.embedUrl || movie.videoUrl);
@@ -328,12 +330,17 @@ const MovieStreamingPage = () => {
         // If the movie has episodes, we'll set the source through the episode selection effect
         // Otherwise, use the default embedUrl
         if (!movie.episodes || !Array.isArray(movie.episodes) || movie.episodes.length === 0) {
-          setVideoSrc(movie.embedUrl || movie.videoUrl || '');
+          const sourceUrl = movie.embedUrl || movie.videoUrl || '';
+          console.log('Setting video source to:', sourceUrl);
+          setVideoSrc(sourceUrl);
         }
       } else {
         // Regular movies use the existing flow
         setIsEmbedSource(false);
-        getVideoSource().then(src => setVideoSrc(src));
+        getVideoSource().then(src => {
+          console.log('Regular movie source:', src);
+          setVideoSrc(src);
+        });
       }
     }
   }, [movie]);
@@ -342,6 +349,8 @@ const MovieStreamingPage = () => {
   useEffect(() => {
     if (movie?.isApiMovie && movie.episodes && Array.isArray(movie.episodes)) {
       try {
+        console.log('Processing episodes:', movie.episodes);
+        
         // The episodes data structure can be complex with servers and multiple episodes
         // We need to find the appropriate embed URL based on the selected server and episode
         let allEpisodes: any[] = [];
@@ -349,25 +358,57 @@ const MovieStreamingPage = () => {
         
         // PhimAPI format has servers with arrays of episodes
         if (movie.episodes.some((ep: any) => ep.server_name)) {
+          console.log('Episodes have server_name format', selectedServer);
           // Get the server based on selectedServer index
           const server = movie.episodes[selectedServer];
+          console.log('Selected server:', server);
+          
           if (server && server.server_data && Array.isArray(server.server_data)) {
             allEpisodes = server.server_data;
+            console.log('Server episodes:', allEpisodes);
+            
             if (allEpisodes[selectedEpisode]) {
               currentEpisodeUrl = allEpisodes[selectedEpisode].link_embed;
+              console.log('Found embed URL in server_data:', currentEpisodeUrl);
+            } else {
+              console.log('No episode found at index', selectedEpisode);
             }
+          } else {
+            console.log('Server data is invalid:', server);
           }
         } else if (Array.isArray(movie.episodes)) {
           // Simple array of episodes
+          console.log('Episodes as simple array');
           allEpisodes = movie.episodes;
-          if (allEpisodes[selectedEpisode] && allEpisodes[selectedEpisode].link_embed) {
-            currentEpisodeUrl = allEpisodes[selectedEpisode].link_embed;
+          if (allEpisodes[selectedEpisode]) {
+            console.log('Selected episode:', allEpisodes[selectedEpisode]);
+            if (allEpisodes[selectedEpisode].link_embed) {
+              currentEpisodeUrl = allEpisodes[selectedEpisode].link_embed;
+              console.log('Found embed URL in episode:', currentEpisodeUrl);
+            } else {
+              console.log('Episode has no link_embed property:', allEpisodes[selectedEpisode]);
+            }
+          } else {
+            console.log('No episode found at index', selectedEpisode);
           }
         }
         
         if (currentEpisodeUrl) {
           console.log(`Setting episode URL from server ${selectedServer}, episode ${selectedEpisode}:`, currentEpisodeUrl);
           setVideoSrc(currentEpisodeUrl);
+        } else {
+          console.warn('No valid embed URL found for current episode');
+          
+          // Try to use fallback from the movie object itself
+          if (movie.embedUrl) {
+            console.log('Using fallback embed URL from movie object:', movie.embedUrl);
+            setVideoSrc(movie.embedUrl);
+          } else if (movie.videoUrl) {
+            console.log('Using fallback video URL from movie object:', movie.videoUrl);
+            setVideoSrc(movie.videoUrl);
+          } else {
+            console.error('No valid video source found for movie:', movie.id);
+          }
         }
       } catch (error) {
         console.error('Error processing episodes:', error);
