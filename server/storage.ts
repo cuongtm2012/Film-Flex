@@ -12,7 +12,7 @@ import {
   type Category, type InsertCategory, type MovieCategory, type InsertMovieCategory
 } from "@shared/schema-categories";
 import { db } from "./db";
-import { eq, and, desc, asc, or, like, gte, lte, isNull, isNotNull, inArray, count } from "drizzle-orm";
+import { eq, and, desc, asc, or, like, gte, lte, isNull, isNotNull, inArray, count, sql } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import session from "express-session";
 import { pool } from "./db";

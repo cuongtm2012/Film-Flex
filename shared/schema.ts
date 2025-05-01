@@ -68,6 +68,8 @@ export const movies = pgTable("movies", {
   cast: text("cast").array(),
   imdbRating: text("imdb_rating"),
   viewCount: integer("view_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const insertMovieSchema = createInsertSchema(movies).pick({
@@ -86,6 +88,8 @@ export const insertMovieSchema = createInsertSchema(movies).pick({
   cast: true,
   imdbRating: true,
   viewCount: true,
+  createdAt: true,
+  updatedAt: true,
 }).partial({
   videoUrl: true,
   matchPercentage: true,
@@ -93,6 +97,8 @@ export const insertMovieSchema = createInsertSchema(movies).pick({
   cast: true,
   imdbRating: true,
   viewCount: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 // Favorites/watchlist model
