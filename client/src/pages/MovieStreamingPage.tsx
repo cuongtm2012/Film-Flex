@@ -436,6 +436,9 @@ const MovieStreamingPage = () => {
   // Track currently selected episode and server
   const [selectedEpisode, setSelectedEpisode] = useState(0);
   const [selectedServer, setSelectedServer] = useState(0);
+  // Track video loading and error states
+  const [videoError, setVideoError] = useState(false);
+  const [isLoadingVideo, setIsLoadingVideo] = useState(true);
   
   // Load video source when movie data changes
   useEffect(() => {
@@ -647,7 +650,42 @@ const MovieStreamingPage = () => {
             className="relative bg-black mb-4 rounded-lg overflow-hidden shadow-xl"
           >
             <div className="aspect-video w-full relative">
-              {isEmbedSource ? (
+              {isLoadingVideo && !videoError ? (
+                /* Loading state */
+                <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mx-auto mb-4"></div>
+                    <p className="text-white">Loading video...</p>
+                  </div>
+                </div>
+              ) : videoError ? (
+                /* Error state */
+                <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
+                  <div className="text-center p-6">
+                    <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold mb-2">Video Source Unavailable</h3>
+                    <p className="text-gray-400 mb-4">
+                      We couldn't load this video. Our team is working on fixing this issue.
+                    </p>
+                    <div className="flex flex-col space-y-3">
+                      <button 
+                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                        onClick={() => window.location.reload()}
+                      >
+                        <RefreshCw className="w-4 h-4 inline mr-2" />
+                        Refresh Player
+                      </button>
+                      <button 
+                        className="px-4 py-2 bg-zinc-700 text-white rounded-md hover:bg-zinc-600 transition-colors"
+                        onClick={() => setLocation('/')}
+                      >
+                        <ArrowLeft className="w-4 h-4 inline mr-2" />
+                        Return to Home
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : isEmbedSource ? (
                 /* Iframe for API movie embeds */
                 <iframe
                   src={videoSrc}
@@ -655,6 +693,12 @@ const MovieStreamingPage = () => {
                   allowFullScreen
                   referrerPolicy="no-referrer"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  onLoad={() => setIsLoadingVideo(false)}
+                  onError={() => {
+                    console.error("Iframe failed to load");
+                    setVideoError(true);
+                    setIsLoadingVideo(false);
+                  }}
                 ></iframe>
               ) : (
                 <>
@@ -670,6 +714,12 @@ const MovieStreamingPage = () => {
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
                     onEnded={() => setIsPlaying(false)}
+                    onLoadedData={() => setIsLoadingVideo(false)}
+                    onError={() => {
+                      console.error("Video failed to load");
+                      setVideoError(true);
+                      setIsLoadingVideo(false);
+                    }}
                   />
                   
                   {/* Subtitles overlay */}
