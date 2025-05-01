@@ -690,6 +690,48 @@ const MovieStreamingPage = () => {
             </div>
           </div>
           
+          {/* Episode Selection for API movies */}
+          {movie.isApiMovie && movie.episodes && Array.isArray(movie.episodes) && (
+            <div className="mb-6 bg-zinc-900 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold text-white mb-3">Episodes</h3>
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+                {(() => {
+                  // Get episodes from the correct data structure
+                  let episodeList: any[] = [];
+                  
+                  // Handle phimapi.com format with servers
+                  if (movie.episodes.some((ep: any) => ep.server_name)) {
+                    const firstServer = movie.episodes[0];
+                    if (firstServer && firstServer.server_data) {
+                      episodeList = firstServer.server_data;
+                    }
+                  } else if (Array.isArray(movie.episodes)) {
+                    episodeList = movie.episodes;
+                  }
+                  
+                  return episodeList.map((episode, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedEpisode(index)}
+                      className={`px-3 py-2 rounded text-center text-sm font-medium transition-colors ${
+                        selectedEpisode === index
+                          ? 'bg-red-600 text-white'
+                          : 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'
+                      }`}
+                    >
+                      <span className="flex items-center justify-center">
+                        {selectedEpisode === index && (
+                          <span className="mr-1 text-xs">▶</span>
+                        )}
+                        {episode.name || `Ep ${index + 1}`}
+                      </span>
+                    </button>
+                  ));
+                })()}
+              </div>
+            </div>
+          )}
+
           {/* Movie actions */}
           <div className="flex items-center justify-between mb-6 bg-zinc-900 p-4 rounded-lg">
             <div className="flex items-center space-x-6">
