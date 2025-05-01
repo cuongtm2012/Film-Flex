@@ -30,8 +30,9 @@ import AccessibilityControls from "@/components/AccessibilityControls";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={NewHomePage} />
-      <Route path="/old-home" component={Home} />
+      <Route path="/" component={HomePage} />
+      <Route path="/old-home" component={NewHomePage} />
+      <Route path="/legacy" component={Home} />
       <Route path="/movie/:id" component={MovieStreamingPage} />
       <Route path="/search" component={Search} />
       <Route path="/genre/:id" component={GenreMovies} />
