@@ -137,7 +137,35 @@ const HomePage = () => {
       
       const data = await response.json();
       console.log('Movie data received:', data);
-      return data;
+      
+      // Check if the response is already in paginated format (has data and pagination)
+      if (data && data.data && data.pagination) {
+        return data;
+      }
+      
+      // If it's an array, convert to paginated format
+      if (Array.isArray(data)) {
+        return {
+          data: data,
+          pagination: {
+            current_page: 1,
+            total_pages: 1,
+            total: data.length,
+            per_page: data.length
+          }
+        };
+      }
+      
+      // Fallback for unexpected format
+      return {
+        data: [],
+        pagination: {
+          current_page: 1,
+          total_pages: 1,
+          total: 0,
+          per_page: 50
+        }
+      };
     },
     staleTime: 60 * 1000, // Cache for 1 minute
   });
