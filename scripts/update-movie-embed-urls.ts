@@ -15,10 +15,11 @@ import { apiMovies } from '../shared/schema';
 import { eq, isNull } from 'drizzle-orm';
 import { fetchMovieDetail } from '../server/services/phimapi/client';
 import { processMovieDetail } from '../server/services/phimapi/processor';
+import { ApiMovieDetailResponse } from '../server/services/phimapi/types';
 import { storage } from '../server/storage';
 import { log } from '../server/vite';
 
-async function updateEmbedUrls(count: number = 50) {
+async function updateEmbedUrls(count: number = 50, concurrency: number = 5) {
   console.log(`Finding up to ${count} movies with null embedUrl...`);
   
   // Get movies with null embedUrl
@@ -38,46 +39,82 @@ async function updateEmbedUrls(count: number = 50) {
   let updatedCount = 0;
   let failedCount = 0;
   
-  for (const movie of moviesWithoutEmbed) {
-    try {
-      console.log(`Processing movie: ${movie.title} (ID: ${movie.id}, Slug: ${movie.slug})`);
-      
-      // Fetch detailed movie information
-      const movieDetailResponse = await fetchMovieDetail(movie.slug);
-      
-      if (!movieDetailResponse || !movieDetailResponse.movie) {
-        console.log(`No details found for movie: ${movie.title}`);
-        failedCount++;
-        continue;
-      }
-      
-      // Process movie detail
-      const processedMovie = processMovieDetail(movieDetailResponse.movie, movieDetailResponse.episodes);
-      
-      // Check if we found an embedUrl
-      if (!processedMovie.embedUrl) {
-        console.log(`No embedUrl found for movie: ${movie.title}`);
-        failedCount++;
-        continue;
-      }
-      
-      // Update the movie with the new embedUrl
-      await storage.updateApiMovie(movie.id, {
-        embedUrl: processedMovie.embedUrl,
-        updatedAt: new Date(),
-        lastCheckedAt: new Date()
-      });
-      
-      console.log(`Updated embedUrl for movie: ${movie.title}`);
-      console.log(`New embedUrl: ${processedMovie.embedUrl}`);
-      updatedCount++;
-      
-      // Add a small delay to avoid overwhelming the API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-    } catch (error: any) {
-      console.error(`Error updating movie ${movie.title}: ${error.message}`);
-      failedCount++;
+  // Process movies in batches for better performance
+  const processBatch = async (batch: typeof moviesWithoutEmbed) => {
+    const results = await Promise.all(
+      batch.map(async (movie) => {
+        try {
+          console.log(`Processing movie: ${movie.title} (ID: ${movie.id}, Slug: ${movie.slug})`);
+          
+          // Fetch detailed movie information
+          const movieDetailResponse = await fetchMovieDetail(movie.slug);
+          
+          if (!movieDetailResponse || !movieDetailResponse.movie) {
+            console.log(`No details found for movie: ${movie.title}`);
+            return { success: false, movie };
+          }
+          
+          // Process movie detail
+          const processedMovie = processMovieDetail(
+            movieDetailResponse.movie, 
+            // Check if episodes exist in the response
+            'episodes' in movieDetailResponse ? movieDetailResponse.episodes : undefined
+          );
+          
+          // Check if we found an embedUrl
+          if (!processedMovie.embedUrl) {
+            console.log(`No embedUrl found for movie: ${movie.title}`);
+            return { success: false, movie };
+          }
+          
+          // Update the movie with the new embedUrl
+          await storage.updateApiMovie(movie.id, {
+            embedUrl: processedMovie.embedUrl,
+            updatedAt: new Date(),
+            lastCheckedAt: new Date()
+          });
+          
+          console.log(`Updated embedUrl for movie: ${movie.title}`);
+          console.log(`New embedUrl: ${processedMovie.embedUrl}`);
+          
+          return { success: true, movie, embedUrl: processedMovie.embedUrl };
+        } catch (error: any) {
+          console.error(`Error updating movie ${movie.title}: ${error.message}`);
+          return { success: false, movie, error: error.message };
+        }
+      })
+    );
+    
+    return results;
+  };
+  
+  // Split the movies into batches based on concurrency
+  const batches = [];
+  for (let i = 0; i < moviesWithoutEmbed.length; i += concurrency) {
+    batches.push(moviesWithoutEmbed.slice(i, i + concurrency));
+  }
+  
+  console.log(`Processing ${batches.length} batches with concurrency of ${concurrency}...`);
+  
+  // Process each batch sequentially
+  for (const [index, batch] of batches.entries()) {
+    console.log(`Processing batch ${index + 1}/${batches.length} with ${batch.length} movies...`);
+    
+    const results = await processBatch(batch);
+    
+    // Count successes and failures
+    const batchSuccesses = results.filter(r => r.success).length;
+    const batchFailures = results.filter(r => !r.success).length;
+    
+    updatedCount += batchSuccesses;
+    failedCount += batchFailures;
+    
+    console.log(`Batch ${index + 1} complete: ${batchSuccesses} successes, ${batchFailures} failures`);
+    
+    // Short delay between batches to avoid overloading the API
+    if (index < batches.length - 1) {
+      console.log(`Waiting 5 seconds before next batch...`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
   }
   
