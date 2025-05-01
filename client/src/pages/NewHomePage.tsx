@@ -231,6 +231,8 @@ interface MovieWithPagination {
   totalPages: number;
 }
 
+
+
 // Main component
 const NewHomePage = () => {
   const { t } = useLanguage();
@@ -253,24 +255,28 @@ const NewHomePage = () => {
   };
   
   // Fetch movies from API
-  const { data: moviesData, isLoading: isMoviesLoading } = useQuery<MovieWithPagination>({
+  const { data: moviesData, isLoading: isMoviesLoading } = useQuery<Movie[]>({
     queryKey: [
       '/api/movies',
       selectedCategory,
       currentPage
     ],
     queryFn: async () => {
-      const response = await fetch(
-        selectedCategory === 'all'
-          ? `${API_BASE_URL}/movies?source=all&page=${currentPage}`
-          : `${API_BASE_URL}/categories/${selectedCategory}/movies?page=${currentPage}`
-      );
+      console.log(`Fetching movies: category=${selectedCategory}, page=${currentPage}`);
+      const url = selectedCategory === 'all'
+        ? `${API_BASE_URL}/movies?source=all&page=${currentPage}`
+        : `${API_BASE_URL}/categories/${selectedCategory}/movies?page=${currentPage}`;
+      
+      console.log(`API URL: ${url}`);
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error('Failed to fetch movies');
       }
       
-      return response.json();
+      const data = await response.json();
+      console.log('Movie data received:', data);
+      return data;
     },
     staleTime: 60 * 1000, // Cache for 1 minute
   });
@@ -278,11 +284,11 @@ const NewHomePage = () => {
   // Combined loading state
   const isLoading = isMoviesLoading || isCategoriesLoading;
   
-  // Total pages from API response or default to 1
-  const totalPages = moviesData?.totalPages || 1;
+  // Get movies from the response or empty array - since the API returns an array directly
+  const movies = moviesData || [];
   
-  // Get movies from the response or empty array
-  const movies = moviesData?.movies || [];
+  // Fixed number of pages for now - we can enhance this later with proper pagination from API
+  const totalPages = 10;
   
   // Categories list with "All" option
   const categories = [
