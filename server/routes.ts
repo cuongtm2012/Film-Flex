@@ -386,6 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           embedUrl: embedUrl,
           videoUrl: videoUrl,
           episodes: episodesArray,
+          categories: categories,
           createdAt: apiMovie.createdAt || new Date().toISOString(),
           updatedAt: apiMovie.updatedAt || new Date().toISOString()
         };
@@ -406,6 +407,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error(`Error fetching movie details: ${error}`);
       return res.status(500).json({ 
         message: "Error fetching movie details", 
+        error: String(error) 
+      });
+    }
+  });
+  
+  // Recommended movies endpoint
+  router.get("/movies/:id/recommendations", async (req, res) => {
+    try {
+      const movieId = parseInt(req.params.id);
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 6;
+      console.log(`GET /api/movies/${movieId}/recommendations`);
+      
+      // First get the movie to find its categories/genres
+      let categories: string[] = [];
+      let isApiMovie = false;
+      
+      // Check if this is an API movie ID (has ID > 10000)
+      if (movieId > 10000) {
+        const apiMovieId = movieId - 10000;
+        const apiMovie = await storage.getApiMovieById(apiMovieId);
+        
+        if (apiMovie) {
+          isApiMovie = true;
+          categories = Array.isArray(apiMovie.categories) ? apiMovie.categories : [];
+        }
+      } else {
+        // For regular movies, use genres
+        const movie = await storage.getMovieById(movieId);
+        if (movie && Array.isArray(movie.genreIds)) {
+          // Convert genre IDs to names for consistency with API movie categories
+          const genreIdToName: Record<number, string> = {
+            1: "Action",
+            2: "Adventure",
+            3: "Comedy",
+            4: "Drama",
+            5: "Horror",
+            6: "Science Fiction",
+            7: "Thriller",
+            8: "Documentary",
+            9: "Animation"
+          };
+          
+          categories = movie.genreIds.map(id => genreIdToName[id] || "").filter(Boolean);
+        }
+      }
+      
+      // If we have categories, find similar movies
+      if (categories.length > 0) {
+        console.log(`Finding recommendations based on categories: ${categories.join(', ')}`);
+        
+        // For API movies, get other API movies with the same categories
+        if (isApiMovie) {
+          const recommendedMovies = await storage.getApiMovieRecommendations(movieId - 10000, categories, limit);
+          
+          // Transform API movies to include the full ID for frontend use
+          const responseMovies = recommendedMovies.map(movie => ({
+            ...movie,
+            id: movie.id + 10000,
+            isApiMovie: true
+          }));
+          
+          return res.json(responseMovies);
+        } else {
+          // For regular movies, we would get regular movie recommendations
+          // But for simplicity, we'll just return some movies from the same genre
+          const recommendedMovies = await storage.getRecommendedMovies(movieId, limit);
+          return res.json(recommendedMovies);
+        }
+      } else {
+        // If no categories, just get recent movies
+        if (isApiMovie) {
+          const recentMovies = await storage.getRecentApiMovies(limit);
+          
+          // Transform API movies to include the full ID for frontend use
+          const responseMovies = recentMovies.map(movie => ({
+            ...movie,
+            id: movie.id + 10000,
+            isApiMovie: true
+          }));
+          
+          return res.json(responseMovies);
+        } else {
+          const recentMovies = await storage.getRecentMovies(limit);
+          return res.json(recentMovies);
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching movie recommendations: ${error}`);
+      return res.status(500).json({ 
+        message: "Error fetching movie recommendations", 
         error: String(error) 
       });
     }

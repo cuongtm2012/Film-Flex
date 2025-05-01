@@ -997,6 +997,90 @@ export class DatabaseStorage implements IStorage {
     return results[0];
   }
   
+  // Get API movie recommendations based on categories
+  async getApiMovieRecommendations(currentMovieId: number, categories: string[], limit: number = 6): Promise<ApiMovie[]> {
+    try {
+      // Get movies that have at least one matching category and are published
+      const movies = await db
+        .select()
+        .from(apiMovies)
+        .where(
+          and(
+            neq(apiMovies.id, currentMovieId),
+            eq(apiMovies.status, 'published')
+          )
+        )
+        .limit(limit * 2);
+      
+      // Filter movies that have at least one matching category
+      const moviesWithCategories = movies.filter(movie => {
+        if (!movie.categories || !Array.isArray(movie.categories)) return false;
+        
+        // Check if any of the movie's categories match the input categories
+        return movie.categories.some((category: string) => 
+          categories.includes(category)
+        );
+      });
+      
+      // Return limited number of results, preferring movies with matching categories
+      return moviesWithCategories.length > 0 
+        ? moviesWithCategories.slice(0, limit) 
+        : movies.slice(0, limit);
+    } catch (error) {
+      console.error('Error getting API movie recommendations:', error);
+      return [];
+    }
+  }
+
+  // Get latest API movies
+  async getRecentApiMovies(limit: number = 6): Promise<ApiMovie[]> {
+    try {
+      const movies = await db
+        .select()
+        .from(apiMovies)
+        .where(eq(apiMovies.status, 'published'))
+        .orderBy(desc(apiMovies.id))
+        .limit(limit);
+        
+      return movies;
+    } catch (error) {
+      console.error('Error getting recent API movies:', error);
+      return [];
+    }
+  }
+  
+  // Get recommended movies (for regular movies, non-API)
+  async getRecommendedMovies(currentMovieId: number, limit: number = 6): Promise<any[]> {
+    try {
+      const regularMovies = await db
+        .select()
+        .from(movies)
+        .where(neq(movies.id, currentMovieId))
+        .limit(limit);
+        
+      return regularMovies;
+    } catch (error) {
+      console.error('Error getting recommended movies:', error);
+      return [];
+    }
+  }
+  
+  // Get recent regular movies
+  async getRecentMovies(limit: number = 6): Promise<any[]> {
+    try {
+      const recentMovies = await db
+        .select()
+        .from(movies)
+        .orderBy(desc(movies.createdAt))
+        .limit(limit);
+        
+      return recentMovies;
+    } catch (error) {
+      console.error('Error getting recent movies:', error);
+      return [];
+    }
+  }
+  
   async getCategoriesByMovieId(movieId: number, movieType: 'regular' | 'api' = 'api'): Promise<Category[]> {
     // Get all categories linked to this movie via the movie_categories junction table
     const results = await db
